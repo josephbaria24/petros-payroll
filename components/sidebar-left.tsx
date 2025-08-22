@@ -10,6 +10,7 @@ import {
   Settings2,
   Calculator,
   MessageCircleQuestion,
+  Moon,
 } from "lucide-react"
 
 import { usePathname } from "next/navigation"
@@ -24,7 +25,9 @@ import {
   SidebarContent,
   SidebarHeader,
   SidebarRail,
+  SidebarTrigger,
 } from "@/components/ui/sidebar"
+import { ModeToggle } from "./mode-toggle"
 
 const baseData = {
   teams: [
@@ -67,11 +70,7 @@ const baseData = {
     },
   ],
   navSecondary: [
-    {
-      title: "Settings",
-      url: "/settings",
-      icon: Settings2,
-    },
+
     {
       title: "Help",
       url: "/help",
@@ -97,17 +96,26 @@ export function SidebarLeft({ ...props }: React.ComponentProps<typeof Sidebar>) 
   }))
 
   return (
-    <Sidebar className="border-r-0" {...props}>
+    <Sidebar className="border-0 " {...props}>
       <SidebarHeader>
         <TeamSwitcher teams={baseData.teams} />
         <NavMain items={navMain} />
       </SidebarHeader>
       <SidebarContent>
-        <NavFavorites favorites={baseData.favorites} />
-        <NavWorkspaces workspaces={baseData.workspaces} />
+
+        
         <NavSecondary items={navSecondary} className="mt-auto" />
+        
+{/* Dark Mode Switch styled like a menu item */}
+<div className="mt-2 px-4 py-2 flex items-center gap-2 text-sm text-muted-foreground">
+
+  <span className="flex-1">Dark Mode</span>
+  <ModeToggle />
+</div>
       </SidebarContent>
       <SidebarRail />
+
+
     </Sidebar>
   )
 }
