@@ -19,6 +19,8 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage } from "@/components/ui/breadcrumb"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { MoreHorizontal } from "lucide-react"
 
 export default function EmployeesPage() {
   const [data, setData] = useState<Employee[]>([])
@@ -145,23 +147,49 @@ export default function EmployeesPage() {
     setOpen(true)
   }
   
+  const actionColumn = {
+    id: "actions",
+    cell: ({ row }: { row: any }) => {
+      const emp = row.original
+      return (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="h-8 w-8 p-0">
+              <MoreHorizontal />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+            <DropdownMenuItem onClick={() => navigator.clipboard.writeText(emp.id)}>
+              Copy ID
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => handleRowClick(emp)}>Edit</DropdownMenuItem>
+            <DropdownMenuItem className="text-red-600">Delete</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )
+    },
+  }
+  
   
   return (
     <div className="py-0">
-      <div className="flex items-center justify-between mb-4">
-      <header className="bg-background sticky top-0 flex h-14 shrink-0 items-center gap-2 px-3">
+    <header className="bg-background sticky top-0 flex h-14 shrink-0 items-center gap-2 px-3">
        
-        <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbPage className="line-clamp-1">
-                Employees management
-              </BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-      </header>
+       <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />
+       <Breadcrumb>
+         <BreadcrumbList>
+           <BreadcrumbItem>
+             <BreadcrumbPage className="line-clamp-1">
+               Employees management
+             </BreadcrumbPage>
+           </BreadcrumbItem>
+         </BreadcrumbList>
+       </Breadcrumb>
+     </header>
+      <div className="flex items-center justify-between mb-4">
+
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button>Add Employee</Button>
@@ -343,7 +371,19 @@ export default function EmployeesPage() {
           </DialogContent>
         </Dialog>
       </div>
-      {loading ? <p>Loading...</p> : <DataTable columns={columns} data={data} onRowClick={handleRowClick} />}
+      {loading ? (
+      <p>Loading...</p>
+    ) : (
+      <DataTable
+        data={data}
+        columns={columns.map((col) =>
+          col.id === "actions"
+            ? { ...col, meta: { onEdit: handleRowClick } }
+            : col
+        )}
+      />
+    )}
+
     </div>
   )
 }

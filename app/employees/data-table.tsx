@@ -38,11 +38,13 @@ interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
   data: TData[]
   onRowClick?: (row: TData) => void
+  onEdit?: (row: TData) => void
 }
 
 export function DataTable<TData, TValue>({
   columns,
   data,
+  onEdit,
 }: DataTableProps<TData, TValue>) {
   // ✅ Explicit types here
   const [sorting, setSorting] = React.useState<SortingState>([])
@@ -130,7 +132,8 @@ export function DataTable<TData, TValue>({
             <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
               {row.getVisibleCells().map((cell) => (
                 <TableCell key={cell.id}>
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+{               flexRender(cell.column.columnDef.cell, { ...cell.getContext(), onEdit  })}
+
                 </TableCell>
               ))}
             </TableRow>

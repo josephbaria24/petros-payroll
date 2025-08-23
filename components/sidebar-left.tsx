@@ -107,7 +107,7 @@ export function SidebarLeft({ ...props }: React.ComponentProps<typeof Sidebar>) 
         <NavSecondary items={navSecondary} className="mt-auto" />
         
 {/* Dark Mode Switch styled like a menu item */}
-<div className="mt-2 px-4 py-2 flex items-center gap-2 text-sm text-muted-foreground">
+<div className="mt-2 px-4 py-6 flex items-center gap-2 text-sm text-muted-foreground">
 
   <span className="flex-1">Dark Mode</span>
   <ModeToggle />

@@ -32,6 +32,11 @@ export type Employee = {
   created_at: string
 }
 
+declare module '@tanstack/react-table' {
+  interface ColumnMeta<TData extends unknown, TValue> {
+    onEdit?: (emp: Employee) => void;
+  }
+}
 // Define columns for employee table
 export const columns: ColumnDef<Employee>[] = [
   { accessorKey: "employee_code", header: "ID" },
@@ -83,8 +88,9 @@ export const columns: ColumnDef<Employee>[] = [
   { accessorKey: "leave_credits", header: "Leave Credits" },
   {
     id: "actions",
-    cell: ({ row }) => {
+    cell: ({ row, column }) => {
       const emp = row.original
+      const onEdit = column.columnDef.meta?.onEdit as ((emp: Employee) => void) | undefined
       return (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -94,17 +100,16 @@ export const columns: ColumnDef<Employee>[] = [
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem
-              onClick={() => navigator.clipboard.writeText(emp.id)}
-            >
+            <DropdownMenuItem onClick={() => navigator.clipboard.writeText(emp.id)}>
               Copy ID
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>Edit</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onEdit?.(emp)}>Edit</DropdownMenuItem>
             <DropdownMenuItem className="text-red-600">Delete</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       )
     },
-  },
+  }
+  
 ]
