@@ -174,7 +174,7 @@ export default function EmployeesPage() {
   
   
   return (
-    <div className="py-0">
+    <div className="py-0 pr-4 ">
     <header className="bg-background sticky top-0 flex h-14 shrink-0 items-center gap-2 px-3">
        
        <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />

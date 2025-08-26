@@ -1,6 +1,4 @@
-PetroBot said:
 
-Got it 👍
 Here’s a short PAYROLL_CHEATSHEET.md — minimal but enough to restore context quickly.
 
 📝 Payroll System – Quick Cheat Sheet

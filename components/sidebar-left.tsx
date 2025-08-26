@@ -11,9 +11,10 @@ import {
   Calculator,
   MessageCircleQuestion,
   Moon,
+  LogOut,
 } from "lucide-react"
 
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 
 import { NavFavorites } from "@/components/nav-favorites"
 import { NavMain } from "@/components/nav-main"
@@ -28,6 +29,8 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar"
 import { ModeToggle } from "./mode-toggle"
+import { Button } from "@/components/ui/button"
+import { supabase } from "@/lib/supabaseClient"
 
 const baseData = {
   teams: [
@@ -70,7 +73,6 @@ const baseData = {
     },
   ],
   navSecondary: [
-
     {
       title: "Help",
       url: "/help",
@@ -83,8 +85,13 @@ const baseData = {
 
 export function SidebarLeft({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
+  const router = useRouter()
 
-  // Mark active item based on current pathname
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    router.push("/login")
+  }
+
   const navMain = baseData.navMain.map((item) => ({
     ...item,
     isActive: pathname.startsWith(item.url),
@@ -96,26 +103,36 @@ export function SidebarLeft({ ...props }: React.ComponentProps<typeof Sidebar>) 
   }))
 
   return (
-    <Sidebar className="border-0 " {...props}>
+    <Sidebar className="border-0" {...props}>
       <SidebarHeader>
         <TeamSwitcher teams={baseData.teams} />
         <NavMain items={navMain} />
       </SidebarHeader>
+
       <SidebarContent>
-
-        
         <NavSecondary items={navSecondary} className="mt-auto" />
-        
-{/* Dark Mode Switch styled like a menu item */}
-<div className="mt-2 px-4 py-6 flex items-center gap-2 text-sm text-muted-foreground">
 
-  <span className="flex-1">Dark Mode</span>
-  <ModeToggle />
-</div>
+        {/* Dark Mode Toggle */}
+        <div className="mt-2 px-4 py-6 flex items-center gap-2 text-sm text-muted-foreground">
+          <span className="flex-1">Dark Mode</span>
+          <ModeToggle />
+        </div>
+
+        {/* Logout Button */}
+        <div className="px-1 pb-6 ">
+          <Button
+            variant="ghost"
+            className="w-full justify-start text-sm text-muted-foreground hover:text-foreground"
+            onClick={handleLogout}
+            
+          >
+            <LogOut className="mr-2 h-4 w-4 cursor-pointer" />
+            Logout
+          </Button>
+        </div>
       </SidebarContent>
+
       <SidebarRail />
-
-
     </Sidebar>
   )
 }
