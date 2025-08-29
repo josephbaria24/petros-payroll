@@ -1,9 +1,10 @@
 //columns.tsx
 "use client"
-
+import { toast } from "sonner"
 import { ColumnDef } from "@tanstack/react-table"
 import { Button } from "@/components/ui/button"
 import { ArrowUpDown, MoreHorizontal } from "lucide-react"
+import React from "react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,6 +13,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog"
 
 export type Employee = {
   id: string
@@ -35,6 +48,7 @@ export type Employee = {
 declare module '@tanstack/react-table' {
   interface ColumnMeta<TData extends unknown, TValue> {
     onEdit?: (emp: Employee) => void;
+    onDelete?: (id: string) => void; 
   }
 }
 // Define columns for employee table
@@ -86,30 +100,75 @@ export const columns: ColumnDef<Employee>[] = [
   { accessorKey: "shift", header: "Shift" },
   { accessorKey: "hours_per_week", header: "Hours/Week" },
   { accessorKey: "leave_credits", header: "Leave Credits" },
+
   {
     id: "actions",
     cell: ({ row, column }) => {
       const emp = row.original
       const onEdit = column.columnDef.meta?.onEdit as ((emp: Employee) => void) | undefined
+      const onDelete = column.columnDef.meta?.onDelete as ((id: string) => void) | undefined
+  
+      const [open, setOpen] = React.useState(false)
+  
       return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
-              <MoreHorizontal />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem onClick={() => navigator.clipboard.writeText(emp.id)}>
-              Copy ID
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => onEdit?.(emp)}>Edit</DropdownMenuItem>
-            <DropdownMenuItem className="text-red-600">Delete</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-8 w-8 p-0">
+                <MoreHorizontal />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => navigator.clipboard.writeText(emp.id)}>
+                Copy ID
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => {
+                  toast.info(`Editing ${emp.full_name}`)
+                  onEdit?.(emp)
+                }}
+              >
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="text-red-600"
+                onClick={() => setOpen(true)} // <-- Open the AlertDialog
+              >
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+  
+          {/* Moved outside */}
+          <AlertDialog open={open} onOpenChange={setOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action cannot be undone. This will permanently delete{" "}
+                  <span className="font-semibold">{emp.full_name}</span>'s record.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => {
+                    onDelete?.(emp.id)
+                    toast.success(`${emp.full_name} has been deleted`)
+                    setOpen(false)
+                  }}
+                >
+                  Yes, Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </>
       )
     },
   }
+  
   
 ]

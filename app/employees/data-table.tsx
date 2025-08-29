@@ -39,13 +39,19 @@ interface DataTableProps<TData, TValue> {
   data: TData[]
   onRowClick?: (row: TData) => void
   onEdit?: (row: TData) => void
+  onDelete?: (id: string) => void // <-- Add this line
 }
 
+
 export function DataTable<TData, TValue>({
+  
   columns,
   data,
   onEdit,
+  onDelete,
 }: DataTableProps<TData, TValue>) {
+
+  
   // ✅ Explicit types here
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
@@ -132,7 +138,7 @@ export function DataTable<TData, TValue>({
             <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
               {row.getVisibleCells().map((cell) => (
                 <TableCell key={cell.id}>
-{               flexRender(cell.column.columnDef.cell, { ...cell.getContext(), onEdit  })}
+{               flexRender(cell.column.columnDef.cell, { ...cell.getContext(), onEdit, onDelete  })}
 
                 </TableCell>
               ))}

@@ -1,4 +1,4 @@
-// EmployeesPage.tsx
+// employees/page.tsx
 
 "use client"
 
@@ -82,7 +82,19 @@ export default function EmployeesPage() {
     leave_credits: "0",
   }
   
-
+  async function handleDelete(id: string) {
+    const confirmDelete = window.confirm("Are you sure you want to delete this employee?");
+    if (!confirmDelete) return;
+  
+    const { error } = await supabase.from("employees").delete().eq("id", id);
+  
+    if (error) {
+      console.error("Error deleting employee:", error.message);
+    } else {
+      fetchEmployees(); // refresh data
+    }
+  }
+  
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
   
@@ -96,12 +108,13 @@ export default function EmployeesPage() {
       sss: form.sss || null,
       philhealth: form.philhealth || null,
       pagibig: form.pagibig || null,
-      base_salary: parseFloat(form.base_salary),
+      base_salary: adjustedSalary,
       pay_type: form.pay_type,
       shift: form.shift,
       hours_per_week: form.hours_per_week ? parseInt(form.hours_per_week) : null,
       leave_credits: form.leave_credits ? parseFloat(form.leave_credits) : 0,
     }
+    
   
     let error
   
@@ -172,6 +185,11 @@ export default function EmployeesPage() {
         </DropdownMenu>
       )
     },
+  }
+  
+  let adjustedSalary = parseFloat(form.base_salary)
+  if (!isEditing && form.pay_type === "semi-monthly") {
+    adjustedSalary = adjustedSalary / 2
   }
   
   
@@ -327,22 +345,33 @@ export default function EmployeesPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="monthly">Monthly</SelectItem>
-                    <SelectItem value="daily">Daily</SelectItem>
-                    <SelectItem value="hourly">Hourly</SelectItem>
+                    <SelectItem value="semi-monthly">15 Days</SelectItem>
                   </SelectContent>
+
+
                 </Select>
 
               </div>
 
-              {/* Shift */}
-              <div>
-                <Label htmlFor="shift">Shift</Label>
-                <Input
-                  id="shift"
-                  value={form.shift}
-                  onChange={(e) => setForm({ ...form, shift: e.target.value })}
-                />
-              </div>
+            {/* Shift */}
+            <div>
+              <Label htmlFor="shift">Shift</Label>
+              <Select
+                value={form.shift}
+                onValueChange={(v: string) => setForm({ ...form, shift: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select shift" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Regular Day">Regular Day</SelectItem>
+                  <SelectItem value="Night Shift">Night Shift</SelectItem>
+                  <SelectItem value="Graveyard">Graveyard</SelectItem>
+                  <SelectItem value="Split Shift">Split Shift</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
 
               {/* Hours per Week */}
               <div>
@@ -376,14 +405,18 @@ export default function EmployeesPage() {
       {loading ? (
       <p>Loading...</p>
     ) : (
-      <DataTable
-        data={data}
-        columns={columns.map((col) =>
-          col.id === "actions"
-            ? { ...col, meta: { onEdit: handleRowClick } }
-            : col
-        )}
-      />
+        <DataTable
+          data={data}
+          columns={columns.map((col) =>
+            col.id === "actions"
+              ? { ...col, meta: { onEdit: handleRowClick, onDelete: handleDelete } }
+              : col
+          )}
+          onEdit={handleRowClick}
+          onDelete={handleDelete}
+        />
+
+
     )}
 
     </div>

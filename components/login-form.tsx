@@ -51,7 +51,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
       .eq("id", data.user.id)
       .single()
 
-    if (profile?.role === "admin" || profile?.role === "super_admin") {
+    if (profile?.role === "admin" || profile?.role === "hr") {
       router.push("/dashboard")
     } else {
       router.push("/unauthorized")
@@ -67,14 +67,16 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "azure",
       options: {
-        redirectTo:
-          process.env.NODE_ENV === "development"
-            ? "http://localhost:3000/dashboard"
-            : "https://payroll.petrosphere.com/dashboard",
-        scopes: "openid profile email offline_access User.Read",
+         // or simply:
+      redirectTo: `${window.location.origin}/dashboard` 
+        // redirectTo:
+        //   process.env.NODE_ENV === "development"
+        //     ? "http://localhost:3000/"
+        //     : "https://payroll.petrosphere.com/",
+        // scopes: "openid profile email offline_access User.Read",
       },
     })
-
+     
     if (error) {
       setError(error.message)
       setLoading(false)
