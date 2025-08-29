@@ -105,70 +105,80 @@ export const columns: ColumnDef<Employee>[] = [
     id: "actions",
     cell: ({ row, column }) => {
       const emp = row.original
-      const onEdit = column.columnDef.meta?.onEdit as ((emp: Employee) => void) | undefined
-      const onDelete = column.columnDef.meta?.onDelete as ((id: string) => void) | undefined
+      const onEdit = column.columnDef.meta?.onEdit
+      const onDelete = column.columnDef.meta?.onDelete
   
-      const [open, setOpen] = React.useState(false)
-  
-      return (
-        <>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 p-0">
-                <MoreHorizontal />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => navigator.clipboard.writeText(emp.id)}>
-                Copy ID
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => {
-                  toast.info(`Editing ${emp.full_name}`)
-                  onEdit?.(emp)
-                }}
-              >
-                Edit
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className="text-red-600"
-                onClick={() => setOpen(true)} // <-- Open the AlertDialog
-              >
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-  
-          {/* Moved outside */}
-          <AlertDialog open={open} onOpenChange={setOpen}>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This action cannot be undone. This will permanently delete{" "}
-                  <span className="font-semibold">{emp.full_name}</span>'s record.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={() => {
-                    onDelete?.(emp.id)
-                    toast.success(`${emp.full_name} has been deleted`)
-                    setOpen(false)
-                  }}
-                >
-                  Yes, Delete
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </>
-      )
+      return <EmployeeActions emp={emp} onEdit={onEdit} onDelete={onDelete} />
     },
   }
   
   
 ]
+function EmployeeActions({
+  emp,
+  onEdit,
+  onDelete,
+}: {
+  emp: Employee
+  onEdit?: (emp: Employee) => void
+  onDelete?: (id: string) => void
+}) {
+  const [open, setOpen] = React.useState(false)
+
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" className="h-8 w-8 p-0">
+            <MoreHorizontal />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+          <DropdownMenuItem onClick={() => navigator.clipboard.writeText(emp.id)}>
+            Copy ID
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={() => {
+              toast.info(`Editing ${emp.full_name}`)
+              onEdit?.(emp)
+            }}
+          >
+            Edit
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className="text-red-600"
+            onClick={() => setOpen(true)}
+          >
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <AlertDialog open={open} onOpenChange={setOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete{" "}
+              <span className="font-semibold">{emp.full_name}</span>'s record.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                onDelete?.(emp.id)
+                toast.success(`${emp.full_name} has been deleted`)
+                setOpen(false)
+              }}
+            >
+              Yes, Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  )
+}
