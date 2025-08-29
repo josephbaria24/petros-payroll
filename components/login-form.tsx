@@ -54,7 +54,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
     if (profile?.role === "admin" || profile?.role === "hr") {
       router.push("/dashboard")
     } else {
-      router.push("/unauthorized")
+      router.push("/my-payroll")
     }
 
     setLoading(false)
