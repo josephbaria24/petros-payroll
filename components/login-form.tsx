@@ -1,3 +1,5 @@
+//components\login-form.tsx
+
 "use client"
 
 import { useEffect, useState } from "react"
@@ -75,7 +77,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
       .eq("id", data.user.id)
       .single()
 
-      
+
       if (profile?.role === "employee") {
         router.push("/my-payroll")
       }

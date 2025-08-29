@@ -30,6 +30,7 @@ export type Employee = {
   id: string
   employee_code: string
   full_name: string
+  email: string  
   position: string | null
   department: string | null
   employment_status: "Regular" | "Probationary" | "Project-based" | "Contractual"
@@ -65,6 +66,19 @@ export const columns: ColumnDef<Employee>[] = [
       </Button>
     ),
     
+  },
+  {
+    accessorKey: "email",                   // <-- new column
+    header: ({ column }) => (
+      <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+        Email <ArrowUpDown />
+      </Button>
+    ),
+    cell: ({ row }) => (
+      <span className="max-w-[220px] truncate inline-block">
+        {row.getValue("email") as string}
+      </span>
+    ),
   },
   {
     accessorKey: "position",

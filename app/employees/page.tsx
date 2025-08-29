@@ -29,12 +29,16 @@ export default function EmployeesPage() {
   const [loading, setLoading] = useState(true)
   const [isEditing, setIsEditing] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [emailSuggestions, setEmailSuggestions] = useState<{ full_name: string; corp_email: string }[]>([])
 
+
+  
 
   // form state
   const [form, setForm] = useState({
     employee_code: "",
     full_name: "",
+    email: "",
     position: "",
     department: "",
     employment_status: "Regular",
@@ -68,6 +72,7 @@ export default function EmployeesPage() {
   const initialForm = {
     employee_code: "",
     full_name: "",
+    email: "",
     position: "",
     department: "",
     employment_status: "Regular",
@@ -101,6 +106,7 @@ export default function EmployeesPage() {
     const payload = {
       employee_code: form.employee_code,
       full_name: form.full_name,
+      email: form.email.trim().toLowerCase(),
       position: form.position || null,
       department: form.department || null,
       employment_status: form.employment_status,
@@ -139,11 +145,23 @@ export default function EmployeesPage() {
       fetchEmployees()
     }
   }
-
+  useEffect(() => {
+    fetchEmailSuggestions()
+  }, [])
+  
+  async function fetchEmailSuggestions() {
+    const { data, error } = await supabase.from("emp_email").select("full_name, corp_email")
+    if (error) {
+      console.error("Error fetching email suggestions:", error.message)
+    } else {
+      setEmailSuggestions(data)
+    }
+  }
   function handleRowClick(emp: Employee) {
     setForm({
       employee_code: emp.employee_code,
       full_name: emp.full_name,
+      email: emp.email, 
       position: emp.position || "",
       department: emp.department || "",
       employment_status: emp.employment_status,
@@ -230,16 +248,27 @@ export default function EmployeesPage() {
                 />
               </div>
 
-              {/* Full Name */}
               <div>
-                <Label htmlFor="full_name">Full Name</Label>
-                <Input
-                  id="full_name"
-                  value={form.full_name}
-                  onChange={(e) => setForm({ ...form, full_name: e.target.value })}
-                  required
-                />
-              </div>
+              <Label htmlFor="full_name_email">Employee Identity</Label>
+              <Select
+                onValueChange={(v) => {
+                  const [name, email] = v.split("|||")
+                  setForm({ ...form, full_name: name, email: email })
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select from directory..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {emailSuggestions.map((entry) => (
+                    <SelectItem key={entry.corp_email} value={`${entry.full_name}|||${entry.corp_email}`}>
+                      {entry.full_name} ({entry.corp_email})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
 
               {/* Position */}
               <div>

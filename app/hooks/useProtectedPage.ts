@@ -1,3 +1,4 @@
+//app\hooks\useProtectedPage.ts
 "use client"
 
 import { useEffect, useState } from "react"

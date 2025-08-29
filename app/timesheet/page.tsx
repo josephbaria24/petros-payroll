@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react"
 import { startOfWeek, endOfWeek, addDays, format } from "date-fns"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+import { CheckCircle, XCircle, Clock, Plane } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+
 import {
     Select,
     SelectContent,
@@ -27,12 +30,68 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 export default function WeeklyTimesheet() {
     type TimeLog = {
-        id: string
-        date: string
-        time_in: string | null
-        time_out: string | null
-        status: string | null
+    id: string
+    date: string
+    time_in: string | null
+    time_out: string | null
+    status: string | null
+    }
+
+    function renderStatusBadge(status: string | null) {
+        switch (status) {
+          case "Present":
+            return (
+              <Badge className="bg-green-100 text-green-700">
+                <CheckCircle className="w-4 h-4 mr-1" />
+                Present
+              </Badge>
+            )
+          case "Absent":
+            return (
+              <Badge className="bg-red-100 text-red-700">
+                <XCircle className="w-4 h-4 mr-1" />
+                Absent
+              </Badge>
+            )
+          case "Late":
+            return (
+              <Badge className="bg-yellow-100 text-yellow-800">
+                <Clock className="w-4 h-4 mr-1" />
+                Late
+              </Badge>
+            )
+          case "On Leave":
+            return (
+              <Badge className="bg-blue-100 text-blue-800">
+                <Plane className="w-4 h-4 mr-1" />
+                On Leave
+              </Badge>
+            )
+          default:
+            return <span className="text-muted-foreground">-</span>
+        }
       }
+      
+    function getTotalHours(time_in: string | null, time_out: string | null): string {
+    if (!time_in || !time_out) return "-"
+
+    const [inHour, inMinute] = time_in.split(":").map(Number)
+    const [outHour, outMinute] = time_out.split(":").map(Number)
+
+    const inDate = new Date(0, 0, 0, inHour, inMinute)
+    const outDate = new Date(0, 0, 0, outHour, outMinute)
+
+    const diffMs = outDate.getTime() - inDate.getTime()
+
+    if (diffMs <= 0) return "0h"
+
+    const diffHours = Math.floor(diffMs / 1000 / 60 / 60)
+    const diffMinutes = Math.floor((diffMs / 1000 / 60) % 60)
+
+    return `${diffHours}h ${diffMinutes}m`
+    }
+
+      
       
   const [weekOffset, setWeekOffset] = useState(0)
   const [logs, setLogs] = useState<TimeLog[]>([])
@@ -134,6 +193,7 @@ export default function WeeklyTimesheet() {
                 <TableHead>Date</TableHead>
                 <TableHead>Time In</TableHead>
                 <TableHead>Time Out</TableHead>
+                <TableHead>Total Hours</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Edit</TableHead>
               </TableRow>
@@ -149,7 +209,9 @@ export default function WeeklyTimesheet() {
                     <TableCell>{date}</TableCell>
                     <TableCell>{log?.time_in || "-"}</TableCell>
                     <TableCell>{log?.time_out || "-"}</TableCell>
-                    <TableCell>{log?.status || "-"}</TableCell>
+                    <TableCell>{getTotalHours(log?.time_in ?? null, log?.time_out ?? null)}</TableCell>
+                    <TableCell>{renderStatusBadge(log?.status || null)}</TableCell>
+
                     <TableCell>
                       {log ? (
                         <Dialog>

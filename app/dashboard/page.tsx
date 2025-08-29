@@ -108,7 +108,7 @@ export default function DashboardPage() {
   const [filter, setFilter] = useState("all")
   const [open, setOpen] = useState(false)
   const [payday, setPayday] = useState<Date | undefined>(undefined)
-
+  const [dataLoading, setDataLoading] = useState(true)
   
   const [expenseOpen, setExpenseOpen] = useState(false)
   const [expenseForm, setExpenseForm] = useState({
@@ -132,7 +132,27 @@ export default function DashboardPage() {
     fetchPayroll()
   }, [])
 
-
+  useEffect(() => {
+    const getRole = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+  
+      if (!session) return
+  
+      const { data: profile, error } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", session.user.id)
+        .single()
+  
+      if (!error && profile?.role) {
+        setRole(profile.role)
+      }
+    }
+  
+    getRole()
+  }, [])
   // Function: filter records by payday
 async function handleFilterByPayday(date: Date) {
   setPayday(date)
@@ -168,36 +188,36 @@ async function handleFilterByPayday(date: Date) {
 }
 
 
-  async function fetchPayroll() {
-    const { data, error } = await supabase
-      .from("payroll_records")
-      .select(`
-        id,
-        employee_id,
-        period_end,
-        net_pay,
-        status,
-        employees ( full_name, employee_code, pay_type )
-      `)
+async function fetchPayroll() {
+  const { data, error } = await supabase
+    .from("payroll_records")
+    .select(`
+      id,
+      employee_id,
+      period_end,
+      net_pay,
+      status,
+      employees ( full_name, employee_code, pay_type )
+    `)
 
-    if (error) {
-      console.error("Error fetching payroll records:", error)
-      return
-    }
-
-    const transformed = data.map((rec: any) => ({
-      id: rec.id,
-      employee_code: rec.employees.employee_code,
-      full_name: rec.employees.full_name,
-      pay_type: rec.employees.pay_type,
-      period_end: rec.period_end,
-      net_pay: rec.net_pay,
-      status: rec.status, // ✅ use actual DB value
-    }))
-    
-
-    setRecords(transformed)
+  if (error) {
+    console.error("Error fetching payroll records:", error)
+    return
   }
+
+  const transformed = data.map((rec: any) => ({
+    id: rec.id,
+    employee_code: rec.employees.employee_code,
+    full_name: rec.employees.full_name,
+    pay_type: rec.employees.pay_type,
+    period_end: rec.period_end,
+    net_pay: rec.net_pay,
+    status: rec.status,
+  }))
+
+  setRecords(transformed)
+}
+
 
   async function handleAddPayment(e: React.FormEvent) {
     e.preventDefault()
@@ -283,6 +303,19 @@ async function fetchExpenses() {
   setExpenses(data)
 }
 
+useEffect(() => {
+  const loadData = async () => {
+    await Promise.all([
+      fetchPayroll(),
+      fetchEmployees(),
+      fetchExpenses()
+    ])
+    setDataLoading(false)
+  }
+
+  loadData()
+}, [])
+
 // Sync to form
 useEffect(() => {
   setForm(f => ({
@@ -292,15 +325,17 @@ useEffect(() => {
   }))
 }, [periodStart, periodEnd]);
 
-if (!role) {
-  return <p>Loading...</p>
-}
 
-
-if (isChecking) {
-  return <p className="p-4">Checking access...</p> // or a spinner
-}
+if (isChecking || !role || dataLoading) {
   return (
+    <div className="flex items-center justify-center h-screen text-muted-foreground">
+      <span className="animate-pulse text-lg">Loading dashboard...</span>
+    </div>
+  )
+}
+
+  return (
+    
     <div className="pr-4 space-y-6">
       <header className="bg-background sticky top-0 flex h-14 shrink-0 items-center gap-2 px-3">
         <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />
