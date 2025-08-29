@@ -20,12 +20,36 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
   const supabase = createClientComponentClient()
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        router.push("/dashboard")
+    const checkSessionAndRole = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+  
+      if (!session) return
+  
+      const { data: profile, error } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", session.user.id)
+        .single()
+  
+      if (error || !profile) {
+        console.error("Error fetching profile:", error)
+        return
       }
-    })
+  
+      const role = profile.role
+      if (role === "employee") {
+        router.push("/my-payroll")
+      }
+      if (role === "admin" || role === "hr") {
+        router.push("/dashboard")
+      } 
+    }
+  
+    checkSessionAndRole()
   }, [router, supabase])
+  
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -51,10 +75,13 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
       .eq("id", data.user.id)
       .single()
 
+      
+      if (profile?.role === "employee") {
+        router.push("/my-payroll")
+      }
+  
     if (profile?.role === "admin" || profile?.role === "hr") {
       router.push("/dashboard")
-    } else {
-      router.push("/my-payroll")
     }
 
     setLoading(false)

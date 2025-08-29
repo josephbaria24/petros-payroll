@@ -1,22 +1,27 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useSession, useSupabaseClient } from "@supabase/auth-helpers-react"
 
+/**
+ * Protects a page and optionally returns a loading state until role is verified.
+ */
 export function useProtectedPage(allowedRoles: string[] = []) {
   const router = useRouter()
   const session = useSession()
   const supabase = useSupabaseClient()
+  const [isChecking, setIsChecking] = useState(true) // 👈 add loading state
 
   useEffect(() => {
     const checkAccess = async () => {
-      // 🚫 No session yet (still loading or user not signed in)
-      if (!session) return
+      if (!session) {
+        setIsChecking(false)
+        return
+      }
 
       const userId = session.user.id
 
-      // ✅ Check the profile from Supabase
       const { data: profile, error } = await supabase
         .from("profiles")
         .select("role")
@@ -25,17 +30,22 @@ export function useProtectedPage(allowedRoles: string[] = []) {
 
       if (error || !profile) {
         console.error("Error fetching profile:", error)
-        router.push("/unauthorized")
+        router.push("/login")
         return
       }
 
       const userRole = profile.role
 
       if (!allowedRoles.includes(userRole)) {
-        router.push("/unauthorized")
+        router.push("/my-payroll")
+        return
       }
+
+      setIsChecking(false)
     }
 
     checkAccess()
   }, [session, supabase, router, allowedRoles])
+
+  return { isChecking }
 }

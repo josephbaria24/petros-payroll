@@ -12,6 +12,7 @@ import {
   MessageCircleQuestion,
   Moon,
   LogOut,
+  Calendar,
 } from "lucide-react"
 
 import { usePathname, useRouter } from "next/navigation"
@@ -108,6 +109,16 @@ export function SidebarLeft({ ...props }: React.ComponentProps<typeof Sidebar>) 
             title: "My Payroll",
             url: "/my-payroll",
             icon: Calculator,
+          },
+          {
+            title: "My Attendance",
+            url: "/my-attendance",
+            icon: Clock, // already imported in your sidebar
+          },
+          {
+            title: "My Timesheet",
+            url: "/timesheet",
+            icon: Calendar, // already imported in your sidebar
           }
         ]
       : [])

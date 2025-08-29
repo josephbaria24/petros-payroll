@@ -1,3 +1,5 @@
+//app\dashboard\page.tsx
+
 "use client"
 
 import { useRouter } from "next/navigation"
@@ -92,43 +94,10 @@ type PayrollRecord = {
 }
 
 export default function DashboardPage() {
-  useProtectedPage(["admin", "hr"])
+  const { isChecking } = useProtectedPage(["admin", "hr"])
+
   const router = useRouter()
   const [role, setRole] = useState<string | null>(null)
-
-  useEffect(() => {
-    const fetchProfile = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      if (!user) {
-        router.push("/login")
-        return
-      }
-
-      const { data: profile, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .single()
-
-      if (error || !profile) {
-        console.error("Profile fetch error:", error)
-        router.push("/unauthorized")
-        return
-      }
-
-      setRole(profile.role)
-
-      // Optional: redirect based on role
-      if (profile.role !== "admin" && profile.role !== "hr") {
-        router.push("/unauthorized")
-      }
-    }
-
-    fetchProfile()
-  }, [router])
 
 
 
@@ -328,6 +297,9 @@ if (!role) {
 }
 
 
+if (isChecking) {
+  return <p className="p-4">Checking access...</p> // or a spinner
+}
   return (
     <div className="pr-4 space-y-6">
       <header className="bg-background sticky top-0 flex h-14 shrink-0 items-center gap-2 px-3">

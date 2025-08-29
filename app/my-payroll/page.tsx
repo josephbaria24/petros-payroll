@@ -78,7 +78,7 @@ export default function MyPayrollPage() {
   }
 
   return (
-    <div className="space-y-6 pr-4">
+    <div className="space-y-6 p-4">
       <h2 className="text-xl font-bold">My Payroll</h2>
 
       {loading ? (
