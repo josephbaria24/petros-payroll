@@ -30,82 +30,113 @@ import {
 } from "@/components/ui/sidebar"
 import { ModeToggle } from "./mode-toggle"
 import { Button } from "@/components/ui/button"
-import { supabase } from "@/lib/supabaseClient"
-
-const baseData = {
-  teams: [
-    {
-      name: "Petrosphere",
-      logo: Home,
-      plan: "Payroll System",
-    },
-  ],
-  navMain: [
-    {
-      title: "Dashboard",
-      url: "/dashboard",
-      icon: Home,
-    },
-    {
-      title: "Employees",
-      url: "/employees",
-      icon: Users,
-    },
-    {
-      title: "Timekeeping",
-      url: "/timekeeping",
-      icon: Clock,
-    },
-    {
-      title: "Payroll",
-      url: "/payroll",
-      icon: Calculator,
-    },
-    {
-      title: "Deductions",
-      url: "/deductions",
-      icon: Receipt,
-    },
-    {
-      title: "Reports",
-      url: "/reports",
-      icon: FileText,
-    },
-  ],
-  navSecondary: [
-    {
-      title: "Help",
-      url: "/help",
-      icon: MessageCircleQuestion,
-    },
-  ],
-  favorites: [],
-  workspaces: [],
-}
+import { createPagesBrowserClient } from "@supabase/auth-helpers-nextjs"
 
 export function SidebarLeft({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
   const router = useRouter()
+  const [role, setRole] = React.useState<string | null>(null)
+
+  const supabase = createPagesBrowserClient()
+
+  // Fetch user role on mount
+  React.useEffect(() => {
+    const fetchRole = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      if (user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", user.id)
+          .single()
+
+        if (profile?.role) {
+          setRole(profile.role)
+        }
+      }
+    }
+
+    fetchRole()
+  }, [])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
     router.push("/login")
   }
 
-  const navMain = baseData.navMain.map((item) => ({
+  // Build nav based on role
+  const navMain = [
+    ...(role === "admin" || role === "hr"
+      ? [
+          {
+            title: "Dashboard",
+            url: "/dashboard",
+            icon: Home,
+          },
+          {
+            title: "Employees",
+            url: "/employees",
+            icon: Users,
+          },
+          {
+            title: "Timekeeping",
+            url: "/timekeeping",
+            icon: Clock,
+          },
+          {
+            title: "Payroll",
+            url: "/payroll",
+            icon: Calculator,
+          },
+          {
+            title: "Deductions",
+            url: "/deductions",
+            icon: Receipt,
+          },
+          {
+            title: "Reports",
+            url: "/reports",
+            icon: FileText,
+          },
+        ]
+      : role === "employee"
+      ? [
+          {
+            title: "My Payroll",
+            url: "/my-payroll",
+            icon: Calculator,
+          }
+        ]
+      : [])
+  ].map((item) => ({
     ...item,
     isActive: pathname.startsWith(item.url),
   }))
 
-  const navSecondary = baseData.navSecondary.map((item) => ({
-    ...item,
-    isActive: pathname.startsWith(item.url),
-  }))
+  const navSecondary = [
+    {
+      title: "Help",
+      url: "/help",
+      icon: MessageCircleQuestion,
+      isActive: pathname.startsWith("/help"),
+    },
+  ]
 
   return (
     <Sidebar className="border-0" {...props}>
       <SidebarHeader>
-        <TeamSwitcher teams={baseData.teams} />
+        <TeamSwitcher
+          teams={[
+            {
+              name: "Petrosphere",
+              logo: Home,
+              plan: "Payroll System",
+            },
+          ]}
+        />
         <NavMain items={navMain} />
       </SidebarHeader>
 
@@ -119,12 +150,11 @@ export function SidebarLeft({ ...props }: React.ComponentProps<typeof Sidebar>) 
         </div>
 
         {/* Logout Button */}
-        <div className="px-1 pb-6 ">
+        <div className="px-1 pb-6">
           <Button
             variant="ghost"
             className="w-full justify-start text-sm text-muted-foreground hover:text-foreground"
             onClick={handleLogout}
-            
           >
             <LogOut className="mr-2 h-4 w-4 cursor-pointer" />
             Logout

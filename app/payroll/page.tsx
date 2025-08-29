@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { useProtectedPage } from "../hooks/useProtectedPage"
 
 type PayrollRecord = {
   id: string
@@ -36,6 +37,7 @@ type PayrollRecord = {
 }
 
 export default function PayrollPage() {
+  useProtectedPage(["admin", "hr"])
   const [records, setRecords] = useState<PayrollRecord[]>([])
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState({

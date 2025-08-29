@@ -23,6 +23,7 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from "@/components/ui/alert-dialog"
+import { useProtectedPage } from "../hooks/useProtectedPage"
 
 type Deduction = {
   id: string
@@ -34,6 +35,8 @@ type Deduction = {
 }
 
 export default function DeductionsPage() {
+  useProtectedPage(["admin", "hr"])
+  
   const [deductions, setDeductions] = useState<Deduction[]>([])
   const [employees, setEmployees] = useState<{ id: string; full_name: string }[]>([])
   const [open, setOpen] = useState(false)

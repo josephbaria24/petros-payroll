@@ -14,6 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { CalendarIcon } from "lucide-react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
+import { useProtectedPage } from "../hooks/useProtectedPage"
 
 type TimeLog = {
   id: string
@@ -28,6 +29,7 @@ type TimeLog = {
 }
 
 export default function TimekeepingPage() {
+  useProtectedPage(["admin", "hr"])
   const [logs, setLogs] = useState<TimeLog[]>([])
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState({

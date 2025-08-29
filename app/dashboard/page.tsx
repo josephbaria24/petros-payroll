@@ -60,6 +60,7 @@ import { cn } from "@/lib/utils"
 import { Calendar } from "@/components/ui/calendar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
+import { useProtectedPage } from "../hooks/useProtectedPage"
 
 function getStatus(net_pay: number): string {
   if (net_pay > 800000) return "On Hold Payment"
@@ -91,22 +92,47 @@ type PayrollRecord = {
 }
 
 export default function DashboardPage() {
+  useProtectedPage(["admin", "hr"])
   const router = useRouter()
+  const [role, setRole] = useState<string | null>(null)
 
   useEffect(() => {
-    const checkAuth = async () => {
+    const fetchProfile = async () => {
       const {
         data: { user },
       } = await supabase.auth.getUser()
 
       if (!user) {
         router.push("/login")
+        return
+      }
+
+      const { data: profile, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .single()
+
+      if (error || !profile) {
+        console.error("Profile fetch error:", error)
+        router.push("/unauthorized")
+        return
+      }
+
+      setRole(profile.role)
+
+      // Optional: redirect based on role
+      if (profile.role !== "admin" && profile.role !== "hr") {
+        router.push("/unauthorized")
       }
     }
 
-    checkAuth()
-  }, [])
+    fetchProfile()
+  }, [router])
 
+
+
+  
   const [editRecord, setEditRecord] = useState<PayrollRecord | null>(null)
   const [deleteRecordId, setDeleteRecordId] = useState<string | null>(null)
   const [records, setRecords] = useState<PayrollRecord[]>([])
@@ -297,7 +323,9 @@ useEffect(() => {
   }))
 }, [periodStart, periodEnd]);
 
-
+if (!role) {
+  return <p>Loading...</p>
+}
 
 
   return (
