@@ -159,21 +159,21 @@ export default function EmployeesPage() {
   }
   function handleRowClick(emp: Employee) {
     setForm({
-      employee_code: emp.employee_code,
-      full_name: emp.full_name,
-      email: emp.email, 
+      employee_code: emp.employee_code || "",
+      full_name: emp.full_name || "",
+      email: emp.email || "", 
       position: emp.position || "",
       department: emp.department || "",
-      employment_status: emp.employment_status,
+      employment_status: emp.employment_status || "Regular",
       tin: emp.tin || "",
       sss: emp.sss || "",
       philhealth: emp.philhealth || "",
       pagibig: emp.pagibig || "",
-      base_salary: emp.base_salary.toString(),
-      pay_type: emp.pay_type,
+      base_salary: emp.base_salary?.toString() || "",
+      pay_type: emp.pay_type || "semi-monthly",
       shift: emp.shift || "",
       hours_per_week: emp.hours_per_week?.toString() || "",
-      leave_credits: emp.leave_credits.toString(),
+      leave_credits: emp.leave_credits.toString() || "0",
     })
     setEditingId(emp.id)
     setIsEditing(true)
@@ -244,7 +244,6 @@ export default function EmployeesPage() {
                   id="employee_code"
                   value={form.employee_code}
                   onChange={(e) => setForm({ ...form, employee_code: e.target.value })}
-                  required
                 />
               </div>
 
@@ -358,7 +357,6 @@ export default function EmployeesPage() {
                   type="number"
                   value={form.base_salary}
                   onChange={(e) => setForm({ ...form, base_salary: e.target.value })}
-                  required
                 />
               </div>
 

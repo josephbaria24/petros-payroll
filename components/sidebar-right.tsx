@@ -1,5 +1,7 @@
 import * as React from "react"
 import { Plus } from "lucide-react"
+import { supabase } from "@/lib/supabaseClient"
+
 
 import { Calendars } from "@/components/calendars"
 import { DatePicker } from "@/components/date-picker"
@@ -12,11 +14,12 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarRail,
   SidebarSeparator,
 } from "@/components/ui/sidebar"
 
-// This is sample data.
+// Initialize Supabase client
+
+// Sample user and calendar structure
 const data = {
   user: {
     name: "payroll",
@@ -24,10 +27,6 @@ const data = {
     avatar: "/avatars/shadcn.jpg",
   },
   calendars: [
-    {
-      name: "My Calendars",
-      items: ["Personal", "Work", "Family"],
-    },
     {
       name: "Favorites",
       items: ["Holidays", "Birthdays"],
@@ -42,6 +41,22 @@ const data = {
 export function SidebarRight({
   ...props
 }: React.ComponentProps<typeof Sidebar>) {
+  const [holidays, setHolidays] = React.useState<any[]>([])
+  const [selectedCalendars, setSelectedCalendars] = React.useState<string[]>(["Holidays"])
+
+  // Fetch holidays when "Holidays" is selected
+  React.useEffect(() => {
+    if (selectedCalendars.includes("Holidays")) {
+      supabase
+        .from("philippine_holidays")
+        .select("*")
+        .then(({ data, error }) => {
+          if (error) console.error("Failed to fetch holidays", error)
+          else setHolidays(data || [])
+        })
+    }
+  }, [selectedCalendars])
+
   return (
     <Sidebar
       collapsible="none"
@@ -51,11 +66,17 @@ export function SidebarRight({
       <SidebarHeader className="border-sidebar-border h-16 border-b">
         <NavUser user={data.user} />
       </SidebarHeader>
+
       <SidebarContent>
-        <DatePicker />
+        <DatePicker holidays={selectedCalendars.includes("Holidays") ? holidays : []} />
         <SidebarSeparator className="mx-0" />
-        <Calendars calendars={data.calendars} />
+        <Calendars
+          calendars={data.calendars}
+          selected={selectedCalendars}
+          onChange={setSelectedCalendars}
+        />
       </SidebarContent>
+
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>

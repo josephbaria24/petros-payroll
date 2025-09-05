@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { CalendarIcon } from "lucide-react"
+import { CalendarIcon, Eye, Trash2 } from "lucide-react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 import {
@@ -36,11 +36,35 @@ type PayrollRecord = {
   net_after_deductions?: number
 }
 
+type PayrollPeriod = {
+  period_key: string
+  period_start: string
+  period_end: string
+  display_name: string
+  total_employees: number
+  total_net_pay: number
+  total_deductions: number
+  total_net_after_deductions: number
+  records: PayrollRecord[]
+}
+
 export default function PayrollPage() {
+  
   useProtectedPage(["admin", "hr"])
-  const [records, setRecords] = useState<PayrollRecord[]>([])
+  const [periods, setPeriods] = useState<PayrollPeriod[]>([])
   const [open, setOpen] = useState(false)
-  const [form, setForm] = useState({
+  const [selectedPeriodRecords, setSelectedPeriodRecords] = useState<PayrollRecord[]>([])
+  const [selectedPeriodName, setSelectedPeriodName] = useState("")
+  const [periodDialogOpen, setPeriodDialogOpen] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  
+  function handleSelect(id: string) {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    )
+  }
+  
+  const [, setForm] = useState({
     employee_id: "",
     period_start: "",
     period_end: "",
@@ -50,13 +74,61 @@ export default function PayrollPage() {
   const [employees, setEmployees] = useState<{ id: string; full_name: string; pay_type: string }[]>([])
   const [periodStart, setPeriodStart] = useState<Date | undefined>(undefined)
   const [periodEnd, setPeriodEnd] = useState<Date | undefined>(undefined)
-
+  const [editRecord, setEditRecord] = useState<PayrollRecord | null>(null)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  
   useEffect(() => {
-    fetchPayroll()
+    fetchPayrollPeriods()
     fetchEmployees()
   }, [])
 
-  async function fetchPayroll() {
+  async function handleDeleteSelected() {
+    if (selectedIds.length === 0) return toast.warning("No records selected.")
+  
+    const confirm = window.confirm("Are you sure you want to delete selected payroll records?")
+    if (!confirm) return
+  
+    const toastId = toast.loading("Deleting selected records...")
+  
+    const { error } = await supabase
+      .from("payroll_records")
+      .delete()
+      .in("id", selectedIds)
+  
+    if (error) {
+      toast.error("Failed to delete records", { id: toastId })
+    } else {
+      toast.success("Selected records deleted!", { id: toastId })
+      setSelectedIds([])
+      fetchPayrollPeriods()
+    }
+  }
+
+  async function handleDeletePeriod(periodKey: string) {
+    const confirm = window.confirm("Are you sure you want to delete this entire payroll period? This will delete all payroll records for this period.")
+    if (!confirm) return
+
+    const toastId = toast.loading("Deleting payroll period...")
+
+    // Get the period to find the date range
+    const period = periods.find(p => p.period_key === periodKey)
+    if (!period) return
+
+    const { error } = await supabase
+      .from("payroll_records")
+      .delete()
+      .eq("period_start", period.period_start)
+      .eq("period_end", period.period_end)
+
+    if (error) {
+      toast.error("Failed to delete payroll period", { id: toastId })
+    } else {
+      toast.success("Payroll period deleted!", { id: toastId })
+      fetchPayrollPeriods()
+    }
+  }
+
+  async function fetchPayrollPeriods() {
     const { data: payroll, error } = await supabase
       .from("payroll_records")
       .select(`
@@ -84,7 +156,8 @@ export default function PayrollPage() {
       return
     }
 
-    const merged = payroll.map((rec: any) => {
+    // Process records with deductions
+    const processedRecords = payroll.map((rec: any) => {
       const totalDeductions = deductions
         ?.filter(
           (d) =>
@@ -108,7 +181,42 @@ export default function PayrollPage() {
       }
     })
 
-    setRecords(merged)
+    // Group by period
+    const periodMap = new Map<string, PayrollPeriod>()
+
+    processedRecords.forEach((record) => {
+      const periodKey = `${record.period_start}_${record.period_end}`
+      
+      if (!periodMap.has(periodKey)) {
+        // Create display name (e.g., "September 1-15, 2025")
+        const startDate = new Date(record.period_start)
+        const endDate = new Date(record.period_end)
+        const monthName = startDate.toLocaleDateString('en-US', { month: 'long' })
+        const year = startDate.getFullYear()
+        const displayName = `${monthName} ${startDate.getDate()}-${endDate.getDate()}, ${year}`
+
+        periodMap.set(periodKey, {
+          period_key: periodKey,
+          period_start: record.period_start,
+          period_end: record.period_end,
+          display_name: displayName,
+          total_employees: 0,
+          total_net_pay: 0,
+          total_deductions: 0,
+          total_net_after_deductions: 0,
+          records: []
+        })
+      }
+
+      const period = periodMap.get(periodKey)!
+      period.records.push(record)
+      period.total_employees = period.records.length
+      period.total_net_pay += record.net_pay
+      period.total_deductions += record.total_deductions || 0
+      period.total_net_after_deductions += record.net_after_deductions || 0
+    })
+
+    setPeriods(Array.from(periodMap.values()))
   }
 
   async function fetchEmployees() {
@@ -120,27 +228,58 @@ export default function PayrollPage() {
     setEmployees(data)
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    const toastId = toast.loading("Saving payroll...")
-
-    const { error } = await supabase.from("payroll_records").insert({
-      employee_id: form.employee_id,
-      period_start: form.period_start,
-      period_end: form.period_end,
-      net_pay: parseFloat(form.net_pay),
-      status: form.status,
-    })
-
-    if (error) {
-      toast.error("Error saving payroll", { id: toastId })
-    } else {
-      toast.success("Payroll saved!", { id: toastId })
-      setOpen(false)
-      setForm({ employee_id: "", period_start: "", period_end: "", net_pay: "", status: "Pending Payment" })
-      setPeriodStart(undefined)
-      setPeriodEnd(undefined)
-      fetchPayroll()
+  async function handleBulkGeneratePayroll() {
+    if (!periodStart || !periodEnd) {
+      toast.error("Select a valid period first.")
+      return
+    }
+  
+    const toastId = toast.loading("Generating payroll...")
+  
+    try {
+      const { data: allEmployees, error: empErr } = await supabase
+        .from("employees")
+        .select("id, base_salary")
+  
+      if (empErr || !allEmployees) throw new Error("Failed to fetch employees.")
+  
+      const recordsToInsert = []
+  
+      for (const emp of allEmployees) {
+        const { id: employee_id, base_salary } = emp
+  
+        if (!base_salary) continue // skip if salary is missing
+  
+        const grossPay = base_salary
+        const netPay = grossPay // Deductions handled elsewhere
+  
+        recordsToInsert.push({
+          employee_id,
+          period_start: format(periodStart, "yyyy-MM-dd"),
+          period_end: format(periodEnd, "yyyy-MM-dd"),
+          basic_salary: grossPay,
+          overtime_pay: 0,
+          holiday_pay: 0,
+          gross_pay: grossPay,
+          net_pay: netPay,
+          status: "Pending Payment",
+        })
+      }
+  
+      if (recordsToInsert.length > 0) {
+        const { error: insertError } = await supabase
+          .from("payroll_records")
+          .insert(recordsToInsert)
+  
+        if (insertError) throw new Error("Bulk insert failed.")
+        toast.success("Payroll generated for all employees!", { id: toastId })
+        fetchPayrollPeriods()
+      } else {
+        toast.info("No eligible employees found for payroll generation.", { id: toastId })
+      }
+  
+    } catch (err: any) {
+      toast.error(err.message || "An error occurred", { id: toastId })
     }
   }
 
@@ -152,225 +291,289 @@ export default function PayrollPage() {
     }))
   }, [periodStart, periodEnd])
 
-  // 🔹 Calculate totals
-  const totalNetAfterDeductions = records.reduce((sum, r) => sum + (r.net_after_deductions || 0), 0)
-
-  // 🔹 Group by employee for summary
-  const employeeSummary = records.reduce((acc: any, r) => {
-    if (!r.employee_id) return acc
-    if (!acc[r.employee_id]) {
-      acc[r.employee_id] = {
-        employee_name: r.employee_name,
-        gross: 0,
-        deductions: 0,
-        net: 0,
-      }
-    }
-    acc[r.employee_id].gross += r.net_pay
-    acc[r.employee_id].deductions += r.total_deductions || 0
-    acc[r.employee_id].net += r.net_after_deductions || 0
-    return acc
-  }, {})
-
-  const summaryArray = Object.values(employeeSummary)
+  function handleViewPeriodRecords(period: PayrollPeriod) {
+    setSelectedPeriodRecords(period.records)
+    setSelectedPeriodName(period.display_name)
+    setPeriodDialogOpen(true)
+    setSelectedIds([]) // Reset selection when viewing new period
+  }
 
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Payroll</h1>
+        <h1 className="text-2xl font-bold">Payroll Management</h1>
+
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button>+ Add Payroll Record</Button>
+            <Button>+ Generate Payroll for All Employees</Button>
           </DialogTrigger>
+
           <DialogContent>
-  <DialogHeader>
-    <DialogTitle>Add Payroll</DialogTitle>
-  </DialogHeader>
-  <form onSubmit={handleSubmit} className="space-y-4">
-    {/* Employee */}
-    <div>
-      <Label>Employee</Label>
-      <Select
-        value={form.employee_id}
-        onValueChange={(v) => setForm({ ...form, employee_id: v })}
-      >
-        <SelectTrigger className="w-full">
-          <SelectValue placeholder="Select employee" />
-        </SelectTrigger>
-        <SelectContent>
-          {employees.map((emp) => (
-            <SelectItem key={emp.id} value={emp.id}>
-              {emp.full_name} ({emp.pay_type})
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
+            <DialogHeader>
+              <DialogTitle>Generate Payroll</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={(e) => {
+              e.preventDefault()
+              handleBulkGeneratePayroll()
+              setOpen(false)
+            }} className="space-y-4">
 
-    {/* Period Start */}
-    <div>
-      <Label>Period Start</Label>
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button
-            variant="outline"
-            className={cn(
-              "w-full justify-start text-left font-normal",
-              !periodStart && "text-muted-foreground"
-            )}
-          >
-            {periodStart ? format(periodStart, "PPP") : "Select date"}
-            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-0">
-          <Calendar
-            mode="single"
-            selected={periodStart}
-            onSelect={setPeriodStart}
-            initialFocus
-          />
-        </PopoverContent>
-      </Popover>
-    </div>
+              {/* Period Start */}
+              <div>
+                <Label>Period Start</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !periodStart && "text-muted-foreground"
+                      )}
+                    >
+                      {periodStart ? format(periodStart, "PPP") : "Select date"}
+                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={periodStart}
+                      onSelect={setPeriodStart}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
 
-    {/* Period End */}
-    <div>
-      <Label>Period End</Label>
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button
-            variant="outline"
-            className={cn(
-              "w-full justify-start text-left font-normal",
-              !periodEnd && "text-muted-foreground"
-            )}
-          >
-            {periodEnd ? format(periodEnd, "PPP") : "Select date"}
-            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-0">
-          <Calendar
-            mode="single"
-            selected={periodEnd}
-            onSelect={setPeriodEnd}
-            initialFocus
-          />
-        </PopoverContent>
-      </Popover>
-    </div>
+              {/* Period End */}
+              <div>
+                <Label>Period End</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !periodEnd && "text-muted-foreground"
+                      )}
+                    >
+                      {periodEnd ? format(periodEnd, "PPP") : "Select date"}
+                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={periodEnd}
+                      onSelect={setPeriodEnd}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
 
-    {/* Net Pay */}
-    <div>
-      <Label>Net Pay</Label>
-      <Input
-        type="number"
-        value={form.net_pay}
-        onChange={(e) => setForm({ ...form, net_pay: e.target.value })}
-        required
-      />
-    </div>
-
-    {/* Status */}
-    <div>
-      <Label>Status</Label>
-      <Select
-        value={form.status}
-        onValueChange={(v) => setForm({ ...form, status: v })}
-      >
-        <SelectTrigger className="w-full">
-          <SelectValue placeholder="Select status" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="Pending Payment">Pending Payment</SelectItem>
-          <SelectItem value="Payment Success">Payment Success</SelectItem>
-          <SelectItem value="On Hold Payment">On Hold Payment</SelectItem>
-        </SelectContent>
-      </Select>
-    </div>
-
-    <Button type="submit" className="w-full">
-      Save
-    </Button>
-  </form>
-</DialogContent>
-
+              <Button type="submit" className="w-full">
+                Generate Payroll
+              </Button>
+            </form>
+          </DialogContent>
         </Dialog>
       </div>
 
-      {/* 🔹 Summary Cards */}
-      <div className="flex flex-wrap gap-2">
-        <Card className="flex-1 min-w-[100px]">
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Total Net After Deductions</p>
-            <h2 className="text-xl font-bold">
-              ₱ {totalNetAfterDeductions.toLocaleString()}
-            </h2>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* 🔹 Employee Breakdown Table */}
+      {/* Payroll Periods List */}
       <Card>
-        <CardContent>
-          <h2 className="text-lg font-semibold mb-2">Employee Breakdown</h2>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Employee</TableHead>
-                <TableHead>Gross Pay</TableHead>
-                <TableHead>Total Deductions</TableHead>
-                <TableHead>Net After Deductions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {summaryArray.map((emp: any, idx) => (
-                <TableRow key={idx}>
-                  <TableCell>{emp.employee_name}</TableCell>
-                  <TableCell>₱ {emp.gross.toLocaleString()}</TableCell>
-                  <TableCell>₱ {emp.deductions.toLocaleString()}</TableCell>
-                  <TableCell className="font-bold">₱ {emp.net.toLocaleString()}</TableCell>
-                </TableRow>
+        <CardContent className="p-6">
+          <h2 className="text-lg font-semibold mb-4">Payroll Periods</h2>
+          
+          {periods.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <p>No payroll periods found.</p>
+              <p>Generate your first payroll to get started.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {periods.map((period) => (
+                <div
+                  key={period.period_key}
+                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                >
+                  <div className="flex-1">
+                    <h3 className="font-medium text-lg">{period.display_name}</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2 text-sm text-muted-foreground">
+                      <span>Employees: {period.total_employees}</span>
+                      <span>Gross Pay: ₱{period.total_net_pay.toLocaleString()}</span>
+                      <span>Deductions: ₱{period.total_deductions.toLocaleString()}</span>
+                      <span className="font-medium">Net: ₱{period.total_net_after_deductions.toLocaleString()}</span>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleViewPeriodRecords(period)}
+                    >
+                      <Eye className="h-4 w-4 mr-1" />
+                      View Details
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDeletePeriod(period.period_key)}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
               ))}
-            </TableBody>
-          </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* 🔹 Full Payroll Records */}
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Employee</TableHead>
-                <TableHead>Pay Type</TableHead>
-                <TableHead>Period</TableHead>
-                <TableHead>Gross Net Pay</TableHead>
-                <TableHead>Total Deductions</TableHead>
-                <TableHead>Net After Deductions</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {records.map((rec) => (
-                <TableRow key={rec.id}>
-                  <TableCell>{rec.employee_name}</TableCell>
-                  <TableCell>{rec.pay_type}</TableCell>
-                  <TableCell>
-                    {rec.period_start} → {rec.period_end}
-                  </TableCell>
-                  <TableCell>₱ {rec.net_pay.toLocaleString()}</TableCell>
-                  <TableCell>₱ {rec.total_deductions?.toLocaleString()}</TableCell>
-                  <TableCell className="font-bold">₱ {rec.net_after_deductions?.toLocaleString()}</TableCell>
-                  <TableCell>{rec.status}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      {/* Period Details Dialog */}
+      <Dialog open={periodDialogOpen} onOpenChange={setPeriodDialogOpen}>
+        <DialogContent className="max-w-7xl w-full max-h-[85vh] overflow-x-auto ">
+          <DialogHeader>
+            <DialogTitle>Payroll Details - {selectedPeriodName}</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {selectedIds.length > 0 && (
+              <Button variant="destructive" onClick={handleDeleteSelected}>
+                Delete Selected ({selectedIds.length})
+              </Button>
+            )}
+
+            <div className="overflow-y-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead></TableHead>
+                    <TableHead>Employee</TableHead>
+                    <TableHead>Pay Type</TableHead>
+                    <TableHead>Gross Net Pay</TableHead>
+                    <TableHead>Total Deductions</TableHead>
+                    <TableHead>Net After Deductions</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {selectedPeriodRecords.map((rec) => (
+                    <TableRow
+                      key={rec.id}
+                      onClick={() => {
+                        setEditRecord(rec)
+                        setEditDialogOpen(true)
+                      }}
+                      className="cursor-pointer hover:bg-muted transition"
+                    >
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(rec.id)}
+                          onChange={() => handleSelect(rec.id)}
+                        />
+                      </TableCell>
+                      <TableCell>{rec.employee_name}</TableCell>
+                      <TableCell>{rec.pay_type}</TableCell>
+                      <TableCell>₱ {rec.net_pay.toLocaleString()}</TableCell>
+                      <TableCell>₱ {rec.total_deductions?.toLocaleString()}</TableCell>
+                      <TableCell className="font-bold">₱ {rec.net_after_deductions?.toLocaleString()}</TableCell>
+                      <TableCell>
+                        <span className={cn(
+                          "px-2 py-1 rounded-full text-xs",
+                          rec.status === "Paid" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
+                        )}>
+                          {rec.status}
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Record Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Payroll</DialogTitle>
+          </DialogHeader>
+
+          {editRecord && (
+            <form
+              className="space-y-4"
+              onSubmit={async (e) => {
+                e.preventDefault()
+                const toastId = toast.loading("Updating payroll...")
+
+                const { error } = await supabase
+                  .from("payroll_records")
+                  .update({
+                    net_pay: editRecord.net_pay,
+                    status: editRecord.status,
+                  })
+                  .eq("id", editRecord.id)
+
+                if (error) {
+                  toast.error("Failed to update record", { id: toastId })
+                } else {
+                  toast.success("Payroll updated", { id: toastId })
+                  setEditDialogOpen(false)
+                  fetchPayrollPeriods()
+                  // Update the selected period records if viewing details
+                  if (periodDialogOpen) {
+                    const updatedRecords = selectedPeriodRecords.map(rec =>
+                      rec.id === editRecord.id ? { ...rec, ...editRecord } : rec
+                    )
+                    setSelectedPeriodRecords(updatedRecords)
+                  }
+                }
+              }}
+            >
+              <div>
+                <Label>Status</Label>
+                <Select
+                  value={editRecord.status}
+                  onValueChange={(val) =>
+                    setEditRecord((prev) => prev && { ...prev, status: val })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Pending Payment">Pending Payment</SelectItem>
+                    <SelectItem value="Paid">Paid</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label>Net Pay</Label>
+                <Input
+                  type="number"
+                  value={editRecord.net_pay}
+                  onChange={(e) =>
+                    setEditRecord((prev) =>
+                      prev ? { ...prev, net_pay: parseFloat(e.target.value) } : prev
+                    )
+                  }
+                />
+              </div>
+
+              <Button type="submit" className="w-full">
+                Save Changes
+              </Button>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
