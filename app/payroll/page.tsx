@@ -184,21 +184,21 @@ export default function PayrollPage() {
           )
           .reduce((sum, d) => sum + d.amount, 0) || 0) + (rec.absences || 0)
     
-      return {
-        id: rec.id,
-        employee_id: rec.employee_id,
-        employee_name: rec.employees?.full_name,
-        pay_type: rec.employees?.pay_type,
-        period_start: rec.period_start,
-        period_end: rec.period_end,
-        net_pay: rec.net_pay,
-        allowances: rec.allowances || 0,   // ✅ keep allowance visible
-        status: rec.status,
-        absences: rec.absences || 0,
-        total_deductions: totalDeductions,
-        net_after_deductions: rec.net_pay - totalDeductions,
-        total_net: (rec.net_pay - totalDeductions) + (rec.allowances || 0), // ✅ NEW
-      }
+          return {
+            id: rec.id,
+            employee_id: rec.employee_id,
+            employee_name: rec.employees?.full_name,
+            pay_type: rec.employees?.pay_type,
+            period_start: rec.period_start,
+            period_end: rec.period_end,
+            net_pay: rec.net_pay,               // ✅ base net pay only (no allowance)
+            allowances: rec.allowances || 0,
+            status: rec.status,
+            absences: rec.absences || 0,
+            total_deductions: totalDeductions,
+            net_after_deductions: rec.net_pay - totalDeductions,  // ✅ base net after deductions
+            total_net: (rec.net_pay - totalDeductions) + (rec.allowances || 0), // ✅ add allowance just once
+          }   
     })
     
     
@@ -272,7 +272,7 @@ export default function PayrollPage() {
         const { id: employee_id, base_salary, allowance } = emp
         if (!base_salary) continue
       
-        const grossPay = (base_salary || 0) + (allowance || 0)  // ✅ include allowance
+        const grossPay = (base_salary || 0)  // ✅ include allowance
         let absDeduction = 0
       
         if (absentForm.employee_id === employee_id) {
@@ -292,7 +292,7 @@ export default function PayrollPage() {
           absences: absDeduction,
           gross_pay: grossPay,
           total_deductions: absDeduction,
-          net_pay: grossPay - absDeduction,
+          net_pay: netPay,
           status: "Pending Payment",
         })
       }
@@ -340,7 +340,7 @@ export default function PayrollPage() {
             <Button>+ Generate Payroll for All Employees</Button>
           </DialogTrigger>
 
-          <DialogContent>
+          <DialogContent className="lg:w-[30vw] sm:w-[90vw]">
             <DialogHeader>
               <DialogTitle>Generate Payroll</DialogTitle>
             </DialogHeader>
@@ -529,7 +529,7 @@ export default function PayrollPage() {
                     <TableHead></TableHead>
                     <TableHead>Employee</TableHead>
                     <TableHead>Pay Type</TableHead>
-                    <TableHead>Gross Net Pay</TableHead>
+                    <TableHead>Base Salary</TableHead>
                     <TableHead>Allowance</TableHead>
                     <TableHead>Total Deductions</TableHead>
                     <TableHead>Absences</TableHead>
@@ -585,7 +585,7 @@ export default function PayrollPage() {
 
       {/* Edit Record Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent>
+        <DialogContent className="w-[40vw]">
           <DialogHeader>
             <DialogTitle>Edit Payroll</DialogTitle>
           </DialogHeader>
