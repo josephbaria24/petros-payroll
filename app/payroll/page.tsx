@@ -664,82 +664,247 @@ export default function PayrollPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Record Dialog */}
-      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="w-[40vw]">
-          <DialogHeader>
-            <DialogTitle>Edit Payroll</DialogTitle>
-          </DialogHeader>
 
-          {editRecord && (
-            <form
-              className="space-y-4"
-              onSubmit={async (e) => {
-                e.preventDefault()
-                const toastId = toast.loading("Updating payroll...")
+{/* Edit Record Dialog */}
+<Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+  <DialogContent className="w-[50vw] max-h-[85vh] overflow-y-auto">
+    <DialogHeader>
+      <DialogTitle>Edit Payroll Record</DialogTitle>
+    </DialogHeader>
 
-                const { error } = await supabase
-                  .from("payroll_records")
-                  .update({
-                    net_pay: editRecord.net_pay,
-                    status: editRecord.status,
-                  })
-                  .eq("id", editRecord.id)
+    {editRecord && (
+      <form
+        className="space-y-4"
+        onSubmit={async (e) => {
+          e.preventDefault()
+          const toastId = toast.loading("Updating payroll...")
 
-                if (error) {
-                  toast.error("Failed to update record", { id: toastId })
-                } else {
-                  toast.success("Payroll updated", { id: toastId })
-                  setEditDialogOpen(false)
-                  fetchPayrollPeriods()
-                  // Update the selected period records if viewing details
-                  if (periodDialogOpen) {
-                    const updatedRecords = selectedPeriodRecords.map(rec =>
-                      rec.id === editRecord.id ? { ...rec, ...editRecord } : rec
-                    )
-                    setSelectedPeriodRecords(updatedRecords)
-                  }
-                }
+          // Calculate derived values
+          const grossPay = (editRecord.net_pay || 0) + (editRecord.total_deductions || 0)
+          const netAfterDeductions = (editRecord.net_pay || 0) - (editRecord.total_deductions || 0)
+          const totalNet = netAfterDeductions + (editRecord.allowances || 0)
+
+          const { error } = await supabase
+            .from("payroll_records")
+            .update({
+              basic_salary: editRecord.net_pay, // Using net_pay as basic_salary for now
+              allowances: editRecord.allowances || 0,
+              overtime_pay: 0, // You can add this field if needed
+              holiday_pay: 0, // You can add this field if needed
+              absences: editRecord.absences || 0,
+              gross_pay: grossPay,
+              total_deductions: editRecord.total_deductions || 0,
+              net_pay: editRecord.net_pay,
+              status: editRecord.status,
+            })
+            .eq("id", editRecord.id)
+
+          if (error) {
+            toast.error("Failed to update record", { id: toastId })
+          } else {
+            toast.success("Payroll updated successfully", { id: toastId })
+            setEditDialogOpen(false)
+            fetchPayrollPeriods()
+            // Update the selected period records if viewing details
+            if (periodDialogOpen) {
+              const updatedRecords = selectedPeriodRecords.map(rec =>
+                rec.id === editRecord.id ? { 
+                  ...rec, 
+                  ...editRecord,
+                  total_net: totalNet,
+                  net_after_deductions: netAfterDeductions
+                } : rec
+              )
+              setSelectedPeriodRecords(updatedRecords)
+            }
+          }
+        }}
+      >
+        {/* Employee Name (Read-only) */}
+        <div>
+          <Label>Employee</Label>
+          <Input
+            value={editRecord.employee_name || ""}
+            disabled
+            className="bg-muted"
+          />
+        </div>
+
+        {/* Pay Type (Read-only) */}
+        <div>
+          <Label>Pay Type</Label>
+          <Input
+            value={editRecord.pay_type || ""}
+            disabled
+            className="bg-muted"
+          />
+        </div>
+
+        {/* Period (Read-only) */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label>Period Start</Label>
+            <Input
+              value={editRecord.period_start ? format(new Date(editRecord.period_start), "PPP") : ""}
+              disabled
+              className="bg-muted"
+            />
+          </div>
+          <div>
+            <Label>Period End</Label>
+            <Input
+              value={editRecord.period_end ? format(new Date(editRecord.period_end), "PPP") : ""}
+              disabled
+              className="bg-muted"
+            />
+          </div>
+        </div>
+
+        {/* Editable Fields */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label>Basic Salary</Label>
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="0.00"
+              value={editRecord.net_pay || ""}
+              onChange={(e) =>
+                setEditRecord((prev) =>
+                  prev ? { ...prev, net_pay: parseFloat(e.target.value) || 0 } : prev
+                )
+              }
+            />
+          </div>
+
+          <div>
+            <Label>Allowances</Label>
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="0.00"
+              value={editRecord.allowances || ""}
+              onChange={(e) =>
+                setEditRecord((prev) =>
+                  prev ? { ...prev, allowances: parseFloat(e.target.value) || 0 } : prev
+                )
+              }
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label>Absence Deductions</Label>
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="0.00"
+              value={editRecord.absences || ""}
+              onChange={(e) =>
+                setEditRecord((prev) =>
+                  prev ? { ...prev, absences: parseFloat(e.target.value) || 0 } : prev
+                )
+              }
+            />
+          </div>
+
+          <div>
+            <Label>Other Deductions</Label>
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="0.00"
+              value={(editRecord.total_deductions || 0) - (editRecord.absences || 0)}
+              onChange={(e) => {
+                const otherDeductions = parseFloat(e.target.value) || 0
+                const totalDeductions = (editRecord.absences || 0) + otherDeductions
+                setEditRecord((prev) =>
+                  prev ? { ...prev, total_deductions: totalDeductions } : prev
+                )
               }}
-            >
-              <div>
-                <Label>Status</Label>
-                <Select
-                  value={editRecord.status}
-                  onValueChange={(val) =>
-                    setEditRecord((prev) => prev && { ...prev, status: val })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Pending Payment">Pending Payment</SelectItem>
-                    <SelectItem value="Paid">Paid</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            />
+          </div>
+        </div>
 
-              <div>
-                <Label>Net Pay</Label>
-                <Input
-                  type="number"
-                  value={editRecord.net_pay}
-                  onChange={(e) =>
-                    setEditRecord((prev) =>
-                      prev ? { ...prev, net_pay: parseFloat(e.target.value) } : prev
-                    )
-                  }
-                />
+        {/* Calculated Fields (Read-only) */}
+        <div className="space-y-3 p-4 bg-muted/50 rounded-lg">
+          <h3 className="font-medium text-sm">Calculated Values</h3>
+          
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <Label className="text-xs">Gross Pay</Label>
+              <div className="font-medium">
+                ₱{((editRecord.net_pay || 0) + (editRecord.total_deductions || 0)).toLocaleString()}
               </div>
+            </div>
 
-              <Button type="submit" className="w-full">
-                Save Changes
-              </Button>
-            </form>
-          )}
-        </DialogContent>
-      </Dialog>
+            <div>
+              <Label className="text-xs">Total Deductions</Label>
+              <div className="font-medium">
+                ₱{(editRecord.total_deductions || 0).toLocaleString()}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <Label className="text-xs">Net After Deductions</Label>
+              <div className="font-medium">
+                ₱{((editRecord.net_pay || 0) - (editRecord.total_deductions || 0)).toLocaleString()}
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-xs">Total Net (with Allowances)</Label>
+              <div className="font-bold text-green-600">
+                ₱{(((editRecord.net_pay || 0) - (editRecord.total_deductions || 0)) + (editRecord.allowances || 0)).toLocaleString()}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Status */}
+        <div>
+          <Label>Payment Status</Label>
+          <Select
+            value={editRecord.status}
+            onValueChange={(val) =>
+              setEditRecord((prev) => prev && { ...prev, status: val })
+            }
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Pending Payment">Pending Payment</SelectItem>
+              <SelectItem value="Paid">Paid</SelectItem>
+              <SelectItem value="Cancelled">Cancelled</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex gap-2">
+          <Button type="submit" className="flex-1">
+            Save Changes
+          </Button>
+          <Button 
+            type="button" 
+            variant="outline" 
+            className="flex-1"
+            onClick={() => setEditDialogOpen(false)}
+          >
+            Cancel
+          </Button>
+        </div>
+      </form>
+    )}
+  </DialogContent>
+</Dialog>
     </div>
   )
 }

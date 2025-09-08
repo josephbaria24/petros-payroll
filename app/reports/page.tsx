@@ -21,6 +21,8 @@ type PayrollSummary = {
   totalGross: number
   totalDeductions: number
   netAfterDeductions: number
+  totalAllowances: number
+  totalNetPay: number
 }
 
 type MonthlyPayrollSummary = {
@@ -31,23 +33,28 @@ type MonthlyPayrollSummary = {
   totalGrossPay: number
   totalDeductions: number
   totalNetPay: number
+  totalAllowances: number
   recordCount: number
 }
 
 type EmployeePayrollDetail = {
+  id: string
   employee_id: string
-  emplyoee_code?: string
+  employee_code?: string
   full_name: string
-  basic_monthly_salary: number
-  monthly_allowance: number
-  overtime_total: number
-  sss_deduction: number
-  philhealth_deduction: number
-  pagibig_deduction: number
-  other_deductions: number
+  pay_type: string
+  basic_salary: number
+  allowances: number
+  overtime_pay: number
+  holiday_pay: number
+  gross_pay: number
+  absences: number
   total_deductions: number
   net_pay: number
+  period_start: string
+  period_end: string
   month_year: string
+  status: string
 }
 
 type Deduction = {
@@ -55,6 +62,7 @@ type Deduction = {
   employee_name: string
   type: string
   amount: number
+  created_at: string
 }
 
 type Expense = {
@@ -71,6 +79,8 @@ export default function ReportsPage() {
     totalGross: 0,
     totalDeductions: 0,
     netAfterDeductions: 0,
+    totalAllowances: 0,
+    totalNetPay: 0,
   })
   const [monthlyPayrollSummary, setMonthlyPayrollSummary] = useState<MonthlyPayrollSummary[]>([])
   const [deductions, setDeductions] = useState<Deduction[]>([])
@@ -108,16 +118,20 @@ export default function ReportsPage() {
     // Prepare data for Excel export
     const excelData = employeePayrollDetails.map(emp => ({
       'Employee ID': emp.employee_id,
+      'Employee Code': emp.employee_code || 'N/A',
       'Full Name': emp.full_name,
-      'Basic Monthly Salary': emp.basic_monthly_salary,
-      'Monthly Allowance': emp.monthly_allowance,
-      'OT Total': emp.overtime_total,
-      'SSS': emp.sss_deduction,
-      'PhilHealth': emp.philhealth_deduction,
-      'Pag-ibig': emp.pagibig_deduction,
-      'Other Deductions': emp.other_deductions,
+      'Pay Type': emp.pay_type,
+      'Period Start': emp.period_start,
+      'Period End': emp.period_end,
+      'Basic Salary': emp.basic_salary,
+      'Allowances': emp.allowances,
+      'Overtime Pay': emp.overtime_pay,
+      'Holiday Pay': emp.holiday_pay,
+      'Gross Pay': emp.gross_pay,
+      'Absences': emp.absences,
       'Total Deductions': emp.total_deductions,
       'Net Pay': emp.net_pay,
+      'Status': emp.status,
       'Month/Year': emp.month_year
     }))
 
@@ -128,16 +142,20 @@ export default function ReportsPage() {
     // Set column widths
     ws['!cols'] = [
       { width: 15 }, // Employee ID
+      { width: 15 }, // Employee Code
       { width: 25 }, // Full Name
-      { width: 20 }, // Basic Monthly Salary
-      { width: 18 }, // Monthly Allowance
-      { width: 12 }, // OT Total
-      { width: 12 }, // SSS
-      { width: 15 }, // PhilHealth
-      { width: 12 }, // HDMF
-      { width: 18 }, // Other Deductions
+      { width: 12 }, // Pay Type
+      { width: 15 }, // Period Start
+      { width: 15 }, // Period End
+      { width: 18 }, // Basic Salary
+      { width: 15 }, // Allowances
+      { width: 15 }, // Overtime Pay
+      { width: 15 }, // Holiday Pay
+      { width: 15 }, // Gross Pay
+      { width: 12 }, // Absences
       { width: 18 }, // Total Deductions
       { width: 15 }, // Net Pay
+      { width: 12 }, // Status
       { width: 15 }  // Month/Year
     ]
 
@@ -153,82 +171,87 @@ export default function ReportsPage() {
   }
 
   async function fetchReports() {
-    // Employee Payroll Details
-    const { data: employeeRecords, error: empError } = await supabase
-      .from("payroll_records")
-      .select(`
-      id,
-      employee_id,
-      net_pay,
-      period_start,
-      period_end,
-      employees(full_name, pay_type)
-    `)
+    try {
+      // Fetch payroll records with employee details
+      const { data: payrollRecords, error: payrollError } = await supabase
+        .from("payroll_records")
+        .select(`
+          id,
+          employee_id,
+          period_start,
+          period_end,
+          basic_salary,
+          allowances,
+          overtime_pay,
+          holiday_pay,
+          gross_pay,
+          absences,
+          total_deductions,
+          net_pay,
+          status,
+          employees(id, employee_code, full_name, pay_type)
+        `)
+        .order("period_end", { ascending: false })
 
-    if (empError) {
-      console.error("Error fetching employee payroll details:", empError)
-    } else {
-      const details: EmployeePayrollDetail[] = (employeeRecords || []).map((rec: any) => {
-        const periodDate = new Date(rec.period_end)
-        const monthYear = `${periodDate.toLocaleString("default", { month: "long" })} ${periodDate.getFullYear()}`
+      if (payrollError) {
+        console.error("Error fetching payroll records:", payrollError)
+        return
+      }
+
+      // Fetch deductions separately
+      const { data: deductionRecords, error: deductionError } = await supabase
+        .from("deductions")
+        .select(`
+          id,
+          employee_id,
+          type,
+          amount,
+          created_at,
+          employees(full_name)
+        `)
+        .order("created_at", { ascending: false })
+
+      if (deductionError) {
+        console.error("Error fetching deductions:", deductionError)
+      }
+
+      // Process employee payroll details
+      const employeeDetails: EmployeePayrollDetail[] = (payrollRecords || []).map((record: any) => {
+        const periodEndDate = new Date(record.period_end)
+        const monthYear = `${periodEndDate.toLocaleDateString('en-US', { month: 'long' })} ${periodEndDate.getFullYear()}`
 
         return {
-          employee_id: rec.employee_id,
-          emplyoee_code: rec.employee_code || "N/A",
-          full_name: rec.employees?.full_name || "Unknown",
-          basic_monthly_salary: rec.basic_salary || 0,
-          monthly_allowance: rec.allowances || 0,
-          overtime_total: rec.overtime_pay || 0,
-          sss_deduction: rec.sss || 0,
-          philhealth_deduction: rec.philhealth || 0,
-          pagibig_deduction: rec.pagibig || 0,
-          other_deductions: (rec.loans || 0) + (rec.uniform || 0) + (rec.tardiness || 0) + (rec.absences || 0),
-          total_deductions: rec.total_deductions || 0,
-          net_pay: rec.net_pay || 0,
+          id: record.id,
+          employee_id: record.employee_id,
+          employee_code: record.employees?.employee_code || 'N/A',
+          full_name: record.employees?.full_name || 'Unknown',
+          pay_type: record.employees?.pay_type || 'N/A',
+          basic_salary: record.basic_salary || 0,
+          allowances: record.allowances || 0,
+          overtime_pay: record.overtime_pay || 0,
+          holiday_pay: record.holiday_pay || 0,
+          gross_pay: record.gross_pay || 0,
+          absences: record.absences || 0,
+          total_deductions: record.total_deductions || 0,
+          net_pay: record.net_pay || 0,
+          period_start: record.period_start,
+          period_end: record.period_end,
           month_year: monthYear,
+          status: record.status || 'Unknown'
         }
       })
 
-      setEmployeePayrollDetails(details)
-    }
+      setEmployeePayrollDetails(employeeDetails)
 
-    // Payroll records
-    const { data: payroll, error: pError } = await supabase
-      .from("payroll_records")
-      .select("id, employee_id, net_pay, period_start, period_end, employees(full_name, pay_type)")
-    if (pError) console.error(pError)
-
-    // Deductions
-    const { data: deds, error: dError } = await supabase
-      .from("deductions")
-      .select("id, employee_id, type, amount, created_at, employees(full_name)")
-    if (dError) console.error(dError)
-
-    // Expenses
-    const { data: exps, error: eError } = await supabase
-      .from("company_expenses")
-      .select("*")
-      .order("incurred_on", { ascending: false })
-    if (eError) console.error(eError)
-
-    // Process monthly payroll summary
-    if (payroll) {
+      // Process monthly payroll summary
       const monthlyMap = new Map<string, MonthlyPayrollSummary>()
 
-      // Process each payroll record
-      payroll.forEach((record: any) => {
+      employeeDetails.forEach((record) => {
         const periodEndDate = new Date(record.period_end)
         const month = periodEndDate.toLocaleDateString('en-US', { month: 'long' })
         const year = periodEndDate.getFullYear()
         const monthYearKey = `${year}-${String(periodEndDate.getMonth() + 1).padStart(2, '0')}`
         const monthYear = `${month} ${year}`
-
-        // Calculate deductions for this employee in this period
-        const employeeDeductions = deds?.filter((d: any) => 
-          d.employee_id === record.employee_id &&
-          d.created_at >= record.period_start &&
-          d.created_at <= record.period_end
-        ).reduce((sum, d) => sum + d.amount, 0) || 0
 
         if (!monthlyMap.has(monthYearKey)) {
           monthlyMap.set(monthYearKey, {
@@ -239,22 +262,24 @@ export default function ReportsPage() {
             totalGrossPay: 0,
             totalDeductions: 0,
             totalNetPay: 0,
+            totalAllowances: 0,
             recordCount: 0
           })
         }
 
         const monthlyData = monthlyMap.get(monthYearKey)!
         monthlyData.recordCount += 1
-        monthlyData.totalGrossPay += record.net_pay
-        monthlyData.totalDeductions += employeeDeductions
-        monthlyData.totalNetPay += (record.net_pay - employeeDeductions)
-        
-        // Count unique employees
-        const uniqueEmployees = new Set()
-        payroll.forEach((p: any) => {
-          const pEndDate = new Date(p.period_end)
-          if (pEndDate.getFullYear() === year && pEndDate.getMonth() === periodEndDate.getMonth()) {
-            uniqueEmployees.add(p.employee_id)
+        monthlyData.totalGrossPay += record.gross_pay || record.basic_salary || 0
+        monthlyData.totalDeductions += record.total_deductions
+        monthlyData.totalNetPay += record.net_pay
+        monthlyData.totalAllowances += record.allowances
+
+        // Count unique employees for this month
+        const uniqueEmployees = new Set<string>()
+        employeeDetails.forEach((emp) => {
+          const empEndDate = new Date(emp.period_end)
+          if (empEndDate.getFullYear() === year && empEndDate.getMonth() === periodEndDate.getMonth()) {
+            uniqueEmployees.add(emp.employee_id)
           }
         })
         monthlyData.totalEmployees = uniqueEmployees.size
@@ -263,55 +288,80 @@ export default function ReportsPage() {
       // Convert to array and sort by year and month (most recent first)
       const monthlySummary = Array.from(monthlyMap.values()).sort((a, b) => {
         if (a.year !== b.year) return b.year - a.year
-        return new Date(`${a.month} 1, ${a.year}`).getMonth() - new Date(`${b.month} 1, ${b.year}`).getMonth()
+        return b.month.localeCompare(a.month)
       })
 
       setMonthlyPayrollSummary(monthlySummary)
+
+      // Compute overall payroll summary
+      const totalGross = employeeDetails.reduce((sum, record) => sum + (record.gross_pay || record.basic_salary || 0), 0)
+      const totalDeductions = employeeDetails.reduce((sum, record) => sum + record.total_deductions, 0)
+      const totalAllowances = employeeDetails.reduce((sum, record) => sum + record.allowances, 0)
+      const totalNetPay = employeeDetails.reduce((sum, record) => sum + record.net_pay, 0)
+      const netAfterDeductions = totalGross - totalDeductions
+
+      setPayrollSummary({ 
+        totalGross, 
+        totalDeductions, 
+        netAfterDeductions,
+        totalAllowances,
+        totalNetPay
+      })
+
+      // Process deductions
+      setDeductions(
+        (deductionRecords || []).map((d: any) => ({
+          id: d.id,
+          employee_name: d.employees?.full_name || 'Unknown',
+          type: d.type,
+          amount: d.amount,
+          created_at: d.created_at,
+        }))
+      )
+
+      // Fetch expenses
+      const { data: expenseRecords, error: expenseError } = await supabase
+        .from("company_expenses")
+        .select("*")
+        .order("incurred_on", { ascending: false })
+
+      if (expenseError) {
+        console.error("Error fetching expenses:", expenseError)
+      } else {
+        setExpenses(
+          (expenseRecords || []).map((e: any) => ({
+            id: e.id,
+            expense_name: e.expense_name,
+            category: e.category,
+            amount: e.amount,
+            incurred_on: e.incurred_on,
+          }))
+        )
+      }
+
+    } catch (error) {
+      console.error("Error in fetchReports:", error)
     }
-
-    // Compute overall totals
-    const totalGross = payroll?.reduce((sum, p) => sum + p.net_pay, 0) || 0
-    const totalDeductions = deds?.reduce((sum, d) => sum + d.amount, 0) || 0
-    const netAfterDeductions = totalGross - totalDeductions
-
-    setPayrollSummary({ totalGross, totalDeductions, netAfterDeductions })
-
-    setDeductions(
-      deds?.map((d: any) => ({
-        id: d.id,
-        employee_name: d.employees?.full_name,
-        type: d.type,
-        amount: d.amount,
-      })) || []
-    )
-
-    setExpenses(
-      exps?.map((e: any) => ({
-        id: e.id,
-        expense_name: e.expense_name,
-        category: e.category,
-        amount: e.amount,
-        incurred_on: e.incurred_on,
-      })) || []
-    )
   }
 
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Reports</h1>
-        {/* <Button onClick={exportToExcel} className="flex items-center gap-2">
-          <Download className="h-4 w-4" />
-          Export to Excel
-        </Button> */}
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-4">
             <p className="text-sm text-muted-foreground">Total Gross Payroll</p>
             <h2 className="text-xl font-bold">₱ {payrollSummary.totalGross.toLocaleString()}</h2>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-sm text-muted-foreground">Total Allowances</p>
+            <h2 className="text-xl font-bold">₱ {payrollSummary.totalAllowances.toLocaleString()}</h2>
           </CardContent>
         </Card>
         <Card>
@@ -322,8 +372,8 @@ export default function ReportsPage() {
         </Card>
         <Card>
           <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Net After Deductions</p>
-            <h2 className="text-xl font-bold">₱ {payrollSummary.netAfterDeductions.toLocaleString()}</h2>
+            <p className="text-sm text-muted-foreground">Total Net Pay</p>
+            <h2 className="text-xl font-bold">₱ {payrollSummary.totalNetPay.toLocaleString()}</h2>
           </CardContent>
         </Card>
       </div>
@@ -345,12 +395,13 @@ export default function ReportsPage() {
                 <h3 className="text-lg font-semibold">Employee Payroll Details</h3>
                 <Button onClick={exportToExcel} variant="outline" size="sm" className="flex items-center gap-2">
                   <Download className="h-4 w-4" />
-                  Export
+                  Export to Excel
                 </Button>
               </div>
               {employeePayrollDetails.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <p>No employee payroll data available.</p>
+                  <p className="text-sm">Generate some payroll records to see reports.</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -358,36 +409,48 @@ export default function ReportsPage() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Employee ID</TableHead>
-                        <TableHead>Employee Code</TableHead>
                         <TableHead>Full Name</TableHead>
-                        <TableHead>Basic Monthly Salary</TableHead>
-                        <TableHead>Monthly Allowance</TableHead>
-                        <TableHead>OT Total</TableHead>
-                        <TableHead>SSS</TableHead>
-                        <TableHead>PhilHealth</TableHead>
-                        <TableHead>Pag-ibig</TableHead>
-                        <TableHead>Other Deductions</TableHead>
+                        <TableHead>Pay Type</TableHead>
+                        <TableHead>Period</TableHead>
+                        <TableHead>Basic Salary</TableHead>
+                        <TableHead>Allowances</TableHead>
+                        <TableHead>Overtime</TableHead>
+                        <TableHead>Holiday Pay</TableHead>
+                        <TableHead>Gross Pay</TableHead>
+                        <TableHead>Absences</TableHead>
                         <TableHead>Total Deductions</TableHead>
                         <TableHead>Net Pay</TableHead>
-                        <TableHead>Month/Year</TableHead>
+                        <TableHead>Status</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {employeePayrollDetails.map((emp, index) => (
-                        <TableRow key={`${emp.employee_id}-${emp.month_year}-${index}`}>
+                      {employeePayrollDetails.map((emp) => (
+                        <TableRow key={emp.id}>
                           <TableCell className="font-medium">{emp.employee_id}</TableCell>
-                          <TableCell>{emp.emplyoee_code || "N/A"}</TableCell>
                           <TableCell>{emp.full_name}</TableCell>
-                          <TableCell>₱ {emp.basic_monthly_salary.toLocaleString()}</TableCell>
-                          <TableCell>₱ {emp.monthly_allowance.toLocaleString()}</TableCell>
-                          <TableCell>₱ {emp.overtime_total.toLocaleString()}</TableCell>
-                          <TableCell>₱ {emp.sss_deduction.toLocaleString()}</TableCell>
-                          <TableCell>₱ {emp.philhealth_deduction.toLocaleString()}</TableCell>
-                          <TableCell>₱ {emp.pagibig_deduction.toLocaleString()}</TableCell>
-                          <TableCell>₱ {emp.other_deductions.toLocaleString()}</TableCell>
+                          <TableCell>{emp.pay_type}</TableCell>
+                          <TableCell className="text-sm">
+                            {new Date(emp.period_start).toLocaleDateString()} - {new Date(emp.period_end).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell>₱ {emp.basic_salary.toLocaleString()}</TableCell>
+                          <TableCell>₱ {emp.allowances.toLocaleString()}</TableCell>
+                          <TableCell>₱ {emp.overtime_pay.toLocaleString()}</TableCell>
+                          <TableCell>₱ {emp.holiday_pay.toLocaleString()}</TableCell>
+                          <TableCell>₱ {(emp.gross_pay || emp.basic_salary).toLocaleString()}</TableCell>
+                          <TableCell>₱ {emp.absences.toLocaleString()}</TableCell>
                           <TableCell>₱ {emp.total_deductions.toLocaleString()}</TableCell>
                           <TableCell className="font-bold">₱ {emp.net_pay.toLocaleString()}</TableCell>
-                          <TableCell>{emp.month_year}</TableCell>
+                          <TableCell>
+                            <span className={`px-2 py-1 rounded-full text-xs ${
+                              emp.status === 'Paid' 
+                                ? 'bg-green-100 text-green-800' 
+                                : emp.status === 'Pending Payment'
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : 'bg-gray-100 text-gray-800'
+                            }`}>
+                              {emp.status}
+                            </span>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -415,6 +478,7 @@ export default function ReportsPage() {
                       <TableHead>Total Employees</TableHead>
                       <TableHead>Payroll Records</TableHead>
                       <TableHead>Gross Pay</TableHead>
+                      <TableHead>Allowances</TableHead>
                       <TableHead>Deductions</TableHead>
                       <TableHead>Net Pay</TableHead>
                     </TableRow>
@@ -426,6 +490,7 @@ export default function ReportsPage() {
                         <TableCell>{summary.totalEmployees}</TableCell>
                         <TableCell>{summary.recordCount}</TableCell>
                         <TableCell>₱ {summary.totalGrossPay.toLocaleString()}</TableCell>
+                        <TableCell>₱ {summary.totalAllowances.toLocaleString()}</TableCell>
                         <TableCell>₱ {summary.totalDeductions.toLocaleString()}</TableCell>
                         <TableCell className="font-bold">₱ {summary.totalNetPay.toLocaleString()}</TableCell>
                       </TableRow>
@@ -439,6 +504,9 @@ export default function ReportsPage() {
                         </TableCell>
                         <TableCell>
                           ₱ {monthlyPayrollSummary.reduce((sum, s) => sum + s.totalGrossPay, 0).toLocaleString()}
+                        </TableCell>
+                        <TableCell>
+                          ₱ {monthlyPayrollSummary.reduce((sum, s) => sum + s.totalAllowances, 0).toLocaleString()}
                         </TableCell>
                         <TableCell>
                           ₱ {monthlyPayrollSummary.reduce((sum, s) => sum + s.totalDeductions, 0).toLocaleString()}
@@ -458,25 +526,34 @@ export default function ReportsPage() {
         {/* Deductions Tab */}
         <TabsContent value="deductions">
           <Card>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Employee</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Amount</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {deductions.map((d) => (
-                    <TableRow key={d.id}>
-                      <TableCell>{d.employee_name}</TableCell>
-                      <TableCell>{d.type}</TableCell>
-                      <TableCell>₱ {d.amount.toLocaleString()}</TableCell>
+            <CardContent className="p-6">
+              <h3 className="text-lg font-semibold mb-4">Employee Deductions</h3>
+              {deductions.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p>No deduction records found.</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Employee</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Amount</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {deductions.map((d) => (
+                      <TableRow key={d.id}>
+                        <TableCell>{new Date(d.created_at).toLocaleDateString()}</TableCell>
+                        <TableCell>{d.employee_name}</TableCell>
+                        <TableCell>{d.type}</TableCell>
+                        <TableCell>₱ {d.amount.toLocaleString()}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -484,27 +561,34 @@ export default function ReportsPage() {
         {/* Expenses Tab */}
         <TabsContent value="expenses">
           <Card>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Amount</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {expenses.map((e) => (
-                    <TableRow key={e.id}>
-                      <TableCell>{new Date(e.incurred_on).toLocaleDateString()}</TableCell>
-                      <TableCell>{e.expense_name}</TableCell>
-                      <TableCell>{e.category}</TableCell>
-                      <TableCell>₱ {e.amount.toLocaleString()}</TableCell>
+            <CardContent className="p-6">
+              <h3 className="text-lg font-semibold mb-4">Company Expenses</h3>
+              {expenses.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p>No expense records found.</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Amount</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {expenses.map((e) => (
+                      <TableRow key={e.id}>
+                        <TableCell>{new Date(e.incurred_on).toLocaleDateString()}</TableCell>
+                        <TableCell>{e.expense_name}</TableCell>
+                        <TableCell>{e.category}</TableCell>
+                        <TableCell>₱ {e.amount.toLocaleString()}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
