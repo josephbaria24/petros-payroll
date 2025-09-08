@@ -236,7 +236,7 @@ export default function EmployeesPage() {
           <DialogTrigger asChild>
             <Button>Add Employee</Button>
           </DialogTrigger>
-          <DialogContent className="max-h-[90vh] overflow-y-auto">
+          <DialogContent className="w-[30vw] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Add New Employee</DialogTitle>
             </DialogHeader>

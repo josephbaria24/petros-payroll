@@ -36,6 +36,7 @@ type MonthlyPayrollSummary = {
 
 type EmployeePayrollDetail = {
   employee_id: string
+  emplyoee_code?: string
   full_name: string
   basic_monthly_salary: number
   monthly_allowance: number
@@ -173,6 +174,7 @@ export default function ReportsPage() {
 
         return {
           employee_id: rec.employee_id,
+          emplyoee_code: rec.employee_code || "N/A",
           full_name: rec.employees?.full_name || "Unknown",
           basic_monthly_salary: rec.basic_salary || 0,
           monthly_allowance: rec.allowances || 0,
@@ -298,10 +300,10 @@ export default function ReportsPage() {
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Reports</h1>
-        <Button onClick={exportToExcel} className="flex items-center gap-2">
+        {/* <Button onClick={exportToExcel} className="flex items-center gap-2">
           <Download className="h-4 w-4" />
           Export to Excel
-        </Button>
+        </Button> */}
       </div>
 
       {/* Summary Cards */}
@@ -356,6 +358,7 @@ export default function ReportsPage() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Employee ID</TableHead>
+                        <TableHead>Employee Code</TableHead>
                         <TableHead>Full Name</TableHead>
                         <TableHead>Basic Monthly Salary</TableHead>
                         <TableHead>Monthly Allowance</TableHead>
@@ -373,6 +376,7 @@ export default function ReportsPage() {
                       {employeePayrollDetails.map((emp, index) => (
                         <TableRow key={`${emp.employee_id}-${emp.month_year}-${index}`}>
                           <TableCell className="font-medium">{emp.employee_id}</TableCell>
+                          <TableCell>{emp.emplyoee_code || "N/A"}</TableCell>
                           <TableCell>{emp.full_name}</TableCell>
                           <TableCell>₱ {emp.basic_monthly_salary.toLocaleString()}</TableCell>
                           <TableCell>₱ {emp.monthly_allowance.toLocaleString()}</TableCell>

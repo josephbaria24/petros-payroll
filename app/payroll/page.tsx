@@ -31,7 +31,9 @@ type PayrollRecord = {
   period_start: string
   period_end: string
   net_pay: number
+  allowances?: number
   status: string
+  absences?: number
   total_deductions?: number
   net_after_deductions?: number
 }
@@ -104,6 +106,14 @@ export default function PayrollPage() {
     }
   }
 
+
+  const [absentForm, setAbsentForm] = useState({
+    employee_id: "",
+    days: 0,
+    amountPerDay: 0,
+  })
+
+
   async function handleDeletePeriod(periodKey: string) {
     const confirm = window.confirm("Are you sure you want to delete this entire payroll period? This will delete all payroll records for this period.")
     if (!confirm) return
@@ -138,6 +148,9 @@ export default function PayrollPage() {
         period_end,
         net_pay,
         status,
+        absences,
+        allowances,
+        total_deductions,
         employees(full_name, pay_type)
       `)
       .order("period_end", { ascending: false })
@@ -158,15 +171,18 @@ export default function PayrollPage() {
 
     // Process records with deductions
     const processedRecords = payroll.map((rec: any) => {
-      const totalDeductions = deductions
-        ?.filter(
-          (d) =>
-            d.employee_id === rec.employee_id &&
-            (!rec.period_start || !rec.period_end ||
-              (d.created_at >= rec.period_start && d.created_at <= rec.period_end))
-        )
-        .reduce((sum, d) => sum + d.amount, 0) || 0
-
+      const totalDeductions =
+        (deductions
+          ?.filter(
+            (d) =>
+              d.employee_id === rec.employee_id &&
+              (!rec.period_start ||
+                !rec.period_end ||
+                (d.created_at >= rec.period_start &&
+                  d.created_at <= rec.period_end))
+          )
+          .reduce((sum, d) => sum + d.amount, 0) || 0) + (rec.absences || 0)
+    
       return {
         id: rec.id,
         employee_id: rec.employee_id,
@@ -175,11 +191,15 @@ export default function PayrollPage() {
         period_start: rec.period_start,
         period_end: rec.period_end,
         net_pay: rec.net_pay,
+        allowances: rec.allowances || 0,   // ✅ keep allowance visible
         status: rec.status,
+        absences: rec.absences || 0,
         total_deductions: totalDeductions,
         net_after_deductions: rec.net_pay - totalDeductions,
       }
     })
+    
+    
 
     // Group by period
     const periodMap = new Map<string, PayrollPeriod>()
@@ -239,32 +259,41 @@ export default function PayrollPage() {
     try {
       const { data: allEmployees, error: empErr } = await supabase
         .from("employees")
-        .select("id, base_salary")
+        .select("id, base_salary, allowance")
   
       if (empErr || !allEmployees) throw new Error("Failed to fetch employees.")
   
       const recordsToInsert = []
-  
+
       for (const emp of allEmployees) {
-        const { id: employee_id, base_salary } = emp
-  
-        if (!base_salary) continue // skip if salary is missing
-  
-        const grossPay = base_salary
-        const netPay = grossPay // Deductions handled elsewhere
-  
+        const { id: employee_id, base_salary, allowance } = emp
+        if (!base_salary) continue
+      
+        const grossPay = (base_salary || 0) + (allowance || 0)  // ✅ include allowance
+        let absDeduction = 0
+      
+        if (absentForm.employee_id === employee_id) {
+          absDeduction = absentForm.days * absentForm.amountPerDay
+        }
+      
+        const netPay = grossPay - absDeduction
+      
         recordsToInsert.push({
           employee_id,
           period_start: format(periodStart, "yyyy-MM-dd"),
           period_end: format(periodEnd, "yyyy-MM-dd"),
-          basic_salary: grossPay,
+          basic_salary: base_salary,
+          allowances: allowance || 0,            // ✅ save allowance into payroll_records
           overtime_pay: 0,
           holiday_pay: 0,
+          absences: absDeduction,
           gross_pay: grossPay,
-          net_pay: netPay,
+          total_deductions: absDeduction,
+          net_pay: grossPay - absDeduction,
           status: "Pending Payment",
         })
       }
+      
   
       if (recordsToInsert.length > 0) {
         const { error: insertError } = await supabase
@@ -371,6 +400,50 @@ export default function PayrollPage() {
                   </PopoverContent>
                 </Popover>
               </div>
+              {/* Absent Deduction */}
+<div>
+  <Label>Employee</Label>
+  <Select
+    value={absentForm.employee_id}
+    onValueChange={(v) => setAbsentForm({ ...absentForm, employee_id: v })}
+  >
+    <SelectTrigger>
+      <SelectValue placeholder="Select employee (optional)" />
+    </SelectTrigger>
+    <SelectContent>
+      {employees.map((emp) => (
+        <SelectItem key={emp.id} value={emp.id}>
+          {emp.full_name}
+        </SelectItem>
+      ))}
+    </SelectContent>
+  </Select>
+</div>
+
+<div className="grid grid-cols-2 gap-4">
+  <div>
+    <Label>Days Absent</Label>
+    <Input
+      type="number"
+      value={absentForm.days}
+      onChange={(e) =>
+        setAbsentForm({ ...absentForm, days: parseInt(e.target.value) || 0 })
+      }
+    />
+  </div>
+
+  <div>
+    <Label>Amount Per Day</Label>
+    <Input
+      type="number"
+      value={absentForm.amountPerDay}
+      onChange={(e) =>
+        setAbsentForm({ ...absentForm, amountPerDay: parseFloat(e.target.value) || 0 })
+      }
+    />
+  </div>
+</div>
+
 
               <Button type="submit" className="w-full">
                 Generate Payroll
@@ -434,7 +507,7 @@ export default function PayrollPage() {
 
       {/* Period Details Dialog */}
       <Dialog open={periodDialogOpen} onOpenChange={setPeriodDialogOpen}>
-        <DialogContent className="max-w-7xl w-full max-h-[85vh] overflow-x-auto ">
+        <DialogContent className="max-w-8xl w-[90vw] max-h-[85vh] overflow-x-auto ">
           <DialogHeader>
             <DialogTitle>Payroll Details - {selectedPeriodName}</DialogTitle>
           </DialogHeader>
@@ -454,7 +527,9 @@ export default function PayrollPage() {
                     <TableHead>Employee</TableHead>
                     <TableHead>Pay Type</TableHead>
                     <TableHead>Gross Net Pay</TableHead>
+                    <TableHead>Allowance</TableHead>
                     <TableHead>Total Deductions</TableHead>
+                    <TableHead>Absences</TableHead>
                     <TableHead>Net After Deductions</TableHead>
                     <TableHead>Status</TableHead>
                   </TableRow>
@@ -479,7 +554,9 @@ export default function PayrollPage() {
                       <TableCell>{rec.employee_name}</TableCell>
                       <TableCell>{rec.pay_type}</TableCell>
                       <TableCell>₱ {rec.net_pay.toLocaleString()}</TableCell>
+                      <TableCell>₱ {rec.allowances?.toLocaleString() || 0}</TableCell>
                       <TableCell>₱ {rec.total_deductions?.toLocaleString()}</TableCell>
+                      <TableCell>₱ {rec.absences?.toLocaleString() || 0}</TableCell>
                       <TableCell className="font-bold">₱ {rec.net_after_deductions?.toLocaleString()}</TableCell>
                       <TableCell>
                         <span className={cn(
