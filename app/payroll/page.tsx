@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { CalendarIcon, Eye, Trash2 } from "lucide-react"
+import { CalendarIcon, Eye, Trash2, Plus, X } from "lucide-react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 import {
@@ -51,6 +51,12 @@ type PayrollPeriod = {
   records: PayrollRecord[]
 }
 
+type AbsentEmployee = {
+  employee_id: string
+  days: number
+  amountPerDay: number
+}
+
 export default function PayrollPage() {
   
   useProtectedPage(["admin", "hr"])
@@ -80,6 +86,9 @@ export default function PayrollPage() {
   const [editRecord, setEditRecord] = useState<PayrollRecord | null>(null)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   
+  // Enhanced absent employees state - now supports multiple employees
+  const [absentEmployees, setAbsentEmployees] = useState<AbsentEmployee[]>([])
+  
   useEffect(() => {
     fetchPayrollPeriods()
     fetchEmployees()
@@ -106,14 +115,6 @@ export default function PayrollPage() {
       fetchPayrollPeriods()
     }
   }
-
-
-  const [absentForm, setAbsentForm] = useState({
-    employee_id: "",
-    days: 0,
-    amountPerDay: 0,
-  })
-
 
   async function handleDeletePeriod(periodKey: string) {
     const confirm = window.confirm("Are you sure you want to delete this entire payroll period? This will delete all payroll records for this period.")
@@ -191,17 +192,15 @@ export default function PayrollPage() {
             pay_type: rec.employees?.pay_type,
             period_start: rec.period_start,
             period_end: rec.period_end,
-            net_pay: rec.net_pay,               // ✅ base net pay only (no allowance)
+            net_pay: rec.net_pay,
             allowances: rec.allowances || 0,
             status: rec.status,
             absences: rec.absences || 0,
             total_deductions: totalDeductions,
-            net_after_deductions: rec.net_pay - totalDeductions,  // ✅ base net after deductions
-            total_net: (rec.net_pay - totalDeductions) + (rec.allowances || 0), // ✅ add allowance just once
+            net_after_deductions: rec.net_pay - totalDeductions,
+            total_net: (rec.net_pay - totalDeductions) + (rec.allowances || 0),
           }   
     })
-    
-    
 
     // Group by period
     const periodMap = new Map<string, PayrollPeriod>()
@@ -251,6 +250,27 @@ export default function PayrollPage() {
     setEmployees(data)
   }
 
+  // Function to add new absent employee
+  function addAbsentEmployee() {
+    setAbsentEmployees([...absentEmployees, {
+      employee_id: "",
+      days: 0,
+      amountPerDay: 0
+    }])
+  }
+
+  // Function to remove absent employee
+  function removeAbsentEmployee(index: number) {
+    setAbsentEmployees(absentEmployees.filter((_, i) => i !== index))
+  }
+
+  // Function to update absent employee
+  function updateAbsentEmployee(index: number, field: keyof AbsentEmployee, value: string | number) {
+    const updated = [...absentEmployees]
+    updated[index] = { ...updated[index], [field]: value }
+    setAbsentEmployees(updated)
+  }
+
   async function handleBulkGeneratePayroll() {
     if (!periodStart || !periodEnd) {
       toast.error("Select a valid period first.")
@@ -272,11 +292,14 @@ export default function PayrollPage() {
         const { id: employee_id, base_salary, allowance } = emp
         if (!base_salary) continue
       
-        const grossPay = (base_salary || 0)  // ✅ include allowance
+        const grossPay = (base_salary || 0)
+        
+        // Find if this employee has absence deduction
+        const absentRecord = absentEmployees.find(a => a.employee_id === employee_id)
         let absDeduction = 0
-      
-        if (absentForm.employee_id === employee_id) {
-          absDeduction = absentForm.days * absentForm.amountPerDay
+        
+        if (absentRecord && absentRecord.days > 0 && absentRecord.amountPerDay > 0) {
+          absDeduction = absentRecord.days * absentRecord.amountPerDay
         }
       
         const netPay = grossPay - absDeduction
@@ -286,7 +309,7 @@ export default function PayrollPage() {
           period_start: format(periodStart, "yyyy-MM-dd"),
           period_end: format(periodEnd, "yyyy-MM-dd"),
           basic_salary: base_salary,
-          allowances: allowance || 0,            // ✅ save allowance into payroll_records
+          allowances: allowance || 0,
           overtime_pay: 0,
           holiday_pay: 0,
           absences: absDeduction,
@@ -296,7 +319,6 @@ export default function PayrollPage() {
           status: "Pending Payment",
         })
       }
-      
   
       if (recordsToInsert.length > 0) {
         const { error: insertError } = await supabase
@@ -306,6 +328,10 @@ export default function PayrollPage() {
         if (insertError) throw new Error("Bulk insert failed.")
         toast.success("Payroll generated for all employees!", { id: toastId })
         fetchPayrollPeriods()
+        // Reset form after successful generation
+        setAbsentEmployees([])
+        setPeriodStart(undefined)
+        setPeriodEnd(undefined)
       } else {
         toast.info("No eligible employees found for payroll generation.", { id: toastId })
       }
@@ -327,7 +353,7 @@ export default function PayrollPage() {
     setSelectedPeriodRecords(period.records)
     setSelectedPeriodName(period.display_name)
     setPeriodDialogOpen(true)
-    setSelectedIds([]) // Reset selection when viewing new period
+    setSelectedIds([])
   }
 
   return (
@@ -340,7 +366,7 @@ export default function PayrollPage() {
             <Button>+ Generate Payroll for All Employees</Button>
           </DialogTrigger>
 
-          <DialogContent className="lg:w-[30vw] sm:w-[90vw]">
+          <DialogContent className="lg:w-[40vw] sm:w-[90vw] max-h-[85vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Generate Payroll</DialogTitle>
             </DialogHeader>
@@ -403,50 +429,105 @@ export default function PayrollPage() {
                   </PopoverContent>
                 </Popover>
               </div>
-              {/* Absent Deduction */}
-<div>
-  <Label>Employee</Label>
-  <Select
-    value={absentForm.employee_id}
-    onValueChange={(v) => setAbsentForm({ ...absentForm, employee_id: v })}
-  >
-    <SelectTrigger>
-      <SelectValue placeholder="Select employee (optional)" />
-    </SelectTrigger>
-    <SelectContent>
-      {employees.map((emp) => (
-        <SelectItem key={emp.id} value={emp.id}>
-          {emp.full_name}
-        </SelectItem>
-      ))}
-    </SelectContent>
-  </Select>
-</div>
 
-<div className="grid grid-cols-2 gap-4">
-  <div>
-    <Label>Days Absent</Label>
-    <Input
-      type="number"
-      value={absentForm.days}
-      onChange={(e) =>
-        setAbsentForm({ ...absentForm, days: parseInt(e.target.value) || 0 })
-      }
-    />
-  </div>
+              {/* Absent Employees Section */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Label className="text-base font-medium">Absent Employees (Optional)</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addAbsentEmployee}
+                    className="flex items-center gap-2"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add Absent Employee
+                  </Button>
+                </div>
 
-  <div>
-    <Label>Amount Per Day</Label>
-    <Input
-      type="number"
-      value={absentForm.amountPerDay}
-      onChange={(e) =>
-        setAbsentForm({ ...absentForm, amountPerDay: parseFloat(e.target.value) || 0 })
-      }
-    />
-  </div>
-</div>
+                {absentEmployees.length === 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    No absent employees added. Click "Add Absent Employee" to include absence deductions.
+                  </p>
+                )}
 
+                {absentEmployees.map((absent, index) => (
+                  <Card key={index} className="p-4">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-sm font-medium">Employee #{index + 1}</Label>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeAbsentEmployee(index)}
+                          className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+
+                      <div>
+                        <Label className="text-sm">Employee</Label>
+                        <Select
+                          value={absent.employee_id}
+                          onValueChange={(value) => updateAbsentEmployee(index, 'employee_id', value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select employee" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {employees
+                              .filter(emp => !absentEmployees.some((a, i) => i !== index && a.employee_id === emp.id))
+                              .map((emp) => (
+                                <SelectItem key={emp.id} value={emp.id}>
+                                  {emp.full_name} ({emp.pay_type})
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label className="text-sm">Days Absent</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="1"
+                            placeholder="0"
+                            value={absent.days || ''}
+                            onChange={(e) =>
+                              updateAbsentEmployee(index, 'days', parseInt(e.target.value) || 0)
+                            }
+                          />
+                        </div>
+
+                        <div>
+                          <Label className="text-sm">Amount Per Day</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            placeholder="0.00"
+                            value={absent.amountPerDay || ''}
+                            onChange={(e) =>
+                              updateAbsentEmployee(index, 'amountPerDay', parseFloat(e.target.value) || 0)
+                            }
+                          />
+                        </div>
+                      </div>
+
+                      {absent.days > 0 && absent.amountPerDay > 0 && (
+                        <div className="text-sm text-muted-foreground bg-muted p-2 rounded">
+                          Total Deduction: ₱{(absent.days * absent.amountPerDay).toLocaleString()}
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+                ))}
+              </div>
 
               <Button type="submit" className="w-full">
                 Generate Payroll
