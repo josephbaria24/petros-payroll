@@ -30,7 +30,8 @@ type PayrollRecord = {
   pay_type?: string
   period_start: string
   period_end: string
-  net_pay: number
+  basic_salary: number
+  overtime_pay: number
   allowances?: number
   status: string
   absences?: number
@@ -45,16 +46,19 @@ type PayrollPeriod = {
   period_end: string
   display_name: string
   total_employees: number
-  total_net_pay: number
+  total_basic_salary: number
+  total_overtime: number
   total_deductions: number
   total_net_after_deductions: number
   records: PayrollRecord[]
 }
 
-type AbsentEmployee = {
+type EmployeeAdjustment = {
   employee_id: string
-  days: number
-  amountPerDay: number
+  absenceDays: number
+  absenceAmountPerDay: number
+  overtimeHours: number
+  overtimeRatePerHour: number
 }
 
 export default function PayrollPage() {
@@ -87,7 +91,8 @@ export default function PayrollPage() {
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   
   // Enhanced absent employees state - now supports multiple employees
-  const [absentEmployees, setAbsentEmployees] = useState<AbsentEmployee[]>([])
+  const [employeeAdjustments, setEmployeeAdjustments] = useState<EmployeeAdjustment[]>([])
+
   
   useEffect(() => {
     fetchPayrollPeriods()
@@ -148,11 +153,13 @@ export default function PayrollPage() {
         employee_id,
         period_start,
         period_end,
+        basic_salary,
+        overtime_pay,
+        allowances,
+        absences,
+        total_deductions,
         net_pay,
         status,
-        absences,
-        allowances,
-        total_deductions,
         employees(full_name, pay_type)
       `)
       .order("period_end", { ascending: false })
@@ -172,45 +179,43 @@ export default function PayrollPage() {
     }
 
     // Process records with deductions
-// In the fetchPayrollPeriods function, replace the processedRecords mapping with this:
+    const processedRecords = payroll.map((rec: any) => {
+      // Only get deductions from the deductions table (not including absences)
+      const otherDeductions = deductions
+        ?.filter(
+          (d) =>
+            d.employee_id === rec.employee_id &&
+            (!rec.period_start ||
+              !rec.period_end ||
+              (d.created_at >= rec.period_start &&
+                d.created_at <= rec.period_end))
+        )
+        .reduce((sum, d) => sum + d.amount, 0) || 0
 
-const processedRecords = payroll.map((rec: any) => {
-  // Only get deductions from the deductions table (not including absences)
-  const otherDeductions = deductions
-    ?.filter(
-      (d) =>
-        d.employee_id === rec.employee_id &&
-        (!rec.period_start ||
-          !rec.period_end ||
-          (d.created_at >= rec.period_start &&
-            d.created_at <= rec.period_end))
-    )
-    .reduce((sum, d) => sum + d.amount, 0) || 0
+      // Total deductions = other deductions + absences (from the payroll record)
+      const totalDeductions = otherDeductions + (rec.absences || 0)
 
-  // Total deductions = other deductions + absences (from the payroll record)
-  const totalDeductions = otherDeductions + (rec.absences || 0)
+      // Calculate net after deductions = basic_salary + overtime_pay - total_deductions
+      const netAfterDeductions = (rec.basic_salary || 0) + (rec.overtime_pay || 0) - totalDeductions
 
-  // Calculate the original base salary by adding back absence deductions
-  const originalBaseSalary = rec.net_pay + (rec.absences || 0)
-
-  return {
-    id: rec.id,
-    employee_id: rec.employee_id,
-    employee_name: rec.employees?.full_name,
-    pay_type: rec.employees?.pay_type,
-    period_start: rec.period_start,
-    period_end: rec.period_end,
-    net_pay: originalBaseSalary, // Show the original base salary (before any deductions)
-    allowances: rec.allowances || 0,
-    status: rec.status,
-    absences: rec.absences || 0,
-    total_deductions: totalDeductions,
-    // Net after deductions = original salary - all deductions
-    net_after_deductions: originalBaseSalary - totalDeductions,
-    // Total net = net after deductions + allowances
-    total_net: (originalBaseSalary - totalDeductions) + (rec.allowances || 0),
-  }   
-})
+      return {
+        id: rec.id,
+        employee_id: rec.employee_id,
+        employee_name: rec.employees?.full_name,
+        pay_type: rec.employees?.pay_type,
+        period_start: rec.period_start,
+        period_end: rec.period_end,
+        basic_salary: rec.basic_salary || 0,
+        overtime_pay: rec.overtime_pay || 0,
+        allowances: rec.allowances || 0,
+        status: rec.status,
+        absences: rec.absences || 0,
+        total_deductions: totalDeductions,
+        net_after_deductions: netAfterDeductions,
+        // Total net = net after deductions + allowances
+        total_net: netAfterDeductions + (rec.allowances || 0),
+      }   
+    })
 
     // Group by period
     const periodMap = new Map<string, PayrollPeriod>()
@@ -232,7 +237,8 @@ const processedRecords = payroll.map((rec: any) => {
           period_end: record.period_end,
           display_name: displayName,
           total_employees: 0,
-          total_net_pay: 0,
+          total_basic_salary: 0,
+          total_overtime: 0,
           total_deductions: 0,
           total_net_after_deductions: 0,
           records: []
@@ -242,10 +248,10 @@ const processedRecords = payroll.map((rec: any) => {
       const period = periodMap.get(periodKey)!
       period.records.push(record)
       period.total_employees = period.records.length
-      period.total_net_pay += record.net_pay
+      period.total_basic_salary += record.basic_salary
+      period.total_overtime += record.overtime_pay
       period.total_deductions += record.total_deductions || 0
-      period.total_net_after_deductions += record.net_after_deductions || 0
-      period.total_net_pay += record.total_net || 0
+      period.total_net_after_deductions += record.total_net || 0
     })
 
     setPeriods(Array.from(periodMap.values()))
@@ -261,24 +267,27 @@ const processedRecords = payroll.map((rec: any) => {
   }
 
   // Function to add new absent employee
-  function addAbsentEmployee() {
-    setAbsentEmployees([...absentEmployees, {
+  function addEmployeeAdjustment() {
+    setEmployeeAdjustments([...employeeAdjustments, {
       employee_id: "",
-      days: 0,
-      amountPerDay: 0
+      absenceDays: 0,
+      absenceAmountPerDay: 0,
+      overtimeHours: 0,
+      overtimeRatePerHour: 0
     }])
   }
+  
 
   // Function to remove absent employee
-  function removeAbsentEmployee(index: number) {
-    setAbsentEmployees(absentEmployees.filter((_, i) => i !== index))
+  function removeEmployeeAdjustment(index: number) {
+    setEmployeeAdjustments(employeeAdjustments.filter((_, i) => i !== index))
   }
 
   // Function to update absent employee
-  function updateAbsentEmployee(index: number, field: keyof AbsentEmployee, value: string | number) {
-    const updated = [...absentEmployees]
+  function updateEmployeeAdjustment(index: number, field: keyof EmployeeAdjustment, value: string | number) {
+    const updated = [...employeeAdjustments]
     updated[index] = { ...updated[index], [field]: value }
-    setAbsentEmployees(updated)
+    setEmployeeAdjustments(updated)
   }
 
   async function handleBulkGeneratePayroll() {
@@ -297,34 +306,45 @@ const processedRecords = payroll.map((rec: any) => {
       if (empErr || !allEmployees) throw new Error("Failed to fetch employees.")
   
       const recordsToInsert = []
-
+  
       for (const emp of allEmployees) {
         const { id: employee_id, base_salary, allowance } = emp
         if (!base_salary) continue
       
-        const grossPay = (base_salary || 0)
+        const baseSalary = (base_salary || 0)
         
-        // Find if this employee has absence deduction
-        const absentRecord = absentEmployees.find(a => a.employee_id === employee_id)
-        let absDeduction = 0
+        // Find if this employee has adjustments
+        const adjustment = employeeAdjustments.find(a => a.employee_id === employee_id)
         
-        if (absentRecord && absentRecord.days > 0 && absentRecord.amountPerDay > 0) {
-          absDeduction = absentRecord.days * absentRecord.amountPerDay
+        let absenceDeduction = 0
+        let overtimePay = 0
+        
+        if (adjustment) {
+          // Calculate absence deduction
+          if (adjustment.absenceDays > 0 && adjustment.absenceAmountPerDay > 0) {
+            absenceDeduction = adjustment.absenceDays * adjustment.absenceAmountPerDay
+          }
+          
+          // Calculate overtime pay
+          if (adjustment.overtimeHours > 0 && adjustment.overtimeRatePerHour > 0) {
+            overtimePay = adjustment.overtimeHours * adjustment.overtimeRatePerHour
+          }
         }
-      
-        const netPay = grossPay - absDeduction
+        
+        const grossPay = baseSalary + overtimePay
+        const netPay = grossPay - absenceDeduction
       
         recordsToInsert.push({
           employee_id,
           period_start: format(periodStart, "yyyy-MM-dd"),
           period_end: format(periodEnd, "yyyy-MM-dd"),
-          basic_salary: base_salary,
+          basic_salary: baseSalary, // Keep base salary separate
+          overtime_pay: overtimePay, // Store overtime separately
           allowances: allowance || 0,
-          overtime_pay: 0,
           holiday_pay: 0,
-          absences: absDeduction,
+          absences: absenceDeduction,
           gross_pay: grossPay,
-          total_deductions: absDeduction,
+          total_deductions: absenceDeduction,
           net_pay: netPay,
           status: "Pending Payment",
         })
@@ -339,7 +359,7 @@ const processedRecords = payroll.map((rec: any) => {
         toast.success("Payroll generated for all employees!", { id: toastId })
         fetchPayrollPeriods()
         // Reset form after successful generation
-        setAbsentEmployees([])
+        setEmployeeAdjustments([])
         setPeriodStart(undefined)
         setPeriodEnd(undefined)
       } else {
@@ -350,7 +370,6 @@ const processedRecords = payroll.map((rec: any) => {
       toast.error(err.message || "An error occurred", { id: toastId })
     }
   }
-
   useEffect(() => {
     setForm((f) => ({
       ...f,
@@ -443,101 +462,173 @@ const processedRecords = payroll.map((rec: any) => {
               {/* Absent Employees Section */}
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <Label className="text-base font-medium">Absent Employees (Optional)</Label>
+                  <Label className="text-base font-medium">Employee Adjustments (Optional)</Label>
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={addAbsentEmployee}
+                    onClick={addEmployeeAdjustment}
                     className="flex items-center gap-2"
                   >
                     <Plus className="h-4 w-4" />
-                    Add Absent Employee
+                    Add Employee
                   </Button>
                 </div>
 
-                {absentEmployees.length === 0 && (
+                {employeeAdjustments.length === 0 && (
                   <p className="text-sm text-muted-foreground">
                     No absent employees added. Click "Add Absent Employee" to include absence deductions.
                   </p>
                 )}
 
-                {absentEmployees.map((absent, index) => (
-                  <Card key={index} className="p-4">
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <Label className="text-sm font-medium">Employee #{index + 1}</Label>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeAbsentEmployee(index)}
-                          className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
+{employeeAdjustments.map((adjustment, index) => (
+    <Card key={index} className="p-4">
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <Label className="text-sm font-medium">Employee #{index + 1}</Label>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => removeEmployeeAdjustment(index)}
+            className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
 
-                      <div>
-                        <Label className="text-sm">Employee</Label>
-                        <Select
-                          value={absent.employee_id}
-                          onValueChange={(value) => updateAbsentEmployee(index, 'employee_id', value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select employee" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {employees
-                              .filter(emp => !absentEmployees.some((a, i) => i !== index && a.employee_id === emp.id))
-                              .map((emp) => (
-                                <SelectItem key={emp.id} value={emp.id}>
-                                  {emp.full_name} ({emp.pay_type})
-                                </SelectItem>
-                              ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <Label className="text-sm">Days Absent</Label>
-                          <Input
-                            type="number"
-                            min="0"
-                            step="1"
-                            placeholder="0"
-                            value={absent.days || ''}
-                            onChange={(e) =>
-                              updateAbsentEmployee(index, 'days', parseInt(e.target.value) || 0)
-                            }
-                          />
-                        </div>
-
-                        <div>
-                          <Label className="text-sm">Amount Per Day</Label>
-                          <Input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            placeholder="0.00"
-                            value={absent.amountPerDay || ''}
-                            onChange={(e) =>
-                              updateAbsentEmployee(index, 'amountPerDay', parseFloat(e.target.value) || 0)
-                            }
-                          />
-                        </div>
-                      </div>
-
-                      {absent.days > 0 && absent.amountPerDay > 0 && (
-                        <div className="text-sm text-muted-foreground bg-muted p-2 rounded">
-                          Total Deduction: ₱{(absent.days * absent.amountPerDay).toLocaleString()}
-                        </div>
-                      )}
-                    </div>
-                  </Card>
+        <div>
+          <Label className="text-sm">Employee</Label>
+          <Select
+            value={adjustment.employee_id}
+            onValueChange={(value) => updateEmployeeAdjustment(index, 'employee_id', value)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select employee" />
+            </SelectTrigger>
+            <SelectContent>
+              {employees
+                .filter(emp => !employeeAdjustments.some((a, i) => i !== index && a.employee_id === emp.id))
+                .map((emp) => (
+                  <SelectItem key={emp.id} value={emp.id}>
+                    {emp.full_name} ({emp.pay_type})
+                  </SelectItem>
                 ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+                 {/* Absence Section */}
+        <div className="border-t pt-3">
+          <Label className="text-sm font-medium text-red-600 mb-2 block">Absence Deductions</Label>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-sm">Days Absent</Label>
+              <Input
+                type="number"
+                min="0"
+                step="1"
+                placeholder="0"
+                value={adjustment.absenceDays || ''}
+                onChange={(e) =>
+                  updateEmployeeAdjustment(index, 'absenceDays', parseInt(e.target.value) || 0)
+                }
+              />
+            </div>
+
+            <div>
+              <Label className="text-sm">Amount Per Day</Label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+                value={adjustment.absenceAmountPerDay || ''}
+                onChange={(e) =>
+                  updateEmployeeAdjustment(index, 'absenceAmountPerDay', parseFloat(e.target.value) || 0)
+                }
+              />
+            </div>
+          </div>
+
+          {adjustment.absenceDays > 0 && adjustment.absenceAmountPerDay > 0 && (
+            <div className="text-sm text-red-600 bg-red-50 p-2 rounded mt-2">
+              Total Absence Deduction: -₱{(adjustment.absenceDays * adjustment.absenceAmountPerDay).toLocaleString()}
+            </div>
+          )}
+        </div>
+
+        {/* Overtime Section */}
+        <div className="border-t pt-3">
+          <Label className="text-sm font-medium text-green-600 mb-2 block">Overtime Pay</Label>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-sm">Overtime Hours</Label>
+              <Input
+                type="number"
+                min="0"
+                step="0.5"
+                placeholder="0"
+                value={adjustment.overtimeHours || ''}
+                onChange={(e) =>
+                  updateEmployeeAdjustment(index, 'overtimeHours', parseFloat(e.target.value) || 0)
+                }
+              />
+            </div>
+
+            <div>
+              <Label className="text-sm">Rate Per Hour</Label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+                value={adjustment.overtimeRatePerHour || ''}
+                onChange={(e) =>
+                  updateEmployeeAdjustment(index, 'overtimeRatePerHour', parseFloat(e.target.value) || 0)
+                }
+              />
+            </div>
+          </div>
+
+          {adjustment.overtimeHours > 0 && adjustment.overtimeRatePerHour > 0 && (
+            <div className="text-sm text-green-600 bg-green-50 p-2 rounded mt-2">
+              Total Overtime Pay: +₱{(adjustment.overtimeHours * adjustment.overtimeRatePerHour).toLocaleString()}
+            </div>
+          )}
+        </div>
+
+        {/* Net Effect Summary */}
+        {(adjustment.absenceDays > 0 && adjustment.absenceAmountPerDay > 0) || 
+         (adjustment.overtimeHours > 0 && adjustment.overtimeRatePerHour > 0) && (
+          <div className="border-t pt-3 bg-blue-50 p-3 rounded">
+            <Label className="text-sm font-medium mb-2 block">Net Adjustment</Label>
+            <div className="text-sm">
+              {adjustment.overtimeHours > 0 && adjustment.overtimeRatePerHour > 0 && (
+                <div className="text-green-600">
+                  Overtime: +₱{(adjustment.overtimeHours * adjustment.overtimeRatePerHour).toLocaleString()}
+                </div>
+              )}
+              {adjustment.absenceDays > 0 && adjustment.absenceAmountPerDay > 0 && (
+                <div className="text-red-600">
+                  Absence: -₱{(adjustment.absenceDays * adjustment.absenceAmountPerDay).toLocaleString()}
+                </div>
+              )}
+              <div className="font-medium text-blue-600 border-t pt-1 mt-1">
+                Net Effect: {(() => {
+                  const overtime = (adjustment.overtimeHours || 0) * (adjustment.overtimeRatePerHour || 0)
+                  const absence = (adjustment.absenceDays || 0) * (adjustment.absenceAmountPerDay || 0)
+                  const net = overtime - absence
+                  return net >= 0 ? `+₱${net.toLocaleString()}` : `-₱${Math.abs(net).toLocaleString()}`
+                })()}
               </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </Card>
+  ))}
+</div>
 
               <Button type="submit" className="w-full">
                 Generate Payroll
@@ -566,11 +657,12 @@ const processedRecords = payroll.map((rec: any) => {
                 >
                   <div className="flex-1">
                     <h3 className="font-medium text-lg">{period.display_name}</h3>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2 text-sm text-muted-foreground">
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-2 text-sm text-muted-foreground">
                       <span>Employees: {period.total_employees}</span>
-                      <span>Gross Pay: ₱{period.total_net_pay.toLocaleString()}</span>
+                      <span>Basic Pay: ₱{period.total_basic_salary.toLocaleString()}</span>
+                      <span>Overtime: ₱{period.total_overtime.toLocaleString()}</span>
                       <span>Deductions: ₱{period.total_deductions.toLocaleString()}</span>
-                      <span className="font-medium">Net: ₱{period.total_net_after_deductions.toLocaleString()}</span>
+                      <span className="font-medium">Total Net: ₱{period.total_net_after_deductions.toLocaleString()}</span>
                     </div>
                   </div>
                   
@@ -620,7 +712,8 @@ const processedRecords = payroll.map((rec: any) => {
                     <TableHead></TableHead>
                     <TableHead>Employee</TableHead>
                     <TableHead>Pay Type</TableHead>
-                    <TableHead>Base Salary</TableHead>
+                    <TableHead>Basic Salary</TableHead>
+                    <TableHead>Overtime Pay</TableHead>
                     <TableHead>Allowance</TableHead>
                     <TableHead>Total Deductions</TableHead>
                     <TableHead>Absences</TableHead>
@@ -648,7 +741,8 @@ const processedRecords = payroll.map((rec: any) => {
                       </TableCell>
                       <TableCell>{rec.employee_name}</TableCell>
                       <TableCell>{rec.pay_type}</TableCell>
-                      <TableCell>₱ {rec.net_pay.toLocaleString()}</TableCell>
+                      <TableCell>₱ {rec.basic_salary.toLocaleString()}</TableCell>
+                      <TableCell className="text-green-600 font-medium">₱ {rec.overtime_pay.toLocaleString()}</TableCell>
                       <TableCell>₱ {rec.allowances?.toLocaleString() || 0}</TableCell>
                       <TableCell>₱ {rec.total_deductions?.toLocaleString()}</TableCell>
                       <TableCell>₱ {rec.absences?.toLocaleString() || 0}</TableCell>
@@ -690,21 +784,21 @@ const processedRecords = payroll.map((rec: any) => {
           const toastId = toast.loading("Updating payroll...")
 
           // Calculate derived values
-          const grossPay = (editRecord.net_pay || 0) + (editRecord.total_deductions || 0)
-          const netAfterDeductions = (editRecord.net_pay || 0) - (editRecord.total_deductions || 0)
+          const grossPay = (editRecord.basic_salary || 0) + (editRecord.overtime_pay || 0)
+          const netAfterDeductions = grossPay - (editRecord.total_deductions || 0)
           const totalNet = netAfterDeductions + (editRecord.allowances || 0)
 
           const { error } = await supabase
             .from("payroll_records")
             .update({
-              basic_salary: editRecord.net_pay, // Using net_pay as basic_salary for now
+              basic_salary: editRecord.basic_salary,
+              overtime_pay: editRecord.overtime_pay,
               allowances: editRecord.allowances || 0,
-              overtime_pay: 0, // You can add this field if needed
               holiday_pay: 0, // You can add this field if needed
               absences: editRecord.absences || 0,
               gross_pay: grossPay,
               total_deductions: editRecord.total_deductions || 0,
-              net_pay: editRecord.net_pay,
+              net_pay: netAfterDeductions,
               status: editRecord.status,
             })
             .eq("id", editRecord.id)
@@ -779,15 +873,33 @@ const processedRecords = payroll.map((rec: any) => {
               step="0.01"
               min="0"
               placeholder="0.00"
-              value={editRecord.net_pay || ""}
+              value={editRecord.basic_salary || ""}
               onChange={(e) =>
                 setEditRecord((prev) =>
-                  prev ? { ...prev, net_pay: parseFloat(e.target.value) || 0 } : prev
+                  prev ? { ...prev, basic_salary: parseFloat(e.target.value) || 0 } : prev
                 )
               }
             />
           </div>
 
+          <div>
+            <Label>Overtime Pay</Label>
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="0.00"
+              value={editRecord.overtime_pay || ""}
+              onChange={(e) =>
+                setEditRecord((prev) =>
+                  prev ? { ...prev, overtime_pay: parseFloat(e.target.value) || 0 } : prev
+                )
+              }
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
           <div>
             <Label>Allowances</Label>
             <Input
@@ -803,9 +915,7 @@ const processedRecords = payroll.map((rec: any) => {
               }
             />
           </div>
-        </div>
 
-        <div className="grid grid-cols-2 gap-4">
           <div>
             <Label>Absence Deductions</Label>
             <Input
@@ -821,24 +931,24 @@ const processedRecords = payroll.map((rec: any) => {
               }
             />
           </div>
+        </div>
 
-          <div>
-            <Label>Other Deductions</Label>
-            <Input
-              type="number"
-              step="0.01"
-              min="0"
-              placeholder="0.00"
-              value={(editRecord.total_deductions || 0) - (editRecord.absences || 0)}
-              onChange={(e) => {
-                const otherDeductions = parseFloat(e.target.value) || 0
-                const totalDeductions = (editRecord.absences || 0) + otherDeductions
-                setEditRecord((prev) =>
-                  prev ? { ...prev, total_deductions: totalDeductions } : prev
-                )
-              }}
-            />
-          </div>
+        <div>
+          <Label>Other Deductions</Label>
+          <Input
+            type="number"
+            step="0.01"
+            min="0"
+            placeholder="0.00"
+            value={(editRecord.total_deductions || 0) - (editRecord.absences || 0)}
+            onChange={(e) => {
+              const otherDeductions = parseFloat(e.target.value) || 0
+              const totalDeductions = (editRecord.absences || 0) + otherDeductions
+              setEditRecord((prev) =>
+                prev ? { ...prev, total_deductions: totalDeductions } : prev
+              )
+            }}
+          />
         </div>
 
         {/* Calculated Fields (Read-only) */}
@@ -847,9 +957,9 @@ const processedRecords = payroll.map((rec: any) => {
           
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <Label className="text-xs">Gross Pay</Label>
+              <Label className="text-xs">Gross Pay (Basic + Overtime)</Label>
               <div className="font-medium">
-                ₱{((editRecord.net_pay || 0) + (editRecord.total_deductions || 0)).toLocaleString()}
+                ₱{((editRecord.basic_salary || 0) + (editRecord.overtime_pay || 0)).toLocaleString()}
               </div>
             </div>
 
@@ -865,14 +975,14 @@ const processedRecords = payroll.map((rec: any) => {
             <div>
               <Label className="text-xs">Net After Deductions</Label>
               <div className="font-medium">
-                ₱{((editRecord.net_pay || 0) - (editRecord.total_deductions || 0)).toLocaleString()}
+                ₱{(((editRecord.basic_salary || 0) + (editRecord.overtime_pay || 0)) - (editRecord.total_deductions || 0)).toLocaleString()}
               </div>
             </div>
 
             <div>
               <Label className="text-xs">Total Net (with Allowances)</Label>
               <div className="font-bold text-green-600">
-                ₱{(((editRecord.net_pay || 0) - (editRecord.total_deductions || 0)) + (editRecord.allowances || 0)).toLocaleString()}
+                ₱{((((editRecord.basic_salary || 0) + (editRecord.overtime_pay || 0)) - (editRecord.total_deductions || 0)) + (editRecord.allowances || 0)).toLocaleString()}
               </div>
             </div>
           </div>
