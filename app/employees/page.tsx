@@ -47,6 +47,7 @@ export default function EmployeesPage() {
     philhealth: "",
     pagibig: "",
     base_salary: "",
+    allowance: "", 
     pay_type: "monthly",
     shift: "Regular Day",
     hours_per_week: "",
@@ -81,6 +82,7 @@ export default function EmployeesPage() {
     philhealth: "",
     pagibig: "",
     base_salary: "",
+    allowance: "",
     pay_type: "monthly",
     shift: "Regular Day",
     hours_per_week: "",
@@ -115,6 +117,7 @@ export default function EmployeesPage() {
       philhealth: form.philhealth || null,
       pagibig: form.pagibig || null,
       base_salary: adjustedSalary,
+      allowance: form.allowance ? parseFloat(form.allowance) : 0,
       pay_type: form.pay_type,
       shift: form.shift,
       hours_per_week: form.hours_per_week ? parseInt(form.hours_per_week) : null,
@@ -170,6 +173,7 @@ export default function EmployeesPage() {
       philhealth: emp.philhealth || "",
       pagibig: emp.pagibig || "",
       base_salary: emp.base_salary?.toString() || "",
+      allowance: emp.allowance?.toString() || "",
       pay_type: emp.pay_type || "semi-monthly",
       shift: emp.shift || "",
       hours_per_week: emp.hours_per_week?.toString() || "",
@@ -359,6 +363,17 @@ export default function EmployeesPage() {
                   onChange={(e) => setForm({ ...form, base_salary: e.target.value })}
                 />
               </div>
+
+              <div>
+                <Label htmlFor="allowance">Allowance</Label>
+                <Input
+                  id="allowance"
+                  type="number"
+                  value={form.allowance}
+                  onChange={(e) => setForm({ ...form, allowance: e.target.value })}
+                />
+              </div>
+
 
               {/* Pay Type */}
               <div>

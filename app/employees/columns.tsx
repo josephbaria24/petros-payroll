@@ -39,12 +39,14 @@ export type Employee = {
   philhealth: string | null
   pagibig: string | null
   base_salary: number
+  allowance: number // <-- NEW
   pay_type: "monthly" | "daily" | "hourly"
   shift: string | null
   hours_per_week: number | null
   leave_credits: number
   created_at: string
 }
+
 
 declare module '@tanstack/react-table' {
   interface ColumnMeta<TData extends unknown, TValue> {
@@ -110,6 +112,25 @@ export const columns: ColumnDef<Employee>[] = [
       return <div>₱ {amount.toLocaleString()}</div>
     },
   },
+  {
+    accessorKey: "allowance",
+    header: "Allowance",
+    cell: ({ row }) => {
+      const amount = parseFloat(row.getValue("allowance"))
+      return <div>₱ {amount.toLocaleString()}</div>
+    },
+  },
+  {
+    header: "Total Compensation",
+    cell: ({ row }) => {
+      const salary = parseFloat(row.getValue("base_salary")?.toString() || "0")
+
+      const allowance = parseFloat(row.getValue("allowance")?.toString() || "0")
+
+      return <div>₱ {(salary + allowance).toLocaleString()}</div>
+    },
+  },
+  
   { accessorKey: "pay_type", header: "Pay Type" },
   { accessorKey: "shift", header: "Shift" },
   { accessorKey: "hours_per_week", header: "Hours/Week" },
