@@ -172,35 +172,45 @@ export default function PayrollPage() {
     }
 
     // Process records with deductions
-    const processedRecords = payroll.map((rec: any) => {
-      const totalDeductions =
-        (deductions
-          ?.filter(
-            (d) =>
-              d.employee_id === rec.employee_id &&
-              (!rec.period_start ||
-                !rec.period_end ||
-                (d.created_at >= rec.period_start &&
-                  d.created_at <= rec.period_end))
-          )
-          .reduce((sum, d) => sum + d.amount, 0) || 0) + (rec.absences || 0)
-    
-          return {
-            id: rec.id,
-            employee_id: rec.employee_id,
-            employee_name: rec.employees?.full_name,
-            pay_type: rec.employees?.pay_type,
-            period_start: rec.period_start,
-            period_end: rec.period_end,
-            net_pay: rec.net_pay,
-            allowances: rec.allowances || 0,
-            status: rec.status,
-            absences: rec.absences || 0,
-            total_deductions: totalDeductions,
-            net_after_deductions: rec.net_pay - totalDeductions,
-            total_net: (rec.net_pay - totalDeductions) + (rec.allowances || 0),
-          }   
-    })
+// In the fetchPayrollPeriods function, replace the processedRecords mapping with this:
+
+const processedRecords = payroll.map((rec: any) => {
+  // Only get deductions from the deductions table (not including absences)
+  const otherDeductions = deductions
+    ?.filter(
+      (d) =>
+        d.employee_id === rec.employee_id &&
+        (!rec.period_start ||
+          !rec.period_end ||
+          (d.created_at >= rec.period_start &&
+            d.created_at <= rec.period_end))
+    )
+    .reduce((sum, d) => sum + d.amount, 0) || 0
+
+  // Total deductions = other deductions + absences (from the payroll record)
+  const totalDeductions = otherDeductions + (rec.absences || 0)
+
+  // Calculate the original base salary by adding back absence deductions
+  const originalBaseSalary = rec.net_pay + (rec.absences || 0)
+
+  return {
+    id: rec.id,
+    employee_id: rec.employee_id,
+    employee_name: rec.employees?.full_name,
+    pay_type: rec.employees?.pay_type,
+    period_start: rec.period_start,
+    period_end: rec.period_end,
+    net_pay: originalBaseSalary, // Show the original base salary (before any deductions)
+    allowances: rec.allowances || 0,
+    status: rec.status,
+    absences: rec.absences || 0,
+    total_deductions: totalDeductions,
+    // Net after deductions = original salary - all deductions
+    net_after_deductions: originalBaseSalary - totalDeductions,
+    // Total net = net after deductions + allowances
+    total_net: (originalBaseSalary - totalDeductions) + (rec.allowances || 0),
+  }   
+})
 
     // Group by period
     const periodMap = new Map<string, PayrollPeriod>()
