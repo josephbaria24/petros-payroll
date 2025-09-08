@@ -34,12 +34,25 @@ type Deduction = {
   notes?: string
 }
 
+type BulkDeductionForm = {
+  employee_id: string
+  sss: string
+  sss_notes: string
+  philhealth: string
+  philhealth_notes: string
+  pagibig: string
+  pagibig_notes: string
+  other: string
+  other_notes: string
+}
+
 export default function DeductionsPage() {
   useProtectedPage(["admin", "hr"])
   
   const [deductions, setDeductions] = useState<Deduction[]>([])
   const [employees, setEmployees] = useState<{ id: string; full_name: string }[]>([])
   const [open, setOpen] = useState(false)
+  const [bulkOpen, setBulkOpen] = useState(false)
   const [editDeduction, setEditDeduction] = useState<Deduction | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
 
@@ -50,7 +63,19 @@ export default function DeductionsPage() {
     notes: "",
   })
 
-  // 🆕 aggregate totals per employee
+  const [bulkForm, setBulkForm] = useState<BulkDeductionForm>({
+    employee_id: "",
+    sss: "",
+    sss_notes: "",
+    philhealth: "",
+    philhealth_notes: "",
+    pagibig: "",
+    pagibig_notes: "",
+    other: "",
+    other_notes: "",
+  })
+
+  // Aggregate totals per employee
   const totals = deductions.reduce<Record<string, number>>((acc, d) => {
     if (!acc[d.employee_name || "Unknown"]) acc[d.employee_name || "Unknown"] = 0
     acc[d.employee_name || "Unknown"] += d.amount
@@ -116,7 +141,7 @@ export default function DeductionsPage() {
       error = res.error
   
       if (!error && res.data) {
-        // 🆕 Update payroll_records with this deduction
+        // Update payroll_records with this deduction
         const { employee_id, type, amount } = res.data
   
         // Find latest payroll record for this employee
@@ -133,7 +158,7 @@ export default function DeductionsPage() {
             sss: "sss",
             philhealth: "philhealth",
             pagibig: "pagibig",
-            other: "loans" // or whichever column you use for "other"
+            other: "loans"
           }
   
           const column = columnMap[type]
@@ -158,7 +183,105 @@ export default function DeductionsPage() {
       fetchDeductions()
     }
   }
-  
+
+  async function handleBulkSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    const toastId = toast.loading("Adding bulk deductions...")
+
+    const deductionsToInsert: Array<{
+      employee_id: string
+      type: string
+      amount: number
+      notes?: string
+    }> = []
+
+    // Build array of deductions to insert (only non-empty amounts)
+    const deductionTypes = [
+      { type: 'sss', amount: bulkForm.sss, notes: bulkForm.sss_notes },
+      { type: 'philhealth', amount: bulkForm.philhealth, notes: bulkForm.philhealth_notes },
+      { type: 'pagibig', amount: bulkForm.pagibig, notes: bulkForm.pagibig_notes },
+      { type: 'other', amount: bulkForm.other, notes: bulkForm.other_notes },
+    ]
+
+    deductionTypes.forEach(({ type, amount, notes }) => {
+      if (amount && parseFloat(amount) > 0) {
+        deductionsToInsert.push({
+          employee_id: bulkForm.employee_id,
+          type,
+          amount: parseFloat(amount),
+          notes: notes || undefined,
+        })
+      }
+    })
+
+    if (deductionsToInsert.length === 0) {
+      toast.error("Please enter at least one deduction amount", { id: toastId })
+      return
+    }
+
+    // Insert all deductions
+    const { data, error } = await supabase
+      .from("deductions")
+      .insert(deductionsToInsert)
+      .select()
+
+    if (error) {
+      toast.error("Error saving bulk deductions", { id: toastId })
+      return
+    }
+
+    // Update payroll_records with these deductions
+    if (data && data.length > 0) {
+      // Find latest payroll record for this employee
+      const { data: latestPayroll } = await supabase
+        .from("payroll_records")
+        .select("id")
+        .eq("employee_id", bulkForm.employee_id)
+        .order("period_end", { ascending: false })
+        .limit(1)
+        .single()
+
+      if (latestPayroll) {
+        const columnMap: Record<string, string> = {
+          sss: "sss",
+          philhealth: "philhealth",
+          pagibig: "pagibig",
+          other: "loans"
+        }
+
+        const updates: Record<string, number> = {}
+        
+        data.forEach((deduction) => {
+          const column = columnMap[deduction.type]
+          if (column) {
+            updates[column] = deduction.amount
+          }
+        })
+
+        if (Object.keys(updates).length > 0) {
+          await supabase
+            .from("payroll_records")
+            .update(updates)
+            .eq("id", latestPayroll.id)
+        }
+      }
+    }
+
+    toast.success("Bulk deductions saved!", { id: toastId })
+    setBulkOpen(false)
+    setBulkForm({
+      employee_id: "",
+      sss: "",
+      sss_notes: "",
+      philhealth: "",
+      philhealth_notes: "",
+      pagibig: "",
+      pagibig_notes: "",
+      other: "",
+      other_notes: "",
+    })
+    fetchDeductions()
+  }
 
   async function handleDelete() {
     if (!deleteId) return
@@ -177,85 +300,199 @@ export default function DeductionsPage() {
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Deductions</h1>
-        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setEditDeduction(null) }}>
-          <DialogTrigger asChild>
-            <Button>+ Add Deduction</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{editDeduction ? "Edit Deduction" : "Add Deduction"}</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Employee */}
-              <div>
-                <Label>Employee</Label>
-                <Select
-                  value={form.employee_id}
-                  onValueChange={(v) => setForm({ ...form, employee_id: v })}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select employee" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {employees.map((emp) => (
-                      <SelectItem key={emp.id} value={emp.id}>
-                        {emp.full_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+        <div className="flex gap-2">
+          {/* Bulk Add Deductions Dialog */}
+          <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline">+ Bulk Add Deductions</Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Add Bulk Deductions</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleBulkSubmit} className="space-y-4">
+                {/* Employee Selection */}
+                <div>
+                  <Label>Employee</Label>
+                  <Select
+                    value={bulkForm.employee_id}
+                    onValueChange={(v) => setBulkForm({ ...bulkForm, employee_id: v })}
+                    required
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select employee" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {employees.map((emp) => (
+                        <SelectItem key={emp.id} value={emp.id}>
+                          {emp.full_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Deduction Inputs Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* SSS */}
+                  <div className="space-y-2">
+                    <Label className="text-base font-semibold">SSS</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      placeholder="Amount"
+                      value={bulkForm.sss}
+                      onChange={(e) => setBulkForm({ ...bulkForm, sss: e.target.value })}
+                    />
+                    <Input
+                      placeholder="Notes (optional)"
+                      value={bulkForm.sss_notes}
+                      onChange={(e) => setBulkForm({ ...bulkForm, sss_notes: e.target.value })}
+                    />
+                  </div>
+
+                  {/* PhilHealth */}
+                  <div className="space-y-2">
+                    <Label className="text-base font-semibold">PhilHealth</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      placeholder="Amount"
+                      value={bulkForm.philhealth}
+                      onChange={(e) => setBulkForm({ ...bulkForm, philhealth: e.target.value })}
+                    />
+                    <Input
+                      placeholder="Notes (optional)"
+                      value={bulkForm.philhealth_notes}
+                      onChange={(e) => setBulkForm({ ...bulkForm, philhealth_notes: e.target.value })}
+                    />
+                  </div>
+
+                  {/* Pag-ibig */}
+                  <div className="space-y-2">
+                    <Label className="text-base font-semibold">Pag-ibig</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      placeholder="Amount"
+                      value={bulkForm.pagibig}
+                      onChange={(e) => setBulkForm({ ...bulkForm, pagibig: e.target.value })}
+                    />
+                    <Input
+                      placeholder="Notes (optional)"
+                      value={bulkForm.pagibig_notes}
+                      onChange={(e) => setBulkForm({ ...bulkForm, pagibig_notes: e.target.value })}
+                    />
+                  </div>
+
+                  {/* Other */}
+                  <div className="space-y-2">
+                    <Label className="text-base font-semibold">Other</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      placeholder="Amount"
+                      value={bulkForm.other}
+                      onChange={(e) => setBulkForm({ ...bulkForm, other: e.target.value })}
+                    />
+                    <Input
+                      placeholder="Notes (optional)"
+                      value={bulkForm.other_notes}
+                      onChange={(e) => setBulkForm({ ...bulkForm, other_notes: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <Button type="submit" className="w-full">
+                  Save All Deductions
+                </Button>
+              </form>
+            </DialogContent>
+          </Dialog>
+
+          {/* Single Deduction Dialog */}
+          <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setEditDeduction(null) }}>
+            <DialogTrigger asChild>
+              <Button>+ Add Single Deduction</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{editDeduction ? "Edit Deduction" : "Add Single Deduction"}</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Employee */}
+                <div>
+                  <Label>Employee</Label>
+                  <Select
+                    value={form.employee_id}
+                    onValueChange={(v) => setForm({ ...form, employee_id: v })}
+                    required
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select employee" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {employees.map((emp) => (
+                        <SelectItem key={emp.id} value={emp.id}>
+                          {emp.full_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
                 {/* Type */}
-              <div>
-                <Label>Deduction Type</Label>
-                <Select
-                  value={form.type}
-                  onValueChange={(v) => setForm({ ...form, type: v })}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select deduction type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="sss">SSS</SelectItem>
-                    <SelectItem value="philhealth">PhilHealth</SelectItem>
-                    <SelectItem value="pagibig">Pag-ibig</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+                <div>
+                  <Label>Deduction Type</Label>
+                  <Select
+                    value={form.type}
+                    onValueChange={(v) => setForm({ ...form, type: v })}
+                    required
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select deduction type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="sss">SSS</SelectItem>
+                      <SelectItem value="philhealth">PhilHealth</SelectItem>
+                      <SelectItem value="pagibig">Pag-ibig</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
+                {/* Amount */}
+                <div>
+                  <Label>Amount</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={form.amount}
+                    onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                    required
+                  />
+                </div>
 
-              {/* Amount */}
-              <div>
-                <Label>Amount</Label>
-                <Input
-                  type="number"
-                  value={form.amount}
-                  onChange={(e) => setForm({ ...form, amount: e.target.value })}
-                  required
-                />
-              </div>
+                {/* Notes */}
+                <div>
+                  <Label>Notes</Label>
+                  <Input
+                    value={form.notes}
+                    onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                    placeholder="Optional notes"
+                  />
+                </div>
 
-              {/* Notes */}
-              <div>
-                <Label>Notes</Label>
-                <Input
-                  value={form.notes}
-                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                  placeholder="Optional notes"
-                />
-              </div>
-
-              <Button type="submit" className="w-full">
-                Save
-              </Button>
-            </form>
-          </DialogContent>
-        </Dialog>
+                <Button type="submit" className="w-full">
+                  Save
+                </Button>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
-      {/* 🆕 Totals Summary */}
+      {/* Totals Summary */}
       <div className="grid grid-cols-1 md:grid-cols-5 lg:grid-cols-6 gap-4">
         <Card>
           <CardContent className="p-4">
@@ -290,7 +527,7 @@ export default function DeductionsPage() {
               {deductions.map((d) => (
                 <TableRow key={d.id}>
                   <TableCell>{d.employee_name}</TableCell>
-                  <TableCell>{d.type}</TableCell>
+                  <TableCell className="capitalize">{d.type}</TableCell>
                   <TableCell>₱ {d.amount.toLocaleString()}</TableCell>
                   <TableCell>{d.notes || "-"}</TableCell>
                   <TableCell className="text-right">

@@ -36,6 +36,7 @@ type PayrollRecord = {
   absences?: number
   total_deductions?: number
   net_after_deductions?: number
+  total_net?: number
 }
 
 type PayrollPeriod = {
@@ -196,6 +197,7 @@ export default function PayrollPage() {
         absences: rec.absences || 0,
         total_deductions: totalDeductions,
         net_after_deductions: rec.net_pay - totalDeductions,
+        total_net: (rec.net_pay - totalDeductions) + (rec.allowances || 0), // ✅ NEW
       }
     })
     
@@ -234,6 +236,7 @@ export default function PayrollPage() {
       period.total_net_pay += record.net_pay
       period.total_deductions += record.total_deductions || 0
       period.total_net_after_deductions += record.net_after_deductions || 0
+      period.total_net_pay += record.total_net || 0
     })
 
     setPeriods(Array.from(periodMap.values()))
@@ -531,6 +534,7 @@ export default function PayrollPage() {
                     <TableHead>Total Deductions</TableHead>
                     <TableHead>Absences</TableHead>
                     <TableHead>Net After Deductions</TableHead>
+                    <TableHead>Total Net</TableHead>
                     <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -558,6 +562,10 @@ export default function PayrollPage() {
                       <TableCell>₱ {rec.total_deductions?.toLocaleString()}</TableCell>
                       <TableCell>₱ {rec.absences?.toLocaleString() || 0}</TableCell>
                       <TableCell className="font-bold">₱ {rec.net_after_deductions?.toLocaleString()}</TableCell>
+                      <TableCell className="font-bold">
+                        ₱ {rec.total_net?.toLocaleString() || 0}
+                      </TableCell>
+
                       <TableCell>
                         <span className={cn(
                           "px-2 py-1 rounded-full text-xs",
