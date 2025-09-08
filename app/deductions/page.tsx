@@ -99,23 +99,55 @@ export default function DeductionsPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     const toastId = toast.loading(editDeduction ? "Updating deduction..." : "Adding deduction...")
-
+  
     const payload = {
       employee_id: form.employee_id,
       type: form.type,
       amount: parseFloat(form.amount),
       notes: form.notes,
     }
-
+  
     let error
     if (editDeduction) {
       const res = await supabase.from("deductions").update(payload).eq("id", editDeduction.id)
       error = res.error
     } else {
-      const res = await supabase.from("deductions").insert(payload)
+      const res = await supabase.from("deductions").insert(payload).select().single()
       error = res.error
+  
+      if (!error && res.data) {
+        // 🆕 Update payroll_records with this deduction
+        const { employee_id, type, amount } = res.data
+  
+        // Find latest payroll record for this employee
+        const { data: latestPayroll } = await supabase
+          .from("payroll_records")
+          .select("id")
+          .eq("employee_id", employee_id)
+          .order("period_end", { ascending: false })
+          .limit(1)
+          .single()
+  
+        if (latestPayroll) {
+          const columnMap: Record<string, string> = {
+            sss: "sss",
+            philhealth: "philhealth",
+            pagibig: "pagibig",
+            other: "loans" // or whichever column you use for "other"
+          }
+  
+          const column = columnMap[type]
+  
+          if (column) {
+            await supabase
+              .from("payroll_records")
+              .update({ [column]: amount })
+              .eq("id", latestPayroll.id)
+          }
+        }
+      }
     }
-
+  
     if (error) {
       toast.error("Error saving deduction", { id: toastId })
     } else {
@@ -126,6 +158,7 @@ export default function DeductionsPage() {
       fetchDeductions()
     }
   }
+  
 
   async function handleDelete() {
     if (!deleteId) return
@@ -173,16 +206,25 @@ export default function DeductionsPage() {
                 </Select>
               </div>
 
-              {/* Type */}
+                {/* Type */}
               <div>
                 <Label>Deduction Type</Label>
-                <Input
+                <Select
                   value={form.type}
-                  onChange={(e) => setForm({ ...form, type: e.target.value })}
-                  placeholder="e.g. Tax, Loan, Benefit"
-                  required
-                />
+                  onValueChange={(v) => setForm({ ...form, type: v })}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select deduction type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="sss">SSS</SelectItem>
+                    <SelectItem value="philhealth">PhilHealth</SelectItem>
+                    <SelectItem value="pagibig">Pag-ibig</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
+
 
               {/* Amount */}
               <div>

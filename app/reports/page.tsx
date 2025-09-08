@@ -5,7 +5,17 @@ import { supabase } from "@/lib/supabaseClient"
 import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Button } from "@/components/ui/button"
+import { Download } from "lucide-react"
 import { useProtectedPage } from "../hooks/useProtectedPage"
+
+// Note: You'll need to install xlsx: npm install xlsx
+// For now, we'll use a browser-compatible approach
+declare global {
+  interface Window {
+    XLSX: any;
+  }
+}
 
 type PayrollSummary = {
   totalGross: number
@@ -23,6 +33,7 @@ type MonthlyPayrollSummary = {
   totalNetPay: number
   recordCount: number
 }
+
 type EmployeePayrollDetail = {
   employee_id: string
   full_name: string
@@ -31,13 +42,12 @@ type EmployeePayrollDetail = {
   overtime_total: number
   sss_deduction: number
   philhealth_deduction: number
-  hdmf_deduction: number
+  pagibig_deduction: number
   other_deductions: number
   total_deductions: number
   net_pay: number
   month_year: string
 }
-
 
 type Deduction = {
   id: string
@@ -68,56 +78,117 @@ export default function ReportsPage() {
 
   useEffect(() => {
     fetchReports()
+    loadXLSXLibrary()
   }, [])
+
+  // Load XLSX library dynamically
+  const loadXLSXLibrary = () => {
+    if (typeof window !== 'undefined' && !window.XLSX) {
+      const script = document.createElement('script')
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'
+      script.onload = () => {
+        console.log('XLSX library loaded')
+      }
+      document.head.appendChild(script)
+    }
+  }
+
+  const exportToExcel = () => {
+    if (!window.XLSX) {
+      alert('Excel library is still loading. Please try again in a moment.')
+      return
+    }
+
+    if (employeePayrollDetails.length === 0) {
+      alert('No employee payroll data to export')
+      return
+    }
+
+    // Prepare data for Excel export
+    const excelData = employeePayrollDetails.map(emp => ({
+      'Employee ID': emp.employee_id,
+      'Full Name': emp.full_name,
+      'Basic Monthly Salary': emp.basic_monthly_salary,
+      'Monthly Allowance': emp.monthly_allowance,
+      'OT Total': emp.overtime_total,
+      'SSS': emp.sss_deduction,
+      'PhilHealth': emp.philhealth_deduction,
+      'Pag-ibig': emp.pagibig_deduction,
+      'Other Deductions': emp.other_deductions,
+      'Total Deductions': emp.total_deductions,
+      'Net Pay': emp.net_pay,
+      'Month/Year': emp.month_year
+    }))
+
+    // Create workbook and worksheet
+    const wb = window.XLSX.utils.book_new()
+    const ws = window.XLSX.utils.json_to_sheet(excelData)
+
+    // Set column widths
+    ws['!cols'] = [
+      { width: 15 }, // Employee ID
+      { width: 25 }, // Full Name
+      { width: 20 }, // Basic Monthly Salary
+      { width: 18 }, // Monthly Allowance
+      { width: 12 }, // OT Total
+      { width: 12 }, // SSS
+      { width: 15 }, // PhilHealth
+      { width: 12 }, // HDMF
+      { width: 18 }, // Other Deductions
+      { width: 18 }, // Total Deductions
+      { width: 15 }, // Net Pay
+      { width: 15 }  // Month/Year
+    ]
+
+    // Add worksheet to workbook
+    window.XLSX.utils.book_append_sheet(wb, ws, "Employee Payroll Details")
+
+    // Generate filename with current date
+    const currentDate = new Date().toISOString().split('T')[0]
+    const filename = `Employee_Payroll_Report_${currentDate}.xlsx`
+
+    // Write file
+    window.XLSX.writeFile(wb, filename)
+  }
 
   async function fetchReports() {
     // Employee Payroll Details
-const { data: employeeRecords, error: empError } = await supabase
-.from("payroll_records")
-.select(`
-  id,
-  employee_id,
-  basic_salary,
-  allowances,
-  overtime_pay,
-  sss,
-  philhealth,
-  pagibig,
-  loans,
-  uniform,
-  tardiness,
-  absences,
-  total_deductions,
-  net_pay,
-  period_end,
-  employees(full_name)
-`)
+    const { data: employeeRecords, error: empError } = await supabase
+      .from("payroll_records")
+      .select(`
+      id,
+      employee_id,
+      net_pay,
+      period_start,
+      period_end,
+      employees(full_name, pay_type)
+    `)
 
-if (empError) {
-console.error("Error fetching employee payroll details:", empError)
-} else {
-const details: EmployeePayrollDetail[] = (employeeRecords || []).map((rec: any) => {
-  const periodDate = new Date(rec.period_end)
-  const monthYear = `${periodDate.toLocaleString("default", { month: "long" })} ${periodDate.getFullYear()}`
+    if (empError) {
+      console.error("Error fetching employee payroll details:", empError)
+    } else {
+      const details: EmployeePayrollDetail[] = (employeeRecords || []).map((rec: any) => {
+        const periodDate = new Date(rec.period_end)
+        const monthYear = `${periodDate.toLocaleString("default", { month: "long" })} ${periodDate.getFullYear()}`
 
-  return {
-    employee_id: rec.employee_id,
-    full_name: rec.employees?.full_name || "Unknown",
-    basic_monthly_salary: rec.basic_salary || 0,
-    monthly_allowance: rec.allowances || 0,
-    overtime_total: rec.overtime_pay || 0,
-    sss_deduction: rec.sss || 0,
-    philhealth_deduction: rec.philhealth || 0,
-    hdmf_deduction: rec.pagibig || 0,
-    other_deductions: (rec.loans || 0) + (rec.uniform || 0) + (rec.tardiness || 0) + (rec.absences || 0),
-    total_deductions: rec.total_deductions || 0,
-    net_pay: rec.net_pay || 0,
-    month_year: monthYear,
-  }
-})
+        return {
+          employee_id: rec.employee_id,
+          full_name: rec.employees?.full_name || "Unknown",
+          basic_monthly_salary: rec.basic_salary || 0,
+          monthly_allowance: rec.allowances || 0,
+          overtime_total: rec.overtime_pay || 0,
+          sss_deduction: rec.sss || 0,
+          philhealth_deduction: rec.philhealth || 0,
+          pagibig_deduction: rec.pagibig || 0,
+          other_deductions: (rec.loans || 0) + (rec.uniform || 0) + (rec.tardiness || 0) + (rec.absences || 0),
+          total_deductions: rec.total_deductions || 0,
+          net_pay: rec.net_pay || 0,
+          month_year: monthYear,
+        }
+      })
 
-setEmployeePayrollDetails(details)
-}
+      setEmployeePayrollDetails(details)
+    }
 
     // Payroll records
     const { data: payroll, error: pError } = await supabase
@@ -225,7 +296,13 @@ setEmployeePayrollDetails(details)
 
   return (
     <div className="p-6 space-y-6">
-      <h1 className="text-2xl font-bold">Reports</h1>
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold">Reports</h1>
+        <Button onClick={exportToExcel} className="flex items-center gap-2">
+          <Download className="h-4 w-4" />
+          Export to Excel
+        </Button>
+      </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -262,7 +339,13 @@ setEmployeePayrollDetails(details)
         <TabsContent value="employee-details">
           <Card>
             <CardContent className="p-6">
-              <h3 className="text-lg font-semibold mb-4">Employee Payroll Details</h3>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold">Employee Payroll Details</h3>
+                <Button onClick={exportToExcel} variant="outline" size="sm" className="flex items-center gap-2">
+                  <Download className="h-4 w-4" />
+                  Export
+                </Button>
+              </div>
               {employeePayrollDetails.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <p>No employee payroll data available.</p>
@@ -279,7 +362,7 @@ setEmployeePayrollDetails(details)
                         <TableHead>OT Total</TableHead>
                         <TableHead>SSS</TableHead>
                         <TableHead>PhilHealth</TableHead>
-                        <TableHead>HDMF</TableHead>
+                        <TableHead>Pag-ibig</TableHead>
                         <TableHead>Other Deductions</TableHead>
                         <TableHead>Total Deductions</TableHead>
                         <TableHead>Net Pay</TableHead>
@@ -296,7 +379,7 @@ setEmployeePayrollDetails(details)
                           <TableCell>₱ {emp.overtime_total.toLocaleString()}</TableCell>
                           <TableCell>₱ {emp.sss_deduction.toLocaleString()}</TableCell>
                           <TableCell>₱ {emp.philhealth_deduction.toLocaleString()}</TableCell>
-                          <TableCell>₱ {emp.hdmf_deduction.toLocaleString()}</TableCell>
+                          <TableCell>₱ {emp.pagibig_deduction.toLocaleString()}</TableCell>
                           <TableCell>₱ {emp.other_deductions.toLocaleString()}</TableCell>
                           <TableCell>₱ {emp.total_deductions.toLocaleString()}</TableCell>
                           <TableCell className="font-bold">₱ {emp.net_pay.toLocaleString()}</TableCell>
