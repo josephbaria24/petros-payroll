@@ -115,9 +115,9 @@ export function DataTable<TData, TValue>({
 
       {/* Table */}
 {/* Table */}
-<div className="w-full overflow-x-auto rounded-md border">
+<div className="w-[80vw] overflow-x-auto rounded-md border">
   <div className="min-w-fit">
-    <Table className="min-w-[1200px]">
+    <Table className="min-w-[1000px]">
       <TableHeader>
         {table.getHeaderGroups().map((headerGroup) => (
           <TableRow key={headerGroup.id}>

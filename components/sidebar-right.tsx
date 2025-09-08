@@ -1,7 +1,9 @@
+"use client"
+
 import * as React from "react"
 import { Plus } from "lucide-react"
 import { supabase } from "@/lib/supabaseClient"
-
+import { usePathname } from "next/navigation"
 
 import { Calendars } from "@/components/calendars"
 import { DatePicker } from "@/components/date-picker"
@@ -17,9 +19,6 @@ import {
   SidebarSeparator,
 } from "@/components/ui/sidebar"
 
-// Initialize Supabase client
-
-// Sample user and calendar structure
 const data = {
   user: {
     name: "payroll",
@@ -27,24 +26,16 @@ const data = {
     avatar: "/avatars/shadcn.jpg",
   },
   calendars: [
-    {
-      name: "Favorites",
-      items: ["Holidays", "Birthdays"],
-    },
-    {
-      name: "Other",
-      items: ["Travel", "Reminders", "Deadlines"],
-    },
+    { name: "Favorites", items: ["Holidays", "Birthdays"] },
+    { name: "Other", items: ["Travel", "Reminders", "Deadlines"] },
   ],
 }
 
-export function SidebarRight({
-  ...props
-}: React.ComponentProps<typeof Sidebar>) {
+export function SidebarRight(props: React.ComponentProps<typeof Sidebar>) {
+  const pathname = usePathname()
   const [holidays, setHolidays] = React.useState<any[]>([])
   const [selectedCalendars, setSelectedCalendars] = React.useState<string[]>(["Holidays"])
 
-  // Fetch holidays when "Holidays" is selected
   React.useEffect(() => {
     if (selectedCalendars.includes("Holidays")) {
       supabase
@@ -56,6 +47,11 @@ export function SidebarRight({
         })
     }
   }, [selectedCalendars])
+
+  // ✅ Place return *after* hooks
+  if (pathname?.startsWith("/employees")) {
+    return null
+  }
 
   return (
     <Sidebar
