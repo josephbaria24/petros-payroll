@@ -166,7 +166,7 @@ export default function MyPayrollPage() {
         return <Badge className="bg-green-100 text-green-600">● {status}</Badge>
       case "Pending Payment":
         return <Badge className="bg-orange-100 text-orange-600">● {status}</Badge>
-      case "On Hold Payment":
+      case "Cancelled":
         return <Badge className="bg-gray-100 text-gray-600">● {status}</Badge>
       default:
         return <Badge className="bg-muted text-muted-foreground">● Unknown</Badge>
