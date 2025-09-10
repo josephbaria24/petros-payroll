@@ -145,6 +145,98 @@ export default function PayrollPage() {
     }
   }
 
+
+
+  // 1. Add this function to recalculate payroll with updated deductions
+async function recalculatePayrollWithDeductions(periodStart: string, periodEnd: string) {
+  const toastId = toast.loading("Recalculating payroll with latest deductions...")
+
+  try {
+    // Get all payroll records for this period
+    const { data: payrollRecords, error: payrollError } = await supabase
+      .from("payroll_records")
+      .select("*")
+      .eq("period_start", periodStart)
+      .eq("period_end", periodEnd)
+
+    if (payrollError || !payrollRecords) {
+      throw new Error("Failed to fetch payroll records")
+    }
+
+    // Get all deductions
+    const { data: allDeductions, error: deductionError } = await supabase
+      .from("deductions")
+      .select("employee_id, type, amount, created_at")
+
+    if (deductionError) {
+      throw new Error("Failed to fetch deductions")
+    }
+
+    // Update each payroll record with correct deductions
+    const updates = []
+    
+    for (const record of payrollRecords) {
+      // Filter deductions for this employee within this period
+      const employeeDeductions = allDeductions.filter(d => 
+        d.employee_id === record.employee_id &&
+        (!d.created_at || d.created_at <= periodEnd) // Only include deductions created before or during period
+      )
+
+      // Calculate deductions by type
+      let sss = 0, philhealth = 0, pagibig = 0, loans = 0
+
+      employeeDeductions.forEach(d => {
+        if (d.type === 'sss') sss += d.amount
+        else if (d.type === 'philhealth') philhealth += d.amount
+        else if (d.type === 'pagibig') pagibig += d.amount
+        else if (d.type === 'other') loans += d.amount
+      })
+
+      // Calculate totals
+      const basicSalary = record.basic_salary || 0
+      const overtimePay = record.overtime_pay || 0
+      const allowances = record.allowances || 0
+      const absences = record.absences || 0
+      
+      const grossPay = basicSalary + overtimePay
+      const totalDeductions = sss + philhealth + pagibig + loans + absences
+      const netPay = grossPay - totalDeductions
+
+      updates.push({
+        id: record.id,
+        sss,
+        philhealth,
+        pagibig,
+        loans,
+        gross_pay: grossPay,
+        total_deductions: totalDeductions,
+        net_pay: netPay
+      })
+    }
+
+    // Batch update all records
+    for (const update of updates) {
+      const { id, ...updateData } = update
+      const { error } = await supabase
+        .from("payroll_records")
+        .update(updateData)
+        .eq("id", id)
+      
+      if (error) {
+        console.error("Error updating payroll record:", error)
+      }
+    }
+
+    toast.success("Payroll recalculated with latest deductions!", { id: toastId })
+    fetchPayrollPeriods() // Refresh the display
+    
+  } catch (error: any) {
+    toast.error(error.message || "Failed to recalculate payroll", { id: toastId })
+  }
+}
+
+
+
   async function fetchPayrollPeriods() {
     const { data: payroll, error } = await supabase
       .from("payroll_records")
@@ -180,17 +272,12 @@ export default function PayrollPage() {
 
     // Process records with deductions
     const processedRecords = payroll.map((rec: any) => {
-      // Only get deductions from the deductions table (not including absences)
-      const otherDeductions = deductions
-        ?.filter(
-          (d) =>
-            d.employee_id === rec.employee_id &&
-            (!rec.period_start ||
-              !rec.period_end ||
-              (d.created_at >= rec.period_start &&
-                d.created_at <= rec.period_end))
-        )
-        .reduce((sum, d) => sum + d.amount, 0) || 0
+// Always show full lifetime deductions (repeated every period by design)
+    const otherDeductions = deductions
+      ?.filter(d => d.employee_id === rec.employee_id)
+      .reduce((sum, d) => sum + d.amount, 0) || 0
+
+    
 
       // Total deductions = other deductions + absences (from the payroll record)
       const totalDeductions = otherDeductions + (rec.absences || 0)
@@ -290,86 +377,151 @@ export default function PayrollPage() {
     setEmployeeAdjustments(updated)
   }
 
-  async function handleBulkGeneratePayroll() {
-    if (!periodStart || !periodEnd) {
-      toast.error("Select a valid period first.")
-      return
-    }
-  
-    const toastId = toast.loading("Generating payroll...")
-  
-    try {
-      const { data: allEmployees, error: empErr } = await supabase
-        .from("employees")
-        .select("id, base_salary, allowance")
-  
-      if (empErr || !allEmployees) throw new Error("Failed to fetch employees.")
-  
-      const recordsToInsert = []
-  
-      for (const emp of allEmployees) {
-        const { id: employee_id, base_salary, allowance } = emp
-        if (!base_salary) continue
-      
-        const baseSalary = (base_salary || 0)
-        
-        // Find if this employee has adjustments
-        const adjustment = employeeAdjustments.find(a => a.employee_id === employee_id)
-        
-        let absenceDeduction = 0
-        let overtimePay = 0
-        
-        if (adjustment) {
-          // Calculate absence deduction
-          if (adjustment.absenceDays > 0 && adjustment.absenceAmountPerDay > 0) {
-            absenceDeduction = adjustment.absenceDays * adjustment.absenceAmountPerDay
-          }
-          
-          // Calculate overtime pay
-          if (adjustment.overtimeHours > 0 && adjustment.overtimeRatePerHour > 0) {
-            overtimePay = adjustment.overtimeHours * adjustment.overtimeRatePerHour
-          }
-        }
-        
-        const grossPay = baseSalary + overtimePay
-        const netPay = grossPay - absenceDeduction
-      
-        recordsToInsert.push({
-          employee_id,
-          period_start: format(periodStart, "yyyy-MM-dd"),
-          period_end: format(periodEnd, "yyyy-MM-dd"),
-          basic_salary: baseSalary, // Keep base salary separate
-          overtime_pay: overtimePay, // Store overtime separately
-          allowances: allowance || 0,
-          holiday_pay: 0,
-          absences: absenceDeduction,
-          gross_pay: grossPay,
-          total_deductions: absenceDeduction,
-          net_pay: netPay,
-          status: "Pending Payment",
-        })
-      }
-  
-      if (recordsToInsert.length > 0) {
-        const { error: insertError } = await supabase
-          .from("payroll_records")
-          .insert(recordsToInsert)
-  
-        if (insertError) throw new Error("Bulk insert failed.")
-        toast.success("Payroll generated for all employees!", { id: toastId })
-        fetchPayrollPeriods()
-        // Reset form after successful generation
-        setEmployeeAdjustments([])
-        setPeriodStart(undefined)
-        setPeriodEnd(undefined)
-      } else {
-        toast.info("No eligible employees found for payroll generation.", { id: toastId })
-      }
-  
-    } catch (err: any) {
-      toast.error(err.message || "An error occurred", { id: toastId })
-    }
+// 2. Enhanced bulk payroll generation with better deduction handling
+async function handleBulkGeneratePayrollEnhanced() {
+  if (!periodStart || !periodEnd) {
+    toast.error("Select a valid period first.")
+    return
   }
+
+  const toastId = toast.loading("Generating payroll...")
+
+  try {
+    // Check if payroll already exists for this period
+    const { data: existingPayroll } = await supabase
+      .from("payroll_records")
+      .select("id")
+      .eq("period_start", format(periodStart, "yyyy-MM-dd"))
+      .eq("period_end", format(periodEnd, "yyyy-MM-dd"))
+      .limit(1)
+
+    if (existingPayroll && existingPayroll.length > 0) {
+      const confirm = window.confirm(
+        "Payroll already exists for this period. Do you want to regenerate it? This will overwrite existing records."
+      )
+      if (!confirm) {
+        toast.dismiss(toastId)
+        return
+      }
+      
+      // Delete existing payroll for this period
+      await supabase
+        .from("payroll_records")
+        .delete()
+        .eq("period_start", format(periodStart, "yyyy-MM-dd"))
+        .eq("period_end", format(periodEnd, "yyyy-MM-dd"))
+    }
+
+    // Get all employees
+    const { data: allEmployees, error: empErr } = await supabase
+      .from("employees")
+      .select("id, base_salary, allowance, full_name")
+
+    if (empErr || !allEmployees) {
+      throw new Error("Failed to fetch employees.")
+    }
+
+    // Get all deductions (including ones created before this period)
+    const { data: allDeductions, error: deductionError } = await supabase
+      .from("deductions")
+      .select("employee_id, type, amount, created_at")
+      .lte("created_at", format(periodEnd, "yyyy-MM-dd"))
+
+    if (deductionError) {
+      throw new Error("Failed to fetch deductions.")
+    }
+
+    const recordsToInsert = []
+
+    for (const emp of allEmployees) {
+      const { id: employee_id, base_salary, allowance, full_name } = emp
+
+      if (!base_salary) {
+        console.warn(`Skipping ${full_name} - no base salary set`)
+        continue
+      }
+
+      // Get deductions for this employee
+      const employeeDeductions = allDeductions.filter(d => d.employee_id === employee_id)
+      
+      let sss = 0, philhealth = 0, pagibig = 0, loans = 0
+
+      employeeDeductions.forEach(d => {
+        if (d.type === 'sss') sss += d.amount
+        else if (d.type === 'philhealth') philhealth += d.amount
+        else if (d.type === 'pagibig') pagibig += d.amount
+        else if (d.type === 'other') loans += d.amount
+      })
+
+      // Get employee adjustments (absences/overtime)
+      const adjustment = employeeAdjustments.find(a => a.employee_id === employee_id)
+      
+      let absenceDeduction = 0
+      let overtimePay = 0
+
+      if (adjustment) {
+        if (adjustment.absenceDays > 0 && adjustment.absenceAmountPerDay > 0) {
+          absenceDeduction = adjustment.absenceDays * adjustment.absenceAmountPerDay
+        }
+
+        if (adjustment.overtimeHours > 0 && adjustment.overtimeRatePerHour > 0) {
+          overtimePay = adjustment.overtimeHours * adjustment.overtimeRatePerHour
+        }
+      }
+
+      // Calculate totals
+      const basicSalary = base_salary
+      const grossPay = basicSalary + overtimePay
+      const totalDeductions = sss + philhealth + pagibig + loans + absenceDeduction
+      const netPay = grossPay - totalDeductions
+
+      recordsToInsert.push({
+        employee_id,
+        period_start: format(periodStart, "yyyy-MM-dd"),
+        period_end: format(periodEnd, "yyyy-MM-dd"),
+        basic_salary: basicSalary,
+        overtime_pay: overtimePay,
+        allowances: allowance || 0,
+        holiday_pay: 0,
+        absences: absenceDeduction,
+        sss,
+        philhealth,
+        pagibig,
+        loans,
+        gross_pay: grossPay,
+        total_deductions: totalDeductions,
+        net_pay: netPay,
+        status: "Pending Payment",
+      })
+      
+    }
+
+    if (recordsToInsert.length > 0) {
+      const { error: insertError } = await supabase
+        .from("payroll_records")
+        .insert(recordsToInsert)
+
+      if (insertError) {
+        throw new Error("Bulk insert failed: " + insertError.message)
+      }
+      
+      toast.success(`Payroll generated for ${recordsToInsert.length} employees!`, { id: toastId })
+      fetchPayrollPeriods()
+      
+      // Reset form
+      setEmployeeAdjustments([])
+      setPeriodStart(undefined)
+      setPeriodEnd(undefined)
+    } else {
+      toast.info("No eligible employees found for payroll generation.", { id: toastId })
+    }
+
+  } catch (err: any) {
+    toast.error(err.message || "An error occurred", { id: toastId })
+  }
+}
+
+
   useEffect(() => {
     setForm((f) => ({
       ...f,
@@ -384,6 +536,8 @@ export default function PayrollPage() {
     setPeriodDialogOpen(true)
     setSelectedIds([])
   }
+  
+
 
   return (
     <div className="p-6 space-y-6">
@@ -401,7 +555,7 @@ export default function PayrollPage() {
             </DialogHeader>
             <form onSubmit={(e) => {
               e.preventDefault()
-              handleBulkGeneratePayroll()
+              handleBulkGeneratePayrollEnhanced()
               setOpen(false)
             }} className="space-y-4">
 
@@ -458,6 +612,20 @@ export default function PayrollPage() {
                   </PopoverContent>
                 </Popover>
               </div>
+
+              {/* {selectedPeriodRecords.length > 0 && (
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      const period = periods.find(p => p.display_name === selectedPeriodName)
+                      if (period) {
+                        recalculatePayrollWithDeductions(period.period_start, period.period_end)
+                      }
+                    }}
+                  >
+                    Recalculate with Latest Deductions
+                  </Button>
+                )} */}
 
               {/* Absent Employees Section */}
               <div className="space-y-4">

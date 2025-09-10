@@ -120,6 +120,71 @@ export default function DeductionsPage() {
     }
     setEmployees(data)
   }
+// 3. Function to apply new deductions to existing payroll
+async function applyDeductionsToExistingPayroll(employeeId: string, deductionType: string, amount: number) {
+  try {
+    // Get the most recent payroll record for this employee
+    const { data: latestPayroll, error } = await supabase
+      .from("payroll_records")
+      .select("*")
+      .eq("employee_id", employeeId)
+      .order("period_end", { ascending: false })
+      .limit(1)
+      .single()
+
+    if (error || !latestPayroll) {
+      console.log("No recent payroll found for employee")
+      return
+    }
+
+    // Map deduction types to payroll columns
+    const columnMap: Record<string, string> = {
+      sss: "sss",
+      philhealth: "philhealth",
+      pagibig: "pagibig",
+      other: "loans"
+    }
+
+    const column = columnMap[deductionType]
+    if (!column) return
+
+    // Update the specific deduction column and recalculate totals
+    const currentDeduction = latestPayroll[column] || 0
+    const newDeduction = currentDeduction + amount
+    
+    // Recalculate totals
+    const basicSalary = latestPayroll.basic_salary || 0
+    const overtimePay = latestPayroll.overtime_pay || 0
+    const absences = latestPayroll.absences || 0
+    const sss = column === 'sss' ? newDeduction : (latestPayroll.sss || 0)
+    const philhealth = column === 'philhealth' ? newDeduction : (latestPayroll.philhealth || 0)
+    const pagibig = column === 'pagibig' ? newDeduction : (latestPayroll.pagibig || 0)
+    const loans = column === 'loans' ? newDeduction : (latestPayroll.loans || 0)
+    
+    const grossPay = basicSalary + overtimePay
+    const totalDeductions = sss + philhealth + pagibig + loans + absences
+    const netPay = grossPay - totalDeductions
+
+    // Update the payroll record
+    const { error: updateError } = await supabase
+      .from("payroll_records")
+      .update({
+        [column]: newDeduction,
+        gross_pay: grossPay,
+        total_deductions: totalDeductions,
+        net_pay: netPay
+      })
+      .eq("id", latestPayroll.id)
+
+    if (updateError) {
+      console.error("Error updating payroll:", updateError)
+    }
+
+  } catch (error) {
+    console.error("Error applying deduction to payroll:", error)
+  }
+}
+
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -140,49 +205,85 @@ export default function DeductionsPage() {
       const res = await supabase.from("deductions").insert(payload).select().single()
       error = res.error
   
+      // Apply the new deduction to existing payroll
       if (!error && res.data) {
-        // Update payroll_records with this deduction
-        const { employee_id, type, amount } = res.data
-  
-        // Find latest payroll record for this employee
-        const { data: latestPayroll } = await supabase
-          .from("payroll_records")
-          .select("id")
-          .eq("employee_id", employee_id)
-          .order("period_end", { ascending: false })
-          .limit(1)
-          .single()
-  
-        if (latestPayroll) {
-          const columnMap: Record<string, string> = {
-            sss: "sss",
-            philhealth: "philhealth",
-            pagibig: "pagibig",
-            other: "loans"
-          }
-  
-          const column = columnMap[type]
-  
-          if (column) {
-            await supabase
-              .from("payroll_records")
-              .update({ [column]: amount })
-              .eq("id", latestPayroll.id)
-          }
-        }
+        await applyDeductionsToExistingPayroll(res.data.employee_id, res.data.type, res.data.amount)
       }
     }
   
     if (error) {
       toast.error("Error saving deduction", { id: toastId })
     } else {
-      toast.success("Deduction saved!", { id: toastId })
+      toast.success("Deduction saved and applied to payroll!", { id: toastId })
       setOpen(false)
       setEditDeduction(null)
       setForm({ employee_id: "", type: "", amount: "", notes: "" })
       fetchDeductions()
     }
   }
+
+  // async function handleSubmit(e: React.FormEvent) {
+  //   e.preventDefault()
+  //   const toastId = toast.loading(editDeduction ? "Updating deduction..." : "Adding deduction...")
+  
+  //   const payload = {
+  //     employee_id: form.employee_id,
+  //     type: form.type,
+  //     amount: parseFloat(form.amount),
+  //     notes: form.notes,
+  //   }
+  
+  //   let error
+  //   if (editDeduction) {
+  //     const res = await supabase.from("deductions").update(payload).eq("id", editDeduction.id)
+  //     error = res.error
+  //   } else {
+  //     const res = await supabase.from("deductions").insert(payload).select().single()
+  //     error = res.error
+  
+  //     if (!error && res.data) {
+  //       // Update payroll_records with this deduction
+  //       const { employee_id, type, amount } = res.data
+  
+  //       // Find latest payroll record for this employee
+  //       const { data: latestPayroll } = await supabase
+  //         .from("payroll_records")
+  //         .select("id")
+  //         .eq("employee_id", employee_id)
+  //         .order("period_end", { ascending: false })
+  //         .limit(1)
+  //         .single()
+  
+  //       if (latestPayroll) {
+  //         const columnMap: Record<string, string> = {
+  //           sss: "sss",
+  //           philhealth: "philhealth",
+  //           pagibig: "pagibig",
+  //           other: "loans"
+  //         }
+  
+  //         const column = columnMap[type]
+  
+  //         if (column) {
+  //           await supabase
+  //             .from("payroll_records")
+  //             .update({ [column]: amount })
+  //             .eq("id", latestPayroll.id)
+  //         }
+  //       }
+  //     }
+  //   }
+  
+  //   if (error) {
+  //     toast.error("Error saving deduction", { id: toastId })
+  //   } else {
+  //     toast.success("Deduction saved!", { id: toastId })
+  //     setOpen(false)
+  //     setEditDeduction(null)
+  //     setForm({ employee_id: "", type: "", amount: "", notes: "" })
+  //     fetchDeductions()
+  //   }
+  // }
 
   async function handleBulkSubmit(e: React.FormEvent) {
     e.preventDefault()
