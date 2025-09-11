@@ -454,7 +454,8 @@ export default function ReportsPage() {
                           <TableCell>₱ {(emp.gross_pay || emp.basic_salary).toLocaleString()}</TableCell>
                           <TableCell>₱ {emp.absences.toLocaleString()}</TableCell>
                           <TableCell>₱ {emp.total_deductions.toLocaleString()}</TableCell>
-                          <TableCell className="font-bold">₱ {emp.net_pay.toLocaleString()}</TableCell>
+                          <TableCell className="font-bold">₱ {(emp.net_pay + emp.allowances).toLocaleString()}</TableCell>
+
                           <TableCell>
                             <span className={`px-2 py-1 rounded-full text-xs ${
                               emp.status === 'Paid' 
@@ -495,7 +496,8 @@ export default function ReportsPage() {
                       <TableHead>Gross Pay</TableHead>
                       <TableHead>Allowances</TableHead>
                       <TableHead>Deductions</TableHead>
-                      <TableHead>Net Pay</TableHead>
+                      <TableHead>Net Pay (incl. Allowances)</TableHead>
+
                     </TableRow>
                   </TableHeader>
                   <TableBody>
