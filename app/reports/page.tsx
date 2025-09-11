@@ -130,7 +130,7 @@ export default function ReportsPage() {
       'Gross Pay': emp.gross_pay,
       'Absences': emp.absences,
       'Total Deductions': emp.total_deductions,
-      'Net Pay': emp.net_pay,
+      'Net Pay': emp.net_pay + emp.allowances,
       'Status': emp.status,
       'Month/Year': emp.month_year
     }))
