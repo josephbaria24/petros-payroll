@@ -235,15 +235,15 @@ export default function MyPayrollPage() {
                     </DialogTrigger>
                     <DialogContent className="lg:w-[40vw] max-h-[90vh] overflow-y-auto">
                       <DialogHeader className="flex flex-row items-center justify-between">
-                        <DialogTitle>Pay Slip</DialogTitle>
+                        <DialogTitle>Digital Pay Slip</DialogTitle>
                         <Button
                           onClick={downloadPaySlip}
                           variant="outline"
                           size="sm"
-                          className="flex items-center gap-2"
+                          className="flex items-center gap-2 mr-4"
                         >
                           <Download className="w-4 h-4" />
-                          Download
+                          
                         </Button>
                       </DialogHeader>
                       

@@ -53,13 +53,22 @@ type PayrollPeriod = {
   records: PayrollRecord[]
 }
 
+
+type OvertimeEntry = {
+  date: Date;
+  hours: number;
+  ratePerHour: number;
+};
+
+
 type EmployeeAdjustment = {
-  employee_id: string
-  absenceDays: number
-  absenceAmountPerDay: number
-  overtimeHours: number
-  overtimeRatePerHour: number
-}
+  employee_id: string;
+  absenceDays: number;
+  absenceAmountPerDay: number;
+  holidayDate?: Date;
+  holidayPay?: number;
+  overtimeEntries: OvertimeEntry[]; // <-- Multiple OT entries
+};
 
 export default function PayrollPage() {
   
@@ -75,6 +84,28 @@ export default function PayrollPage() {
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     )
+  }
+
+
+  function addOvertimeEntry(adjustmentIndex: number) {
+    const updated = [...employeeAdjustments]
+    updated[adjustmentIndex].overtimeEntries.push({
+      date: new Date(),
+      hours: 0,
+      ratePerHour: 0,
+    })
+    setEmployeeAdjustments(updated)
+  }
+  
+  function updateOvertimeEntry(
+    adjIndex: number,
+    entryIndex: number,
+    field: keyof OvertimeEntry,
+    value: any
+  ) {
+    const updated = [...employeeAdjustments]
+    updated[adjIndex].overtimeEntries[entryIndex][field] = value
+    setEmployeeAdjustments(updated)
   }
   
   const [, setForm] = useState({
@@ -355,13 +386,18 @@ async function recalculatePayrollWithDeductions(periodStart: string, periodEnd: 
 
   // Function to add new absent employee
   function addEmployeeAdjustment() {
-    setEmployeeAdjustments([...employeeAdjustments, {
-      employee_id: "",
-      absenceDays: 0,
-      absenceAmountPerDay: 0,
-      overtimeHours: 0,
-      overtimeRatePerHour: 0
-    }])
+    setEmployeeAdjustments([
+      ...employeeAdjustments,
+      {
+        employee_id: "",
+        absenceDays: 0,
+        absenceAmountPerDay: 0,
+        holidayDate: undefined,
+        holidayPay: 0,
+        overtimeEntries: [] // initialize empty
+      },
+    ])
+    
   }
   
 
@@ -371,11 +407,16 @@ async function recalculatePayrollWithDeductions(periodStart: string, periodEnd: 
   }
 
   // Function to update absent employee
-  function updateEmployeeAdjustment(index: number, field: keyof EmployeeAdjustment, value: string | number) {
+  function updateEmployeeAdjustment(
+    index: number,
+    field: keyof EmployeeAdjustment,
+    value: string | number | Date
+  ) {
     const updated = [...employeeAdjustments]
     updated[index] = { ...updated[index], [field]: value }
     setEmployeeAdjustments(updated)
   }
+  
 
 // 2. Enhanced bulk payroll generation with better deduction handling
 async function handleBulkGeneratePayrollEnhanced() {
@@ -383,6 +424,10 @@ async function handleBulkGeneratePayrollEnhanced() {
     toast.error("Select a valid period first.")
     return
   }
+  
+
+
+  
 
   const toastId = toast.loading("Generating payroll...")
 
@@ -459,30 +504,46 @@ async function handleBulkGeneratePayrollEnhanced() {
       let absenceDeduction = 0
       let overtimePay = 0
 
+      const overtimeEntries = adjustment?.overtimeEntries || []
+
+      for (const ot of overtimeEntries) {
+        overtimePay += ot.hours * ot.ratePerHour
+      }
+
       if (adjustment) {
         if (adjustment.absenceDays > 0 && adjustment.absenceAmountPerDay > 0) {
           absenceDeduction = adjustment.absenceDays * adjustment.absenceAmountPerDay
         }
-
-        if (adjustment.overtimeHours > 0 && adjustment.overtimeRatePerHour > 0) {
-          overtimePay = adjustment.overtimeHours * adjustment.overtimeRatePerHour
+        
+        if (adjustment?.overtimeEntries?.length > 0) {
+          overtimePay = adjustment.overtimeEntries.reduce((sum, ot) => {
+            return sum + (ot.hours * ot.ratePerHour)
+          }, 0)
         }
+        
       }
 
       // Calculate totals
       const basicSalary = base_salary
-      const grossPay = basicSalary + overtimePay
       const totalDeductions = sss + philhealth + pagibig + loans + absenceDeduction
-      const netPay = grossPay - totalDeductions
+      
 
+      let holidayPay = 0
+      if (adjustment?.holidayPay && adjustment.holidayPay > 0) {
+      holidayPay = adjustment.holidayPay
+      }
+  
+      const grossPay = basicSalary + overtimePay + holidayPay
+      const netPay = grossPay - totalDeductions
+      
       recordsToInsert.push({
         employee_id,
         period_start: format(periodStart, "yyyy-MM-dd"),
         period_end: format(periodEnd, "yyyy-MM-dd"),
         basic_salary: basicSalary,
         overtime_pay: overtimePay,
+        holiday_pay: holidayPay,
         allowances: allowance || 0,
-        holiday_pay: 0,
         absences: absenceDeduction,
         sss,
         philhealth,
@@ -494,20 +555,53 @@ async function handleBulkGeneratePayrollEnhanced() {
         status: "Pending Payment",
       })
       
+      
+      
     }
+
+  
 
     if (recordsToInsert.length > 0) {
       const { error: insertError } = await supabase
         .from("payroll_records")
         .insert(recordsToInsert)
-
+    
       if (insertError) {
         throw new Error("Bulk insert failed: " + insertError.message)
       }
-      
+    
+      // Fetch back inserted records for mapping overtime entries
+      const { data: insertedRecords } = await supabase
+        .from("payroll_records")
+        .select("id, employee_id")
+        .eq("period_start", format(periodStart, "yyyy-MM-dd"))
+        .eq("period_end", format(periodEnd, "yyyy-MM-dd"))
+    
+      const overtimeInserts: any[] = []
+    
+      for (const rec of insertedRecords || []) {
+        const adj = employeeAdjustments.find(a => a.employee_id === rec.employee_id)
+        if (!adj || !adj.overtimeEntries?.length) continue
+    
+        for (const ot of adj.overtimeEntries) {
+          overtimeInserts.push({
+            payroll_record_id: rec.id,
+            employee_id: rec.employee_id,
+            overtime_date: format(ot.date, "yyyy-MM-dd"),
+            hours: ot.hours,
+            rate_per_hour: ot.ratePerHour,
+            amount: ot.hours * ot.ratePerHour,
+          })
+        }
+      }
+    
+      if (overtimeInserts.length > 0) {
+        await supabase.from("payroll_overtimes").insert(overtimeInserts)
+      }
+    
       toast.success(`Payroll generated for ${recordsToInsert.length} employees!`, { id: toastId })
       fetchPayrollPeriods()
-      
+    
       // Reset form
       setEmployeeAdjustments([])
       setPeriodStart(undefined)
@@ -515,6 +609,7 @@ async function handleBulkGeneratePayrollEnhanced() {
     } else {
       toast.info("No eligible employees found for payroll generation.", { id: toastId })
     }
+    
 
   } catch (err: any) {
     toast.error(err.message || "An error occurred", { id: toastId })
@@ -612,21 +707,6 @@ async function handleBulkGeneratePayrollEnhanced() {
                   </PopoverContent>
                 </Popover>
               </div>
-
-              {/* {selectedPeriodRecords.length > 0 && (
-                  <Button 
-                    variant="outline" 
-                    onClick={() => {
-                      const period = periods.find(p => p.display_name === selectedPeriodName)
-                      if (period) {
-                        recalculatePayrollWithDeductions(period.period_start, period.period_end)
-                      }
-                    }}
-                  >
-                    Recalculate with Latest Deductions
-                  </Button>
-                )} */}
-
               {/* Absent Employees Section */}
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
@@ -729,70 +809,161 @@ async function handleBulkGeneratePayrollEnhanced() {
         {/* Overtime Section */}
         <div className="border-t pt-3">
           <Label className="text-sm font-medium text-green-600 mb-2 block">Overtime Pay</Label>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="text-sm">Overtime Hours</Label>
-              <Input
-                type="number"
-                min="0"
-                step="0.5"
-                placeholder="0"
-                value={adjustment.overtimeHours || ''}
-                onChange={(e) =>
-                  updateEmployeeAdjustment(index, 'overtimeHours', parseFloat(e.target.value) || 0)
-                }
-              />
-            </div>
 
-            <div>
-              <Label className="text-sm">Rate Per Hour</Label>
-              <Input
-                type="number"
-                min="0"
-                step="0.01"
-                placeholder="0.00"
-                value={adjustment.overtimeRatePerHour || ''}
-                onChange={(e) =>
-                  updateEmployeeAdjustment(index, 'overtimeRatePerHour', parseFloat(e.target.value) || 0)
-                }
-              />
-            </div>
-          </div>
-
-          {adjustment.overtimeHours > 0 && adjustment.overtimeRatePerHour > 0 && (
+          {adjustment.overtimeEntries.length > 0 && (
             <div className="text-sm text-green-600 bg-green-50 p-2 rounded mt-2">
-              Total Overtime Pay: +₱{(adjustment.overtimeHours * adjustment.overtimeRatePerHour).toLocaleString()}
+              Total Overtime Pay: +₱
+              {adjustment.overtimeEntries
+                .reduce((sum, ot) => sum + (ot.hours * ot.ratePerHour), 0)
+                .toLocaleString()}
             </div>
           )}
+
         </div>
 
+        {/* Loop through overtime entries */}
+{adjustment.overtimeEntries.map((ot, otIndex) => (
+  <div key={otIndex} className="grid grid-cols-3 gap-3 items-end border p-3 rounded mb-2 bg-gray-50">
+    {/* OT Date */}
+    <div>
+      <Label>Date</Label>
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button variant="outline" className="w-full">
+            {ot.date ? format(ot.date, "PPP") : "Select date"}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0">
+          <Calendar
+            mode="single"
+            selected={ot.date}
+            onSelect={(date) => updateOvertimeEntry(index, otIndex, "date", date)}
+            initialFocus
+          />
+        </PopoverContent>
+      </Popover>
+    </div>
+
+    {/* Hours */}
+    <div>
+      <Label>Hours</Label>
+      <Input
+          type="number"
+          min="0"
+          step="0.5"
+          value={isNaN(ot.hours) ? "" : ot.hours}
+          onChange={(e) =>
+            updateOvertimeEntry(index, otIndex, "hours", parseFloat(e.target.value) || 0)
+          }
+        />
+    </div>
+
+    {/* Rate */}
+    <div>
+      <Label>Rate Per Hour</Label>
+      <Input
+          type="number"
+          min="0"
+          step="0.01"
+          value={isNaN(ot.ratePerHour) ? "" : ot.ratePerHour}
+          onChange={(e) =>
+            updateOvertimeEntry(index, otIndex, "ratePerHour", parseFloat(e.target.value) || 0)
+          }
+        />
+    </div>
+  </div>
+))}
+
+<Button
+  type="button"
+  variant="outline"
+  size="sm"
+  onClick={() => addOvertimeEntry(index)}
+>
+  + Add Overtime Entry
+</Button>
+
+{/* 
+        // ✅ In UI: Add Holiday Pay Section with Date */}
+
+        <Label className="text-sm font-medium text-green-600 mb-2 block">Holiday Pay</Label>
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            className={cn(
+            "w-full justify-start text-left font-normal",
+            !adjustment.holidayDate && "text-muted-foreground"
+            )}
+          >
+          {adjustment.holidayDate ? format(adjustment.holidayDate, "PPP") : "Select date"}
+          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+          </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0">
+          <Calendar
+          mode="single"
+          selected={adjustment.holidayDate}
+          onSelect={(date) => updateEmployeeAdjustment(index, "holidayDate", date as Date)}
+          initialFocus
+          />
+        </PopoverContent>
+      </Popover>
+
+          <Input
+            type="number"
+            min="0"
+            step="0.01"
+            placeholder="0.00"
+            value={adjustment.holidayPay || ""}
+            onChange={(e) =>
+            updateEmployeeAdjustment(index, "holidayPay", parseFloat(e.target.value) || 0)
+            }
+            />
+
         {/* Net Effect Summary */}
-        {(adjustment.absenceDays > 0 && adjustment.absenceAmountPerDay > 0) || 
-         (adjustment.overtimeHours > 0 && adjustment.overtimeRatePerHour > 0) && (
-          <div className="border-t pt-3 bg-blue-50 p-3 rounded">
-            <Label className="text-sm font-medium mb-2 block">Net Adjustment</Label>
-            <div className="text-sm">
-              {adjustment.overtimeHours > 0 && adjustment.overtimeRatePerHour > 0 && (
-                <div className="text-green-600">
-                  Overtime: +₱{(adjustment.overtimeHours * adjustment.overtimeRatePerHour).toLocaleString()}
-                </div>
-              )}
-              {adjustment.absenceDays > 0 && adjustment.absenceAmountPerDay > 0 && (
-                <div className="text-red-600">
-                  Absence: -₱{(adjustment.absenceDays * adjustment.absenceAmountPerDay).toLocaleString()}
-                </div>
-              )}
-              <div className="font-medium text-blue-600 border-t pt-1 mt-1">
-                Net Effect: {(() => {
-                  const overtime = (adjustment.overtimeHours || 0) * (adjustment.overtimeRatePerHour || 0)
-                  const absence = (adjustment.absenceDays || 0) * (adjustment.absenceAmountPerDay || 0)
-                  const net = overtime - absence
-                  return net >= 0 ? `+₱${net.toLocaleString()}` : `-₱${Math.abs(net).toLocaleString()}`
-                })()}
-              </div>
-            </div>
-          </div>
-        )}
+{/* Net Effect Summary */}
+{(adjustment.absenceDays > 0 && adjustment.absenceAmountPerDay > 0) || 
+ (adjustment.overtimeEntries?.length > 0) ? (
+  <div className="border-t pt-3 bg-blue-50 p-3 rounded">
+    <Label className="text-sm font-medium mb-2 block">Net Adjustment</Label>
+    <div className="text-sm">
+      {/* Overtime */}
+      {adjustment.overtimeEntries.length > 0 && (
+        <div className="text-green-600">
+          Overtime: +₱
+          {adjustment.overtimeEntries.reduce(
+            (sum, ot) => sum + (ot.hours * ot.ratePerHour),
+            0
+          ).toLocaleString()}
+        </div>
+      )}
+
+      {/* Absence */}
+      {adjustment.absenceDays > 0 && adjustment.absenceAmountPerDay > 0 && (
+        <div className="text-red-600">
+          Absence: -₱
+          {(adjustment.absenceDays * adjustment.absenceAmountPerDay).toLocaleString()}
+        </div>
+      )}
+
+      {/* Net Effect */}
+      <div className="font-medium text-blue-600 border-t pt-1 mt-1">
+        Net Effect: {(() => {
+          const overtime = adjustment.overtimeEntries.reduce(
+            (sum, ot) => sum + (ot.hours * ot.ratePerHour),
+            0
+          )
+          const absence = (adjustment.absenceDays || 0) * (adjustment.absenceAmountPerDay || 0)
+          const net = overtime - absence
+          return net >= 0 ? `+₱${net.toLocaleString()}` : `-₱${Math.abs(net).toLocaleString()}`
+        })()}
+      </div>
+    </div>
+  </div>
+) : null}
+
+
       </div>
     </Card>
   ))}
