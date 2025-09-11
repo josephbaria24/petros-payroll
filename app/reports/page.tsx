@@ -55,7 +55,15 @@ type EmployeePayrollDetail = {
   period_end: string
   month_year: string
   status: string
+  sss: number
+  philhealth: number
+  pagibig: number
+  withholding_tax: number
+  loans: number
+  uniform: number
+  tardiness: number
 }
+
 
 type Deduction = {
   id: string
@@ -129,6 +137,14 @@ export default function ReportsPage() {
       'Holiday Pay': emp.holiday_pay,
       'Gross Pay': emp.gross_pay,
       'Absences': emp.absences,
+      'SSS': emp.sss,
+      'PhilHealth': emp.philhealth,
+      'Pag-IBIG': emp.pagibig,
+      'Withholding Tax': emp.withholding_tax,
+      'Loans': emp.loans,
+      'Uniform': emp.uniform,
+      'Tardiness': emp.tardiness,
+
       'Total Deductions': emp.total_deductions,
       'Net Pay': emp.net_pay + emp.allowances,
       'Status': emp.status,
@@ -140,24 +156,8 @@ export default function ReportsPage() {
     const ws = window.XLSX.utils.json_to_sheet(excelData)
 
     // Set column widths
-    ws['!cols'] = [
-      { width: 15 }, // Employee ID
-      { width: 15 }, // Employee Code
-      { width: 25 }, // Full Name
-      { width: 12 }, // Pay Type
-      { width: 15 }, // Period Start
-      { width: 15 }, // Period End
-      { width: 18 }, // Basic Salary
-      { width: 15 }, // Allowances
-      { width: 15 }, // Overtime Pay
-      { width: 15 }, // Holiday Pay
-      { width: 15 }, // Gross Pay
-      { width: 12 }, // Absences
-      { width: 18 }, // Total Deductions
-      { width: 15 }, // Net Pay
-      { width: 12 }, // Status
-      { width: 15 }  // Month/Year
-    ]
+  // Optional: Adjust column widths for new fields
+  ws['!cols'] = Array(24).fill({ width: 15 })
 
     // Add worksheet to workbook
     window.XLSX.utils.book_append_sheet(wb, ws, "Employee Payroll Details")
@@ -174,23 +174,31 @@ export default function ReportsPage() {
     try {
       // Fetch payroll records with employee details
       const { data: payrollRecords, error: payrollError } = await supabase
-        .from("payroll_records")
-        .select(`
-          id,
-          employee_id,
-          period_start,
-          period_end,
-          basic_salary,
-          allowances,
-          overtime_pay,
-          holiday_pay,
-          gross_pay,
-          absences,
-          total_deductions,
-          net_pay,
-          status,
-          employees(id, employee_code, full_name, pay_type)
-        `)
+      .from("payroll_records")
+      .select(`
+        id,
+        employee_id,
+        period_start,
+        period_end,
+        basic_salary,
+        allowances,
+        overtime_pay,
+        holiday_pay,
+        gross_pay,
+        absences,
+        total_deductions,
+        net_pay,
+        sss,
+        philhealth,
+        pagibig,
+        withholding_tax,
+        loans,
+        uniform,
+        tardiness,
+        status,
+        employees(id, employee_code, full_name, pay_type)
+      `)
+    
         .order("period_end", { ascending: false })
 
       if (payrollError) {
@@ -237,7 +245,14 @@ export default function ReportsPage() {
           period_start: record.period_start,
           period_end: record.period_end,
           month_year: monthYear,
-          status: record.status || 'Unknown'
+          status: record.status || 'Unknown',
+          sss: record.sss || 0,
+          philhealth: record.philhealth || 0,
+          pagibig: record.pagibig || 0,
+          withholding_tax: record.withholding_tax || 0,
+          loans: record.loans || 0,
+          uniform: record.uniform || 0,
+          tardiness: record.tardiness || 0,
         }
       })
 
@@ -527,8 +542,8 @@ export default function ReportsPage() {
         <TabsContent value="deductions">
           <Card>
             <CardContent className="p-6">
-              <h3 className="text-lg font-semibold mb-4">Employee Deductions</h3>
-              {deductions.length === 0 ? (
+              <h3 className="text-lg font-semibold mb-4">Employee Deductions (Detailed)</h3>
+              {employeePayrollDetails.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <p>No deduction records found.</p>
                 </div>
@@ -536,19 +551,29 @@ export default function ReportsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Date</TableHead>
                       <TableHead>Employee</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Amount</TableHead>
+                      <TableHead>SSS</TableHead>
+                      <TableHead>PhilHealth</TableHead>
+                      <TableHead>Pag-IBIG</TableHead>
+                      <TableHead>Withholding Tax</TableHead>
+                      <TableHead>Loans</TableHead>
+                      <TableHead>Uniform</TableHead>
+                      <TableHead>Tardiness</TableHead>
+                      <TableHead>Total</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {deductions.map((d) => (
-                      <TableRow key={d.id}>
-                        <TableCell>{new Date(d.created_at).toLocaleDateString()}</TableCell>
-                        <TableCell>{d.employee_name}</TableCell>
-                        <TableCell>{d.type}</TableCell>
-                        <TableCell>₱ {d.amount.toLocaleString()}</TableCell>
+                    {employeePayrollDetails.map(emp => (
+                      <TableRow key={emp.id}>
+                        <TableCell>{emp.full_name}</TableCell>
+                        <TableCell>₱ {emp.sss.toLocaleString()}</TableCell>
+                        <TableCell>₱ {emp.philhealth.toLocaleString()}</TableCell>
+                        <TableCell>₱ {emp.pagibig.toLocaleString()}</TableCell>
+                        <TableCell>₱ {emp.withholding_tax.toLocaleString()}</TableCell>
+                        <TableCell>₱ {emp.loans.toLocaleString()}</TableCell>
+                        <TableCell>₱ {emp.uniform.toLocaleString()}</TableCell>
+                        <TableCell>₱ {emp.tardiness.toLocaleString()}</TableCell>
+                        <TableCell className="font-bold">₱ {emp.total_deductions.toLocaleString()}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -557,6 +582,7 @@ export default function ReportsPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
 
         {/* Expenses Tab */}
         <TabsContent value="expenses">
