@@ -109,7 +109,7 @@ export default function MyPayrollPage() {
   
       // Merge: attach deductions into payroll
       const merged = payroll.map((rec: any) => {
-        const totalDeductions =
+        const additionalDeductions =
           deductions
             ?.filter(
               (d) =>
@@ -128,7 +128,8 @@ export default function MyPayrollPage() {
           (rec.bonuses || 0) +
           (rec.commission || 0)
       
-        // Compute all deductions (database + field deductions)
+        // Compute all deductions (database fields + additional deductions)
+        // Note: absences should already be included in the payroll record, not added separately
         const allDeductions =
           (rec.sss || 0) +
           (rec.philhealth || 0) +
@@ -138,13 +139,14 @@ export default function MyPayrollPage() {
           (rec.tardiness || 0) +
           (rec.loans || 0) +
           (rec.uniform || 0) +
-          totalDeductions
+          additionalDeductions
       
         return {
           ...rec,
-          total_deductions: allDeductions,
+          additional_deductions: additionalDeductions,
+          calculated_total_deductions: allDeductions,
           gross_pay: totalEarnings,
-          net_after_deductions: totalEarnings - allDeductions,
+          calculated_net_pay: totalEarnings - allDeductions,
         }
       })
       
@@ -226,12 +228,11 @@ export default function MyPayrollPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Period</TableHead>
-                <TableHead>Gross Net Pay</TableHead>
+                <TableHead>Gross Pay</TableHead>
                 <TableHead>Total Deductions</TableHead>
-                <TableHead>Net After Deductions</TableHead>
+                <TableHead>Net Pay</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Action</TableHead>
-
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -241,20 +242,11 @@ export default function MyPayrollPage() {
                   {rec.period_start} – {rec.period_end}
                 </TableCell>
                 <TableCell>
-                  ₱ {(
-                    (rec.basic_salary || 0) +
-                    (rec.overtime_pay || 0) +
-                    (rec.holiday_pay || 0) +
-                    (rec.night_diff || 0) +
-                    (rec.allowances || 0) +
-                    (rec.bonuses || 0) +
-                    (rec.commission || 0)
-                  ).toLocaleString()}
+                  {formatCurrency(rec.gross_pay)}
                 </TableCell>
-
-                <TableCell>₱ {(rec.total_deductions || 0).toLocaleString()}</TableCell>
+                <TableCell>{formatCurrency(rec.calculated_total_deductions)}</TableCell>
                 <TableCell className="font-semibold">
-                  ₱ {(rec.net_after_deductions || rec.net_pay).toLocaleString()}
+                  {formatCurrency(rec.calculated_net_pay)}
                 </TableCell>
                 <TableCell>{statusBadge(rec.status)}</TableCell>
                 <TableCell>
@@ -377,20 +369,15 @@ export default function MyPayrollPage() {
                                   <span style={{ color: '#000000' }}>Absences:</span>
                                   <span style={{ fontWeight: '500', color: '#000000' }}>{formatCurrency(selectedRecord.absences)}</span>
                                 </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                  <span style={{ color: '#000000' }}>Other Deductions:</span>
-                                  <span style={{ fontWeight: '500', color: '#000000' }}>{formatCurrency(selectedRecord.total_deductions)}</span>
-                                </div>
+                                {selectedRecord.additional_deductions > 0 && (
+                                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span style={{ color: '#000000' }}>Other Deductions:</span>
+                                    <span style={{ fontWeight: '500', color: '#000000' }}>{formatCurrency(selectedRecord.additional_deductions)}</span>
+                                  </div>
+                                )}
                                 <div style={{ borderTop: '1px solid #d1d5db', paddingTop: '8px', display: 'flex', justifyContent: 'space-between', fontWeight: '600' }}>
                                   <span style={{ color: '#000000' }}>TOTAL DEDUCTIONS:</span>
-                                  <span style={{ color: '#000000' }}>{formatCurrency(
-                                    (selectedRecord.sss || 0) + 
-                                    (selectedRecord.philhealth || 0) + 
-                                    (selectedRecord.pagibig || 0) + 
-                                    (selectedRecord.withholding_tax || 0) + 
-                                    (selectedRecord.absences || 0) + 
-                                    (selectedRecord.total_deductions || 0)
-                                  )}</span>
+                                  <span style={{ color: '#000000' }}>{formatCurrency(selectedRecord.calculated_total_deductions)}</span>
                                 </div>
                               </div>
                             </div>
@@ -401,25 +388,8 @@ export default function MyPayrollPage() {
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                               <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#1f2937' }}>NET PAY:</span>
                               <span style={{ fontSize: '24px', fontWeight: 'bold', color: '#16a34a' }}>
-                                {formatCurrency(
-                                  (selectedRecord.basic_salary || 0) +
-                                  (selectedRecord.overtime_pay || 0) +
-                                  (selectedRecord.holiday_pay || 0) +
-                                  (selectedRecord.night_diff || 0) +
-                                  (selectedRecord.allowances || 0) +
-                                  (selectedRecord.bonuses || 0) +
-                                  (selectedRecord.commission || 0)
-                                  - (
-                                    (selectedRecord.sss || 0) +
-                                    (selectedRecord.philhealth || 0) +
-                                    (selectedRecord.pagibig || 0) +
-                                    (selectedRecord.withholding_tax || 0) +
-                                    (selectedRecord.absences || 0) +
-                                    (selectedRecord.total_deductions || 0)
-                                  )
-                                )}
+                                {formatCurrency(selectedRecord.calculated_net_pay)}
                               </span>
-
                             </div>
                           </div>
 
