@@ -162,10 +162,10 @@ export function SidebarLeft({ ...props }: React.ComponentProps<typeof Sidebar>) 
         <NavSecondary items={navSecondary} className="mt-auto" />
 
         {/* Dark Mode Toggle */}
-        <div className="mt-2 px-4 py-6 flex items-center gap-2 text-sm text-muted-foreground">
+        {/* <div className="mt-2 px-4 py-6 flex items-center gap-2 text-sm text-muted-foreground">
           <span className="flex-1">Dark Mode</span>
           <ModeToggle />
-        </div>
+        </div> */}
 
         {/* Logout Button */}
         <div className="px-1 pb-6">

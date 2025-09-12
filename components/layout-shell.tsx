@@ -17,6 +17,15 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
     pathname.startsWith(route)
   )
 
+  // 🔁 Choose background based on pathname
+  const backgroundClass = pathname === "/my-payroll"
+    ? "bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50"
+    : pathname === "/my-attendance"
+    ? "bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50"
+    : pathname === "/timesheet"
+    ? "bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50"
+    : "bg-white" // fallback for other pages
+
   if (isAuthPage) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -29,13 +38,16 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
     <SidebarProvider>
       <div className="flex min-h-screen w-full">
         <SidebarLeft />
-        <div className=" top-3 z-50">
-  <SidebarTrigger className=" sticky top-0 flex h-14 shrink-0 items-center gap-2" />
-</div>
+        
+        {/* ✅ Apply dynamic background class */}
+        <div className={`top-3 z-50 ${backgroundClass}`}>
+          <SidebarTrigger className="sticky top-0 flex h-14 shrink-0 items-center gap-2" />
+        </div>
 
         <SidebarInset>
           {children}
         </SidebarInset>
+
         <SidebarRight />
       </div>
     </SidebarProvider>

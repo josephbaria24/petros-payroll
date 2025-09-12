@@ -6,14 +6,24 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Separator } from "@/components/ui/separator";
-import { Clock, LogIn, LogOut, CheckCircle2 } from "lucide-react";
+import { Clock, LogIn, LogOut, CheckCircle2, Calendar, User, Timer } from "lucide-react";
 
 export default function MyTimeLogsPage() {
   const [loading, setLoading] = useState(false);
   const [todayLog, setTodayLog] = useState<any>(null);
   const [employeeId, setEmployeeId] = useState<string | null>(null);
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   const supabase = createClientComponentClient();
+
+  // Update current time every second
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     const init = async () => {
@@ -86,6 +96,31 @@ export default function MyTimeLogsPage() {
     return `${hour12.toString().padStart(2, "0")}:${mm}:${ss} ${meridiem}`;
   };
 
+  // Calculate work duration
+  const getWorkDuration = () => {
+    if (!todayLog?.time_in) return null;
+    
+    const timeIn = todayLog.time_in;
+    const timeOut = todayLog.time_out || nowHms24();
+    
+    // Convert to minutes for calculation
+    const parseTime = (timeStr: string) => {
+      const [hours, minutes, seconds] = timeStr.split(':').map(Number);
+      return hours * 60 + minutes + (seconds || 0) / 60;
+    };
+    
+    const timeInMinutes = parseTime(timeIn);
+    const timeOutMinutes = parseTime(timeOut);
+    const diffMinutes = timeOutMinutes - timeInMinutes;
+    
+    if (diffMinutes < 0) return null;
+    
+    const hours = Math.floor(diffMinutes / 60);
+    const minutes = Math.floor(diffMinutes % 60);
+    
+    return `${hours}h ${minutes}m`;
+  };
+
   const handleTimeIn = async () => {
     if (!employeeId) return;
     setLoading(true);
@@ -128,74 +163,230 @@ export default function MyTimeLogsPage() {
     setLoading(false);
   };
 
+  const getStatusColor = () => {
+    if (!todayLog?.time_in) return "border-gray-200 bg-gray-50";
+    if (!todayLog?.time_out) return "border-blue-200 bg-blue-50";
+    return "border-green-200 bg-green-50";
+  };
+
+  const getStatusText = () => {
+    if (!todayLog?.time_in) return "Not started";
+    if (!todayLog?.time_out) return "Currently working";
+    return "Work completed";
+  };
+
   return (
-    <div className="p-4 md:p-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl md:text-2xl">My Attendance</CardTitle>
-          <CardDescription>
-            {new Date().toLocaleDateString(undefined, {
-              weekday: "long",
-              year: "numeric",
-              month: "short",
-              day: "numeric",
-            })}
-          </CardDescription>
-        </CardHeader>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-4 md:p-8">
+      <div className="mx-auto max-w-4xl space-y-6">
+        {/* Header Section */}
+        <div className="text-center">
+          <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            Time & Attendance
+          </h1>
+          <p className="mt-2 text-lg text-gray-600">
+            Track your work hours with ease
+          </p>
+        </div>
 
-        <Separator />
+        {/* Current Time Display */}
+        <Card className="border-0 shadow-lg bg-white/70 backdrop-blur-sm">
+          <CardContent className="p-8">
+            <div className="text-center">
+              <div className="text-5xl md:text-6xl font-mono font-bold text-gray-800 tracking-wider">
+                {currentTime.toLocaleTimeString("en-US", {
+                  hour12: true,
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  second: "2-digit",
+                })}
+              </div>
+              <div className="mt-2 flex items-center justify-center gap-2 text-xl text-gray-600">
+                <Calendar className="h-5 w-5" />
+                {currentTime.toLocaleDateString(undefined, {
+                  weekday: "long",
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-        <CardContent className="space-y-6 pt-6 text-sm md:text-base">
-          <div className="space-y-2">
-            <p className="flex items-center gap-2">
-              <Clock className="h-4 w-4" />
-              <span className="font-semibold">Time In:</span>
-              <span
-                className={todayLog?.time_in ? "text-green-600" : "text-muted-foreground"}
-              >
-                {format12h(todayLog?.time_in)}
-              </span>
-            </p>
-
-            <p className="flex items-center gap-2">
-              <Clock className="h-4 w-4" />
-              <span className="font-semibold">Time Out:</span>
-              <span
-                className={todayLog?.time_out ? "text-green-600" : "text-muted-foreground"}
-              >
-                {format12h(todayLog?.time_out)}
-              </span>
-            </p>
-          </div>
-
-          <div>
-            {!todayLog?.time_in ? (
-              <Button onClick={handleTimeIn} disabled={loading} className="w-50">
-                {loading ? "Timing in..." : (
-                  <>
-                    <LogIn className="mr-2 h-4 w-4" />
-                    Time In
-                  </>
+        {/* Main Attendance Card */}
+        <Card className={`border-2 shadow-xl transition-all duration-300 ${getStatusColor()}`}>
+          <CardHeader className="pb-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-2xl flex items-center gap-2">
+                  <User className="h-6 w-6" />
+                  Today's Attendance
+                </CardTitle>
+                <CardDescription className="text-base mt-1">
+                  {getStatusText()}
+                </CardDescription>
+              </div>
+              <div className="text-right">
+                {todayLog?.time_in && (
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <Timer className="h-4 w-4" />
+                    Duration: {getWorkDuration() || "Calculating..."}
+                  </div>
                 )}
-              </Button>
-            ) : !todayLog?.time_out ? (
-              <Button onClick={handleTimeOut} disabled={loading} className="w-50">
-                {loading ? "Timing out..." : (
-                  <>
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Time Out
-                  </>
-                )}
-              </Button>
-            ) : (
-              <p className="flex items-center justify-center gap-2 text-green-600 font-semibold">
-                <CheckCircle2 className="h-4 w-4" />
-                Attendance completed today.
-              </p>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+              </div>
+            </div>
+          </CardHeader>
+
+          <Separator className="mx-6" />
+
+          <CardContent className="pt-6 space-y-8">
+            {/* Time Display Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Time In Card */}
+              <div className={`rounded-xl p-6 border-2 transition-all duration-300 ${
+                todayLog?.time_in 
+                  ? "border-green-200 bg-green-50" 
+                  : "border-gray-200 bg-gray-50"
+              }`}>
+                <div className="flex items-center gap-3 mb-2">
+                  <div className={`p-2 rounded-full ${
+                    todayLog?.time_in ? "bg-green-100" : "bg-gray-100"
+                  }`}>
+                    <LogIn className={`h-5 w-5 ${
+                      todayLog?.time_in ? "text-green-600" : "text-gray-400"
+                    }`} />
+                  </div>
+                  <span className="font-semibold text-gray-700">Time In</span>
+                </div>
+                <div className={`text-2xl font-mono font-bold ${
+                  todayLog?.time_in ? "text-green-600" : "text-gray-400"
+                }`}>
+                  {format12h(todayLog?.time_in)}
+                </div>
+              </div>
+
+              {/* Time Out Card */}
+              <div className={`rounded-xl p-6 border-2 transition-all duration-300 ${
+                todayLog?.time_out 
+                  ? "border-green-200 bg-green-50" 
+                  : todayLog?.time_in 
+                    ? "border-orange-200 bg-orange-50"
+                    : "border-gray-200 bg-gray-50"
+              }`}>
+                <div className="flex items-center gap-3 mb-2">
+                  <div className={`p-2 rounded-full ${
+                    todayLog?.time_out 
+                      ? "bg-green-100" 
+                      : todayLog?.time_in 
+                        ? "bg-orange-100"
+                        : "bg-gray-100"
+                  }`}>
+                    <LogOut className={`h-5 w-5 ${
+                      todayLog?.time_out 
+                        ? "text-green-600" 
+                        : todayLog?.time_in 
+                          ? "text-orange-500"
+                          : "text-gray-400"
+                    }`} />
+                  </div>
+                  <span className="font-semibold text-gray-700">Time Out</span>
+                </div>
+                <div className={`text-2xl font-mono font-bold ${
+                  todayLog?.time_out 
+                    ? "text-green-600" 
+                    : todayLog?.time_in 
+                      ? "text-orange-500"
+                      : "text-gray-400"
+                }`}>
+                  {format12h(todayLog?.time_out)}
+                </div>
+              </div>
+            </div>
+
+            {/* Action Button */}
+            <div className="flex justify-center">
+              {!todayLog?.time_in ? (
+                <Button 
+                  onClick={handleTimeIn} 
+                  disabled={loading} 
+                  className="px-12 py-6 text-lg font-semibold bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                >
+                  {loading ? (
+                    <div className="flex items-center gap-3">
+                      <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
+                      Timing in...
+                    </div>
+                  ) : (
+                    <>
+                      <LogIn className="mr-3 h-5 w-5" />
+                      Start Work Day
+                    </>
+                  )}
+                </Button>
+              ) : !todayLog?.time_out ? (
+                <Button 
+                  onClick={handleTimeOut} 
+                  disabled={loading} 
+                  className="px-12 py-6 text-lg font-semibold bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                >
+                  {loading ? (
+                    <div className="flex items-center gap-3">
+                      <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
+                      Timing out...
+                    </div>
+                  ) : (
+                    <>
+                      <LogOut className="mr-3 h-5 w-5" />
+                      End Work Day
+                    </>
+                  )}
+                </Button>
+              ) : (
+                <div className="flex flex-col items-center gap-4 py-4">
+                  <div className="flex items-center gap-3 text-green-600 font-bold text-lg">
+                    <CheckCircle2 className="h-6 w-6" />
+                    Work day completed!
+                  </div>
+                  <div className="text-center text-gray-600">
+                    <p>You worked for <span className="font-semibold text-gray-800">{getWorkDuration()}</span> today</p>
+                    <p className="text-sm mt-1">Great job! 🎉</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Quick Stats Card */}
+        {todayLog?.time_in && (
+          <Card className="border-0 shadow-lg bg-white/70 backdrop-blur-sm">
+            <CardContent className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
+                <div className="space-y-2">
+                  <div className="text-2xl font-bold text-blue-600">
+                    {format12h(todayLog.time_in).split(' ')[0]}
+                  </div>
+                  <div className="text-sm text-gray-600">Started at</div>
+                </div>
+                <div className="space-y-2">
+                  <div className="text-2xl font-bold text-green-600">
+                    {getWorkDuration() || "0h 0m"}
+                  </div>
+                  <div className="text-sm text-gray-600">Total worked</div>
+                </div>
+                <div className="space-y-2">
+                  <div className="text-2xl font-bold text-purple-600">
+                    {todayLog.time_out ? format12h(todayLog.time_out).split(' ')[0] : "Active"}
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    {todayLog.time_out ? "Ended at" : "Currently working"}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
   );
 }

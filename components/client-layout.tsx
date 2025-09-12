@@ -12,7 +12,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <SessionContextProvider supabaseClient={supabase}>
-      <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+      <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} disableTransitionOnChange>
         <LayoutShell>{children}</LayoutShell>
         <Toaster
           position="top-center"
