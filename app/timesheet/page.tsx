@@ -151,18 +151,32 @@ export default function WeeklyTimesheet() {
     e.preventDefault()
     if (!editLog) return
   
-    const { id, time_in, time_out, status } = editLog
-  
-    const { error } = await supabase
-      .from("time_logs")
-      .update({ time_in, time_out, status })
-      .eq("id", id)
-  
-    if (!error) {
-      const updated = logs.map((log) => (log.id === id ? { ...log, time_in, time_out, status } : log))
-      setLogs(updated)
+    const { id, time_in, time_out, status, date } = editLog
+
+    let result
+    if (id) {
+      result = await supabase
+        .from("time_logs")
+        .update({ time_in, time_out, status })
+        .eq("id", id)
+    } else {
+      result = await supabase
+        .from("time_logs")
+        .insert([{ employee_id: userId, date, time_in, time_out, status }])
+        .select()
+    }
+    
+    if (!result.error) {
+      const newLog = result.data?.[0]
+    
+      const updatedLogs = id
+        ? logs.map((log) => (log.id === id ? { ...log, time_in, time_out, status } : log))
+        : [...logs, newLog]
+    
+      setLogs(updatedLogs)
       setEditLog(null)
     }
+    
   }
   
   return (
@@ -213,63 +227,81 @@ export default function WeeklyTimesheet() {
                     <TableCell>{renderStatusBadge(log?.status || null)}</TableCell>
 
                     <TableCell>
-                      {log ? (
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <Button size="sm" onClick={() => setEditLog(log)}>Edit</Button>
-                          </DialogTrigger>
-                          <DialogContent>
-                            <DialogTitle>Edit Log</DialogTitle>
-                            <form onSubmit={handleUpdateLog} className="space-y-4">
+  <Dialog>
+    <DialogTrigger asChild>
+      <Button
+        size="sm"
+        onClick={() =>
+          setEditLog(
+            log || {
+              id: "", // new record
+              date,
+              time_in: "",
+              time_out: "",
+              status: "",
+            }
+          )
+        }
+      >
+        {log ? "Edit" : "Add"}
+      </Button>
+    </DialogTrigger>
 
-                                <Label htmlFor="time_in">Time In</Label>
-                                <Input
-                                id="time_in"
-                                type="time"
-                                value={editLog?.time_in ?? ""}
-                                onChange={(e) =>
-                                    setEditLog({ ...(editLog as TimeLog), time_in: e.target.value })
-                                }
-                                />
+    {editLog && editLog.date === date && (
+      <DialogContent className="lg:w-[20vw] md:w-[50vw] sm:w-[60vw]">
+        <DialogTitle>{log ? "Edit Log" : "Add Log"}</DialogTitle>
+        <form onSubmit={handleUpdateLog} className="space-y-4">
+          <div>
+            <Label htmlFor="time_in">Time In</Label>
+            <Input
+              id="time_in"
+              type="time"
+              value={editLog.time_in || ""}
+              onChange={(e) =>
+                setEditLog({ ...editLog, time_in: e.target.value })
+              }
+            />
+          </div>
 
-                                <Label htmlFor="time_out">Time Out</Label>
-                                <Input
-                                id="time_out"
-                                type="time"
-                                value={editLog?.time_out ?? ""}
-                                onChange={(e) =>
-                                    setEditLog({ ...(editLog as TimeLog), time_out: e.target.value })
-                                }
-                                />
+          <div>
+            <Label htmlFor="time_out">Time Out</Label>
+            <Input
+              id="time_out"
+              type="time"
+              value={editLog.time_out || ""}
+              onChange={(e) =>
+                setEditLog({ ...editLog, time_out: e.target.value })
+              }
+            />
+          </div>
 
-                                <Label htmlFor="status">Status</Label>
-                                <Select
-                                value={editLog?.status ?? ""}
-                                onValueChange={(value) =>
-                                    setEditLog({ ...(editLog as TimeLog), status: value })
-                                }
-                                >
-                                <SelectTrigger id="status">
-                                    <SelectValue placeholder="Select status" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Present">Present</SelectItem>
-                                    <SelectItem value="Absent">Absent</SelectItem>
-                                    <SelectItem value="Late">Late</SelectItem>
-                                    <SelectItem value="On Leave">On Leave</SelectItem>
-                                </SelectContent>
-                                </Select>
+          <div>
+            <Label htmlFor="status">Status</Label>
+            <Select
+              value={editLog.status || ""}
+              onValueChange={(value) =>
+                setEditLog({ ...editLog, status: value })
+              }
+            >
+              <SelectTrigger id="status">
+                <SelectValue placeholder="Select status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Present">Present</SelectItem>
+                <SelectItem value="Absent">Absent</SelectItem>
+                <SelectItem value="Late">Late</SelectItem>
+                <SelectItem value="On Leave">On Leave</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-                                <Button type="submit">Save</Button>
-                            </form>
-                            </DialogContent>
+          <Button type="submit">Save</Button>
+        </form>
+      </DialogContent>
+    )}
+  </Dialog>
+</TableCell>
 
-
-                        </Dialog>
-                      ) : (
-                        <span className="text-muted-foreground">No record</span>
-                      )}
-                    </TableCell>
                   </TableRow>
                 )
               })}
