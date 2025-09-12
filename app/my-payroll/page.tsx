@@ -117,13 +117,37 @@ export default function MyPayrollPage() {
                 d.created_at <= rec.period_end
             )
             .reduce((sum, d) => sum + d.amount, 0) || 0
-  
+      
+        // Compute total earnings manually
+        const totalEarnings =
+          (rec.basic_salary || 0) +
+          (rec.overtime_pay || 0) +
+          (rec.holiday_pay || 0) +
+          (rec.night_diff || 0) +
+          (rec.allowances || 0) +
+          (rec.bonuses || 0) +
+          (rec.commission || 0)
+      
+        // Compute all deductions (database + field deductions)
+        const allDeductions =
+          (rec.sss || 0) +
+          (rec.philhealth || 0) +
+          (rec.pagibig || 0) +
+          (rec.withholding_tax || 0) +
+          (rec.absences || 0) +
+          (rec.tardiness || 0) +
+          (rec.loans || 0) +
+          (rec.uniform || 0) +
+          totalDeductions
+      
         return {
           ...rec,
-          total_deductions: totalDeductions,
-          net_after_deductions: rec.net_pay - totalDeductions,
+          total_deductions: allDeductions,
+          gross_pay: totalEarnings,
+          net_after_deductions: totalEarnings - allDeductions,
         }
       })
+      
   
       setRecords(merged || [])
       setLoading(false)
