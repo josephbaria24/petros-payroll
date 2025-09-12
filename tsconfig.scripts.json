@@ -1,0 +1,13 @@
+{
+    "compilerOptions": {
+      "target": "ES2017",
+      "module": "CommonJS",
+      "esModuleInterop": true,
+      "skipLibCheck": true,
+      "strict": true,
+      "resolveJsonModule": true,
+      "types": ["node"]
+    },
+    "include": ["zk-service/**/*.ts", "types/**/*.d.ts"]
+  }
+  
