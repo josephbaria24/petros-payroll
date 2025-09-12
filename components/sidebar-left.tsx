@@ -13,6 +13,8 @@ import {
   Moon,
   LogOut,
   Calendar,
+  Droplet,
+  Newspaper,
 } from "lucide-react"
 
 import { usePathname, useRouter } from "next/navigation"
@@ -143,7 +145,12 @@ export function SidebarLeft({ ...props }: React.ComponentProps<typeof Sidebar>) 
           teams={[
             {
               name: "Petrosphere",
-              logo: Home,
+              logo: Droplet,
+              plan: "Payroll System",
+            },
+            {
+              name: "Palawan Daily News",
+              logo: Newspaper,
               plan: "Payroll System",
             },
           ]}

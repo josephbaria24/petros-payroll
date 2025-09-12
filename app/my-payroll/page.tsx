@@ -216,7 +216,18 @@ export default function MyPayrollPage() {
                 <TableCell>
                   {rec.period_start} – {rec.period_end}
                 </TableCell>
-                <TableCell>₱ {rec.net_pay.toLocaleString()}</TableCell>
+                <TableCell>
+                  ₱ {(
+                    (rec.basic_salary || 0) +
+                    (rec.overtime_pay || 0) +
+                    (rec.holiday_pay || 0) +
+                    (rec.night_diff || 0) +
+                    (rec.allowances || 0) +
+                    (rec.bonuses || 0) +
+                    (rec.commission || 0)
+                  ).toLocaleString()}
+                </TableCell>
+
                 <TableCell>₱ {(rec.total_deductions || 0).toLocaleString()}</TableCell>
                 <TableCell className="font-semibold">
                   ₱ {(rec.net_after_deductions || rec.net_pay).toLocaleString()}
@@ -365,7 +376,26 @@ export default function MyPayrollPage() {
                           <div style={{ backgroundColor: '#f3f4f6', padding: '16px', borderRadius: '8px', border: '2px solid #1f2937' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                               <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#1f2937' }}>NET PAY:</span>
-                              <span style={{ fontSize: '24px', fontWeight: 'bold', color: '#16a34a' }}>{formatCurrency(selectedRecord.net_pay)}</span>
+                              <span style={{ fontSize: '24px', fontWeight: 'bold', color: '#16a34a' }}>
+                                {formatCurrency(
+                                  (selectedRecord.basic_salary || 0) +
+                                  (selectedRecord.overtime_pay || 0) +
+                                  (selectedRecord.holiday_pay || 0) +
+                                  (selectedRecord.night_diff || 0) +
+                                  (selectedRecord.allowances || 0) +
+                                  (selectedRecord.bonuses || 0) +
+                                  (selectedRecord.commission || 0)
+                                  - (
+                                    (selectedRecord.sss || 0) +
+                                    (selectedRecord.philhealth || 0) +
+                                    (selectedRecord.pagibig || 0) +
+                                    (selectedRecord.withholding_tax || 0) +
+                                    (selectedRecord.absences || 0) +
+                                    (selectedRecord.total_deductions || 0)
+                                  )
+                                )}
+                              </span>
+
                             </div>
                           </div>
 
