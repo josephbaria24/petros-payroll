@@ -190,6 +190,8 @@ export default function MyPayrollPage() {
     switch (status) {
       case "Paid":
         return <Badge className="bg-green-100 text-green-600 border-green-200">● {status}</Badge>
+      case "Payment Success":
+        return <Badge className="bg-green-100 text-green-600 border-green-200">● {status}</Badge>
       case "Pending Payment":
         return <Badge className="bg-orange-100 text-orange-600 border-orange-200">● {status}</Badge>
       case "Cancelled":

@@ -54,8 +54,8 @@ export default function WeeklyTimesheet() {
   function getTotalHours(time_in: string | null, time_out: string | null): string {
     if (!time_in || !time_out) return "-"
 
-    const [inHour, inMinute] = time_in.split(":" ).map(Number)
-    const [outHour, outMinute] = time_out.split(":" ).map(Number)
+    const [inHour, inMinute] = time_in.split(":").map(Number)
+    const [outHour, outMinute] = time_out.split(":").map(Number)
 
     const inDate = new Date(0, 0, 0, inHour, inMinute)
     const outDate = new Date(0, 0, 0, outHour, outMinute)
@@ -73,6 +73,7 @@ export default function WeeklyTimesheet() {
   const [logs, setLogs] = useState<TimeLog[]>([])
   const weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
   const [userId, setUserId] = useState("")
+  const [attendanceLogUserId, setAttendanceLogUserId] = useState("")
   const [editLog, setEditLog] = useState<TimeLog | null>(null)
   const supabase = createClientComponentClient()
 
@@ -88,22 +89,77 @@ export default function WeeklyTimesheet() {
 
       const { data: employee } = await supabase
         .from("employees")
-        .select("id")
+        .select("id, attendance_log_userid")
         .eq("email", user.email)
         .single()
 
       if (!employee) return
 
       setUserId(employee.id)
+      setAttendanceLogUserId(employee.attendance_log_userid)
 
-      const { data: logsData } = await supabase
+      // Get date range for the week in Philippines timezone
+      const weekStartUTC = new Date(`${format(currentWeekStart, "yyyy-MM-dd")}T00:00:00+08:00`).toISOString()
+      const weekEndUTC = new Date(`${format(currentWeekEnd, "yyyy-MM-dd")}T23:59:59+08:00`).toISOString()
+
+      // Fetch attendance logs for the week
+      const { data: attendanceLogs } = await supabase
+        .from("attendance_logs")
+        .select("timestamp")
+        .eq("user_id", employee.attendance_log_userid)
+        .gte("timestamp", weekStartUTC)
+        .lte("timestamp", weekEndUTC)
+        .order("timestamp", { ascending: true })
+
+      // Fetch time_logs for time_out data
+      const { data: timeLogs } = await supabase
         .from("time_logs")
         .select("*")
         .eq("employee_id", employee.id)
         .gte("date", format(currentWeekStart, "yyyy-MM-dd"))
         .lte("date", format(currentWeekEnd, "yyyy-MM-dd"))
 
-      if (logsData) setLogs(logsData)
+      if (attendanceLogs && timeLogs) {
+        // Group attendance logs by date and get first entry (time in) for each day
+        const groupedLogs: { [key: string]: TimeLog } = {}
+        
+        // Process attendance logs (time in)
+        attendanceLogs.forEach((log) => {
+          const logDate = format(new Date(log.timestamp), "yyyy-MM-dd")
+          const timeIn = log.timestamp.split('T')[1].split('+')[0] // Extract time part
+          
+          if (!groupedLogs[logDate]) {
+            groupedLogs[logDate] = {
+              id: `attendance_${logDate}`,
+              date: logDate,
+              time_in: timeIn,
+              time_out: null,
+              status: "Present"
+            }
+          }
+        })
+
+        // Add time_out data from time_logs
+        timeLogs.forEach((timeLog) => {
+          if (groupedLogs[timeLog.date]) {
+            groupedLogs[timeLog.date].time_out = timeLog.time_out
+            if (timeLog.status) {
+              groupedLogs[timeLog.date].status = timeLog.status
+            }
+          } else if (timeLog.time_out) {
+            // If there's a time_out without attendance log, create entry
+            groupedLogs[timeLog.date] = {
+              id: timeLog.id,
+              date: timeLog.date,
+              time_in: timeLog.time_in,
+              time_out: timeLog.time_out,
+              status: timeLog.status || "Present"
+            }
+          }
+        })
+
+        setLogs(Object.values(groupedLogs))
+      }
     }
 
     fetchUserAndLogs()
@@ -116,19 +172,54 @@ export default function WeeklyTimesheet() {
     if (!editLog) return
 
     const { id, time_in, time_out, status, date } = editLog
+    
+    // Check if there's an existing time_log record for this date
+    const existingTimeLog = await supabase
+      .from("time_logs")
+      .select("*")
+      .eq("employee_id", userId)
+      .eq("date", date)
+      .single()
+
     let result
-    if (id) {
-      result = await supabase.from("time_logs").update({ time_in, time_out, status }).eq("id", id)
+    if (existingTimeLog.data) {
+      // Update existing time_log
+      result = await supabase
+        .from("time_logs")
+        .update({ time_in, time_out, status })
+        .eq("id", existingTimeLog.data.id)
     } else {
-      result = await supabase.from("time_logs").insert([{ employee_id: userId, date, time_in, time_out, status }]).select()
+      // Create new time_log
+      result = await supabase
+        .from("time_logs")
+        .insert([{ employee_id: userId, date, time_in, time_out, status }])
+        .select()
     }
 
     if (!result.error) {
-      const newLog = result.data?.[0]
-      const updatedLogs = id ? logs.map((log) => (log.id === id ? { ...log, time_in, time_out, status } : log)) : [...logs, newLog]
+      // Refresh the logs
+      const updatedLog = { ...editLog, time_in, time_out, status }
+      const updatedLogs = logs.map((log) => (log.date === date ? updatedLog : log))
+      
+      // If this is a new log, add it to the list
+      if (!logs.find((log) => log.date === date)) {
+        updatedLogs.push(updatedLog)
+      }
+      
       setLogs(updatedLogs)
       setEditLog(null)
     }
+  }
+
+  // Format time for display (convert to 12-hour format)
+  const formatTime = (time: string | null) => {
+    if (!time) return "-"
+    
+    const [hours, minutes] = time.split(":").map(Number)
+    const meridiem = hours >= 12 ? "PM" : "AM"
+    const hour12 = hours % 12 || 12
+    
+    return `${hour12.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")} ${meridiem}`
   }
 
   return (
@@ -173,8 +264,8 @@ export default function WeeklyTimesheet() {
                     <TableRow key={day} className="transition-all duration-200 hover:bg-indigo-50/50">
                       <TableCell className="font-semibold">{day}</TableCell>
                       <TableCell>{date}</TableCell>
-                      <TableCell>{log?.time_in || "-"}</TableCell>
-                      <TableCell>{log?.time_out || "-"}</TableCell>
+                      <TableCell>{formatTime(log?.time_in ?? null)}</TableCell>
+                      <TableCell>{formatTime(log?.time_out ?? null)}</TableCell>
                       <TableCell>{getTotalHours(log?.time_in ?? null, log?.time_out ?? null)}</TableCell>
                       <TableCell>{renderStatusBadge(log?.status || null)}</TableCell>
                       <TableCell>

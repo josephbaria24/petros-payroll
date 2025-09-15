@@ -10,6 +10,12 @@ import { Clock, LogIn, LogOut, CheckCircle2, Calendar, User, Timer } from "lucid
 
 export default function MyTimeLogsPage() {
   const [loading, setLoading] = useState(false);
+  const [hasMounted, setHasMounted] = useState(false);
+
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+
   const [todayLog, setTodayLog] = useState<any>(null);
   const [employeeId, setEmployeeId] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -52,29 +58,77 @@ export default function MyTimeLogsPage() {
   }, []);
 
   const fetchTodayLog = async (empId: string) => {
-    const today = new Date().toISOString().split("T")[0];
-    const { data, error } = await supabase
-      .from("time_logs")
-      .select("*")
-      .eq("employee_id", empId)
-      .eq("date", today)
+    // Get today's date range in UTC for the database query
+    // Philippines is UTC+8, so we need to query from 16:00:00 previous day to 15:59:59 current day in UTC
+    const now = new Date();
+    const philippinesNow = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Manila" }));
+    const todayPhilippines = philippinesNow.toISOString().split('T')[0];
+    
+    // Convert Philippines date range to UTC for database query
+    const startOfDayUTC = new Date(`${todayPhilippines}T00:00:00+08:00`).toISOString();
+    const endOfDayUTC = new Date(`${todayPhilippines}T23:59:59+08:00`).toISOString();
+  
+    // Fetch employee's attendance_log_userid
+    const { data: employee, error: empError } = await supabase
+      .from("employees")
+      .select("attendance_log_userid")
+      .eq("id", empId)
       .single();
-
-    if (error && error.code !== "PGRST116") {
-      console.error("Fetch error:", error);
+  
+    if (empError || !employee?.attendance_log_userid) {
+      console.error("Employee attendance_log_userid not found", empError);
+      return;
     }
-
-    setTodayLog(data || null);
+  
+    const logUserId = employee.attendance_log_userid;
+  
+    // Step 1: Get today's first attendance_log (time in) - query in UTC
+    const { data: attendanceLog, error: attErr } = await supabase
+      .from("attendance_logs")
+      .select("timestamp")
+      .eq("user_id", logUserId)
+      .gte("timestamp", startOfDayUTC)
+      .lte("timestamp", endOfDayUTC)
+      .order("timestamp", { ascending: true })
+      .limit(1)
+      .single();
+  
+    if (attErr && attErr.code !== "PGRST116") {
+      console.error("Error fetching attendance log:", attErr);
+    }
+  
+    // Step 2: Get existing time_out from time_logs
+    const { data: timeLog, error: timeLogErr } = await supabase
+      .from("time_logs")
+      .select("id, time_out")
+      .eq("employee_id", empId)
+      .eq("date", todayPhilippines)
+      .single();
+  
+    if (timeLogErr && timeLogErr.code !== "PGRST116") {
+      console.error("Error fetching time log:", timeLogErr);
+    }
+  
+    // Set combined log - extract time directly from timestamp since it's Philippines time stored as UTC
+    setTodayLog({
+      id: timeLog?.id,
+      time_in: attendanceLog?.timestamp
+        ? attendanceLog.timestamp.split('T')[1].split('+')[0]  // Extract just the time part "HH:MM:SS"
+        : null,
+      time_out: timeLog?.time_out || null,
+    });
   };
 
-  // Normalize time we store: "HH:MM:SS" 24h (local time)
-  const nowHms24 = () =>
-    new Date().toLocaleTimeString("en-GB", {
+  // Get current time in Philippines timezone as "HH:MM:SS" 24h format
+  const nowHms24 = () => {
+    return new Date().toLocaleTimeString("en-PH", {
+      timeZone: "Asia/Manila",
       hour12: false,
       hour: "2-digit",
       minute: "2-digit",
       second: "2-digit",
     });
+  };
 
   // Display helper – handles "HH:MM:SS" or "HH:MM:SS AM/PM"
   const format12h = (t?: string | null) => {
@@ -125,8 +179,11 @@ export default function MyTimeLogsPage() {
     if (!employeeId) return;
     setLoading(true);
 
-    const date = new Date().toISOString().split("T")[0];
-    const time = nowHms24(); // store normalized 24h
+    // Get current date in Philippines timezone
+    const date = new Date().toLocaleDateString('en-CA', {
+      timeZone: 'Asia/Manila'
+    });
+    const time = nowHms24(); // Get current Philippines time
 
     const { error } = await supabase.from("time_logs").insert({
       employee_id: employeeId,
@@ -147,7 +204,7 @@ export default function MyTimeLogsPage() {
     if (!todayLog) return;
     setLoading(true);
 
-    const time = nowHms24(); // store normalized 24h
+    const time = nowHms24(); // Get current Philippines time
 
     const { error } = await supabase
       .from("time_logs")
@@ -193,21 +250,27 @@ export default function MyTimeLogsPage() {
           <CardContent className="p-8">
             <div className="text-center">
               <div className="text-5xl md:text-6xl font-mono font-bold text-gray-800 tracking-wider">
-                {currentTime.toLocaleTimeString("en-US", {
-                  hour12: true,
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  second: "2-digit",
-                })}
+                {hasMounted
+                  ? new Date().toLocaleTimeString("en-PH", {
+                      timeZone: "Asia/Manila",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      second: "2-digit",
+                      hour12: true,
+                    })
+                  : "Loading..."}
               </div>
               <div className="mt-2 flex items-center justify-center gap-2 text-xl text-gray-600">
                 <Calendar className="h-5 w-5" />
-                {currentTime.toLocaleDateString(undefined, {
-                  weekday: "long",
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                })}
+                {hasMounted
+                  ? new Date().toLocaleDateString("en-PH", {
+                      timeZone: "Asia/Manila",
+                      weekday: "long",
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    })
+                  : ""}
               </div>
             </div>
           </CardContent>
