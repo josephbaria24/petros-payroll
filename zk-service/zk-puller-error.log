@@ -1,0 +1,18 @@
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 97, in <module>
+    fetch_logs()
+    ~~~~~~~~~~^^
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 64, in fetch_logs
+    logs = conn.get_attendance()
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 1553, in get_attendance
+    attendance_data, size = self.read_with_buffer(const.CMD_ATTLOG_RRQ)
+                            ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 1532, in read_with_buffer
+    data.append(self.__read_chunk(start,MAX_CHUNK))
+                ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 1489, in __read_chunk
+    data = self.__recieve_chunk()
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 1435, in __recieve_chunk
+    data_recv = self.__data[8:] + self.__sock.recv(size + 32)
+                                  ~~~~~~~~~~~~~~~~^^^^^^^^^^^
+KeyboardInterrupt
