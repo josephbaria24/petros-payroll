@@ -28,10 +28,13 @@ type TimeLog = {
   status: string
 }
 
+
 export default function TimekeepingPage() {
   useProtectedPage(["admin", "hr"])
   const [logs, setLogs] = useState<TimeLog[]>([])
   const [open, setOpen] = useState(false)
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
+
   const [form, setForm] = useState({
     employee_id: "",
     date: "",
@@ -42,35 +45,69 @@ export default function TimekeepingPage() {
   const [employees, setEmployees] = useState<{ id: string; full_name: string }[]>([])
 
   useEffect(() => {
-    fetchLogs()
+    fetchLogs(selectedDate)
     fetchEmployees()
-  }, [])
+  }, [selectedDate])
+  
 
-  async function fetchLogs() {
-    const { data, error } = await supabase
-      .from("time_logs")
-      .select("id, date, time_in, time_out, total_hours, overtime_hours, status, employees(full_name)")
-      .order("date", { ascending: false })
-
-    if (error) {
-      console.error(error)
+  async function fetchLogs(date: Date = new Date()) {
+    const startOfDay = new Date(date)
+    startOfDay.setHours(0, 0, 0, 0)
+  
+    const endOfDay = new Date(date)
+    endOfDay.setHours(23, 59, 59, 999)
+  
+    const { data: logsData, error: logsError } = await supabase
+      .from("attendance_logs")
+      .select("id, user_id, timestamp, timeout, status")
+      .gte("timestamp", startOfDay.toISOString())
+      .lte("timestamp", endOfDay.toISOString())
+      .order("timestamp", { ascending: false })
+  
+    if (logsError) {
+      console.error("Error fetching logs:", logsError)
       return
     }
-
-    setLogs(
-      data.map((l: any) => ({
-        id: l.id,
-        employee_id: l.employees?.id,
-        employee_name: l.employees?.full_name,
-        date: l.date,
-        time_in: l.time_in,
-        time_out: l.time_out,
-        total_hours: l.total_hours,
-        overtime_hours: l.overtime_hours,
-        status: l.status,
-      }))
-    )
+  
+    const { data: employeesData, error: empError } = await supabase
+      .from("employees")
+      .select("id, full_name, attendance_log_userid")
+  
+    if (empError) {
+      console.error("Error fetching employees:", empError)
+      return
+    }
+  
+    const enrichedLogs = logsData.map((log) => {
+      const matchedEmp = employeesData.find(
+        (emp) => emp.attendance_log_userid === log.user_id
+      )
+  
+      const timeIn = log.timestamp ? new Date(log.timestamp) : null
+      const timeOut = log.timeout ? new Date(log.timeout) : null
+  
+      const totalHours =
+        timeIn && timeOut
+          ? (timeOut.getTime() - timeIn.getTime()) / (1000 * 60 * 60)
+          : 0
+  
+      return {
+        id: log.id,
+        employee_id: matchedEmp?.id || "",
+        employee_name: matchedEmp?.full_name || "Unknown",
+        date: timeIn ? timeIn.toISOString().split("T")[0] : "-",
+        time_in: timeIn ? timeIn.toTimeString().slice(0, 5) : "-",
+        time_out: timeOut ? timeOut.toTimeString().slice(0, 5) : "-",
+        total_hours: totalHours,
+        overtime_hours: totalHours > 8 ? totalHours - 8 : 0,
+        status: log.status || "Logged",
+      }
+    })
+  
+    setLogs(enrichedLogs)
   }
+  
+  
 
   async function fetchEmployees() {
     const { data, error } = await supabase.from("employees").select("id, full_name")
@@ -180,6 +217,31 @@ export default function TimekeepingPage() {
             </form>
           </DialogContent>
         </Dialog>
+      </div>
+      <div className="flex items-center space-x-2">
+        <Label>Date:</Label>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant={"outline"}
+              className={cn(
+                "w-[200px] justify-start text-left font-normal",
+                !selectedDate && "text-muted-foreground"
+              )}
+            >
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="single"
+              selected={selectedDate}
+              onSelect={setSelectedDate}
+              initialFocus
+            />
+          </PopoverContent>
+        </Popover>
       </div>
 
       <Card>
