@@ -29,9 +29,7 @@ import {
   SidebarContent,
   SidebarHeader,
   SidebarRail,
-  SidebarTrigger,
 } from "@/components/ui/sidebar"
-import { ModeToggle } from "./mode-toggle"
 import { Button } from "@/components/ui/button"
 import { createPagesBrowserClient } from "@supabase/auth-helpers-nextjs"
 

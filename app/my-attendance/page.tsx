@@ -33,7 +33,11 @@ export default function MyTimeLogsPage() {
 
   useEffect(() => {
     const init = async () => {
+      console.log("Initializing component...");
+      
       const { data: { user } } = await supabase.auth.getUser();
+      console.log("Current user:", user?.email);
+      
       if (!user?.email) {
         toast.error("User not found.");
         return;
@@ -45,11 +49,15 @@ export default function MyTimeLogsPage() {
         .eq("email", user.email)
         .single();
 
+      console.log("Employee lookup result:", { employee, error: empErr });
+
       if (empErr || !employee?.id) {
         toast.error("Employee record not found.");
+        console.error("Employee error:", empErr);
         return;
       }
 
+      console.log("Setting employee ID:", employee.id);
       setEmployeeId(employee.id);
       fetchTodayLog(employee.id);
     };
@@ -58,65 +66,40 @@ export default function MyTimeLogsPage() {
   }, []);
 
   const fetchTodayLog = async (empId: string) => {
-    // Get today's date range in UTC for the database query
-    // Philippines is UTC+8, so we need to query from 16:00:00 previous day to 15:59:59 current day in UTC
+    console.log("Fetching today's log for employee:", empId);
+    
+    // Get today's date in Philippines timezone
     const now = new Date();
     const philippinesNow = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Manila" }));
     const todayPhilippines = philippinesNow.toISOString().split('T')[0];
     
-    // Convert Philippines date range to UTC for database query
-    const startOfDayUTC = new Date(`${todayPhilippines}T00:00:00+08:00`).toISOString();
-    const endOfDayUTC = new Date(`${todayPhilippines}T23:59:59+08:00`).toISOString();
-  
-    // Fetch employee's attendance_log_userid
-    const { data: employee, error: empError } = await supabase
-      .from("employees")
-      .select("attendance_log_userid")
-      .eq("id", empId)
-      .single();
-  
-    if (empError || !employee?.attendance_log_userid) {
-      console.error("Employee attendance_log_userid not found", empError);
-      return;
-    }
-  
-    const logUserId = employee.attendance_log_userid;
-  
-    // Step 1: Get today's first attendance_log (time in) - query in UTC
-    const { data: attendanceLog, error: attErr } = await supabase
-      .from("attendance_logs")
-      .select("timestamp")
-      .eq("user_id", logUserId)
-      .gte("timestamp", startOfDayUTC)
-      .lte("timestamp", endOfDayUTC)
-      .order("timestamp", { ascending: true })
-      .limit(1)
-      .single();
-  
-    if (attErr && attErr.code !== "PGRST116") {
-      console.error("Error fetching attendance log:", attErr);
-    }
-  
-    // Step 2: Get existing time_out from time_logs
+    console.log("Today's date (Philippines):", todayPhilippines);
+    
+    // Get today's time_log record
     const { data: timeLog, error: timeLogErr } = await supabase
       .from("time_logs")
-      .select("id, time_out")
+      .select("id, time_in, time_out")
       .eq("employee_id", empId)
       .eq("date", todayPhilippines)
       .single();
+
+    console.log("Time log query result:", { timeLog, error: timeLogErr });
   
     if (timeLogErr && timeLogErr.code !== "PGRST116") {
       console.error("Error fetching time log:", timeLogErr);
+      setTodayLog(null);
+      return;
     }
   
-    // Set combined log - extract time directly from timestamp since it's Philippines time stored as UTC
-    setTodayLog({
-      id: timeLog?.id,
-      time_in: attendanceLog?.timestamp
-        ? attendanceLog.timestamp.split('T')[1].split('+')[0]  // Extract just the time part "HH:MM:SS"
-        : null,
+    // Set the log data
+    const logData = {
+      id: timeLog?.id || null,
+      time_in: timeLog?.time_in || null,
       time_out: timeLog?.time_out || null,
-    });
+    };
+    
+    console.log("Setting today log:", logData);
+    setTodayLog(logData);
   };
 
   // Get current time in Philippines timezone as "HH:MM:SS" 24h format
@@ -151,57 +134,95 @@ export default function MyTimeLogsPage() {
   };
 
   // Calculate work duration
-  const getWorkDuration = () => {
-    if (!todayLog?.time_in) return null;
-    
-    const timeIn = todayLog.time_in;
-    const timeOut = todayLog.time_out || nowHms24();
-    
-    // Convert to minutes for calculation
-    const parseTime = (timeStr: string) => {
-      const [hours, minutes, seconds] = timeStr.split(':').map(Number);
-      return hours * 60 + minutes + (seconds || 0) / 60;
-    };
-    
-    const timeInMinutes = parseTime(timeIn);
-    const timeOutMinutes = parseTime(timeOut);
-    const diffMinutes = timeOutMinutes - timeInMinutes;
-    
-    if (diffMinutes < 0) return null;
-    
-    const hours = Math.floor(diffMinutes / 60);
-    const minutes = Math.floor(diffMinutes % 60);
-    
-    return `${hours}h ${minutes}m`;
+// Calculate work duration (excluding 12:00 PM - 1:00 PM lunch break)
+const getWorkDuration = () => {
+  if (!todayLog?.time_in) return null;
+  
+  const timeIn = todayLog.time_in;
+  const timeOut = todayLog.time_out || nowHms24();
+  
+  // Convert time string to minutes from midnight
+  const parseTime = (timeStr: string) => {
+    const [hours, minutes, seconds] = timeStr.split(':').map(Number);
+    return hours * 60 + minutes + (seconds || 0) / 60;
   };
+  
+  const timeInMinutes = parseTime(timeIn);
+  const timeOutMinutes = parseTime(timeOut);
+  
+  if (timeOutMinutes <= timeInMinutes) return null;
+  
+  // Define lunch break (12:00 PM to 1:00 PM = 720 to 780 minutes from midnight)
+  const lunchStart = 12 * 60; // 720 minutes (12:00 PM)
+  const lunchEnd = 13 * 60;   // 780 minutes (1:00 PM)
+  
+  let totalWorkMinutes = timeOutMinutes - timeInMinutes;
+  
+  // Check if lunch break overlaps with work time and subtract it
+  if (timeInMinutes < lunchEnd && timeOutMinutes > lunchStart) {
+    // Calculate the overlap between work time and lunch break
+    const overlapStart = Math.max(timeInMinutes, lunchStart);
+    const overlapEnd = Math.min(timeOutMinutes, lunchEnd);
+    const lunchOverlap = overlapEnd - overlapStart;
+    
+    // Subtract the lunch break overlap from total work time
+    totalWorkMinutes -= lunchOverlap;
+  }
+  
+  // Ensure we don't have negative time
+  if (totalWorkMinutes < 0) return null;
+  
+  const hours = Math.floor(totalWorkMinutes / 60);
+  const minutes = Math.floor(totalWorkMinutes % 60);
+  
+  return `${hours}h ${minutes}m`;
+};
 
   const handleTimeIn = async () => {
-    if (!employeeId) return;
+    if (!employeeId) {
+      toast.error("Employee ID not found. Please refresh the page.");
+      return;
+    }
+    
     setLoading(true);
 
-    // Get current date in Philippines timezone
-    const date = new Date().toLocaleDateString('en-CA', {
-      timeZone: 'Asia/Manila'
-    });
-    const time = nowHms24(); // Get current Philippines time
+    try {
+      // Get current date in Philippines timezone
+      const date = new Date().toLocaleDateString('en-CA', {
+        timeZone: 'Asia/Manila'
+      });
+      const time = nowHms24(); // Get current Philippines time
 
-    const { error } = await supabase.from("time_logs").insert({
-      employee_id: employeeId,
-      date,
-      time_in: time,
-    });
+      console.log("Attempting to insert time log:", {
+        employee_id: employeeId,
+        date,
+        time_in: time,
+      });
 
-    if (error) toast.error("Failed to time in.");
-    else {
-      toast.success("Time in recorded.");
-      fetchTodayLog(employeeId);
+      const { data, error } = await supabase.from("time_logs").insert({
+        employee_id: employeeId,
+        date,
+        time_in: time,
+      }).select();
+
+      if (error) {
+        console.error("Time in error:", error);
+        toast.error(`Failed to time in: ${error.message}`);
+      } else {
+        console.log("Time in successful:", data);
+        toast.success("Time in recorded.");
+        await fetchTodayLog(employeeId);
+      }
+    } catch (err) {
+      console.error("Unexpected error during time in:", err);
+      toast.error("An unexpected error occurred. Please try again.");
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   const handleTimeOut = async () => {
-    if (!todayLog) return;
+    if (!todayLog?.id) return;
     setLoading(true);
 
     const time = nowHms24(); // Get current Philippines time
@@ -211,8 +232,10 @@ export default function MyTimeLogsPage() {
       .update({ time_out: time })
       .eq("id", todayLog.id);
 
-    if (error) toast.error("Failed to time out.");
-    else {
+    if (error) {
+      console.error("Time out error:", error);
+      toast.error("Failed to time out.");
+    } else {
       toast.success("Time out recorded.");
       fetchTodayLog(employeeId!);
     }
@@ -233,11 +256,11 @@ export default function MyTimeLogsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-4 md:p-8">
+    <div className="min-h-screen from-blue-50 via-indigo-50 to-purple-50 p-4 md:p-8">
       <div className="mx-auto max-w-4xl space-y-6">
         {/* Header Section */}
         <div className="text-center">
-          <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+          <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-700 to-yellow-700 bg-clip-text ">
             Time & Attendance
           </h1>
           <p className="mt-2 text-lg text-gray-600">
