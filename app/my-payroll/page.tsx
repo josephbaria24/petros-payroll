@@ -225,11 +225,11 @@ export default function MyPayrollPage() {
   const latestPay = records.length > 0 ? records[0].calculated_net_pay || 0 : 0
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 p-4 md:p-8">
+    <div className="min-h-screen from-green-50 via-emerald-50 to-teal-50 p-4 md:p-8">
       <div className="mx-auto max-w-7xl space-y-6">
         {/* Header Section */}
         <div className="text-center">
-          <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+          <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text">
             Payroll Dashboard
           </h1>
           <p className="mt-2 text-lg text-gray-600">
@@ -307,7 +307,7 @@ export default function MyPayrollPage() {
 
             {/* Payroll Records Table */}
             <Card className="border-0 shadow-xl bg-white/90 backdrop-blur-sm">
-              <CardHeader className="bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-t-lg">
+              <CardHeader className="bg-gradient-to-r from-blue-600 to-yellow-500 text-white rounded-t-lg px-5 py-2">
                 <CardTitle className="text-xl flex items-center gap-2">
                   <FileText className="h-5 w-5" />
                   Payroll History
@@ -379,7 +379,7 @@ export default function MyPayrollPage() {
                                   <div id="payslip-content" style={{ backgroundColor: '#ffffff', padding: '32px', display: 'flex', flexDirection: 'column', gap: '24px', color: '#000000', fontFamily: 'Arial, sans-serif' }}>
                                     {/* Header */}
                                     <div style={{ textAlign: 'center', borderBottom: '2px solid #1f2937', paddingBottom: '16px' }}>
-                                      <h1 style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937', marginBottom: '4px' }}>Petrosphere Inc.</h1>
+                                      <h1 style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937', marginBottom: '4px' }}>PETROSPHERE INCORPORATED.</h1>
                                       <p style={{ fontSize: '14px', color: '#4b5563' }}>3rd Floor Trigold Business Park, Brgy San Pedro, Puerto Princesa City</p>
                                       <p style={{ fontSize: '14px', color: '#4b5563' }}>Phone: 0917-708-7994 | Email: hrad@petrosphere.com.ph</p>
                                       <h2 style={{ fontSize: '18px', fontWeight: '600', marginTop: '12px', color: '#1f2937' }}>PAYROLL STATEMENT</h2>

@@ -40,9 +40,7 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
         <SidebarLeft />
         
         {/* ✅ Apply dynamic background class */}
-        <div className={`top-3 z-50 ${backgroundClass}`}>
           <SidebarTrigger className="sticky top-0 flex h-14 shrink-0 items-center gap-2" />
-        </div>
 
         <SidebarInset>
           {children}

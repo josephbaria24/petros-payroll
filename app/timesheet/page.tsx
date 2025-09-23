@@ -34,6 +34,7 @@ export default function WeeklyTimesheet() {
     time_in: string | null
     time_out: string | null
     status: string | null
+    attendance_log_id?: string | null
   }
 
   function renderStatusBadge(status: string | null) {
@@ -60,13 +61,23 @@ export default function WeeklyTimesheet() {
     const inDate = new Date(0, 0, 0, inHour, inMinute)
     const outDate = new Date(0, 0, 0, outHour, outMinute)
 
-    const diffMs = outDate.getTime() - inDate.getTime()
+    let diffMs = outDate.getTime() - inDate.getTime()
     if (diffMs <= 0) return "0h"
 
-    const diffHours = Math.floor(diffMs / 1000 / 60 / 60)
-    const diffMinutes = Math.floor((diffMs / 1000 / 60) % 60)
+    // Convert to total minutes for easier calculation
+    let totalMinutes = Math.floor(diffMs / 1000 / 60)
 
-    return `${diffHours}h ${diffMinutes}m`
+    // Deduct 1 hour (60 minutes) for lunch break if working more than 6 hours
+    if (totalMinutes > 6 * 60) {
+      totalMinutes -= 60 // Subtract 1 hour for lunch break
+    }
+
+    if (totalMinutes <= 0) return "0h"
+
+    const diffHours = Math.floor(totalMinutes / 60)
+    const diffMinutesRemainder = totalMinutes % 60
+
+    return `${diffHours}h ${diffMinutesRemainder}m`
   }
 
   const [weekOffset, setWeekOffset] = useState(0)
@@ -76,6 +87,41 @@ export default function WeeklyTimesheet() {
   const [attendanceLogUserId, setAttendanceLogUserId] = useState("")
   const [editLog, setEditLog] = useState<TimeLog | null>(null)
   const supabase = createClientComponentClient()
+
+  // Helper function to create timestamp with validation
+  const createTimestamp = (date: string, time: string): string | null => {
+    try {
+      // Validate date format (YYYY-MM-DD)
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        console.error("Invalid date format:", date)
+        return null
+      }
+
+      // Validate time format (HH:MM or HH:MM:SS)
+      if (!/^\d{2}:\d{2}(:\d{2})?$/.test(time)) {
+        console.error("Invalid time format:", time)
+        return null
+      }
+
+      // Ensure time has seconds
+      const timeWithSeconds = time.includes(':') && time.split(':').length === 2 ? `${time}:00` : time
+
+      // Create timestamp string
+      const timestampString = `${date}T${timeWithSeconds}+08:00`
+      
+      // Test if the date is valid
+      const testDate = new Date(timestampString)
+      if (isNaN(testDate.getTime())) {
+        console.error("Invalid timestamp:", timestampString)
+        return null
+      }
+
+      return testDate.toISOString()
+    } catch (error) {
+      console.error("Error creating timestamp:", error)
+      return null
+    }
+  }
 
   const currentWeekStart = startOfWeek(addDays(new Date(), weekOffset * 7), { weekStartsOn: 1 })
   const currentWeekEnd = endOfWeek(addDays(new Date(), weekOffset * 7), { weekStartsOn: 1 })
@@ -105,7 +151,7 @@ export default function WeeklyTimesheet() {
       // Fetch attendance logs for the week
       const { data: attendanceLogs } = await supabase
         .from("attendance_logs")
-        .select("timestamp")
+        .select("id, timestamp, work_date")
         .eq("user_id", employee.attendance_log_userid)
         .gte("timestamp", weekStartUTC)
         .lte("timestamp", weekEndUTC)
@@ -125,8 +171,12 @@ export default function WeeklyTimesheet() {
         
         // Process attendance logs (time in)
         attendanceLogs.forEach((log) => {
-          const logDate = format(new Date(log.timestamp), "yyyy-MM-dd")
-          const timeIn = log.timestamp.split('T')[1].split('+')[0] // Extract time part
+          const logDate = log.work_date || format(new Date(log.timestamp), "yyyy-MM-dd")
+          
+          // Convert UTC timestamp to Philippines timezone (UTC+8) and extract time
+          const utcDate = new Date(log.timestamp)
+          const philippinesDate = new Date(utcDate.getTime() + (8 * 60 * 60 * 1000)) // Add 8 hours
+          const timeIn = philippinesDate.toISOString().split('T')[1].substring(0, 8) // Extract HH:MM:SS
           
           if (!groupedLogs[logDate]) {
             groupedLogs[logDate] = {
@@ -134,7 +184,8 @@ export default function WeeklyTimesheet() {
               date: logDate,
               time_in: timeIn,
               time_out: null,
-              status: "Present"
+              status: "Present",
+              attendance_log_id: log.id
             }
           }
         })
@@ -146,6 +197,8 @@ export default function WeeklyTimesheet() {
             if (timeLog.status) {
               groupedLogs[timeLog.date].status = timeLog.status
             }
+            // Keep the time_log id for updating time_out
+            groupedLogs[timeLog.date].id = timeLog.id
           } else if (timeLog.time_out) {
             // If there's a time_out without attendance log, create entry
             groupedLogs[timeLog.date] = {
@@ -171,43 +224,99 @@ export default function WeeklyTimesheet() {
     e.preventDefault()
     if (!editLog) return
 
-    const { id, time_in, time_out, status, date } = editLog
+    const { time_in, time_out, status, date, attendance_log_id } = editLog
     
-    // Check if there's an existing time_log record for this date
-    const existingTimeLog = await supabase
-      .from("time_logs")
-      .select("*")
-      .eq("employee_id", userId)
-      .eq("date", date)
-      .single()
+    try {
+      // Handle time_in update (update attendance_logs)
+      if (time_in && attendance_log_id) {
+        // Validate and convert time to full timestamp for the date
+        const timeInTimestamp = createTimestamp(date, time_in)
+        if (!timeInTimestamp) {
+          alert("Invalid time format. Please enter a valid time.")
+          return
+        }
+        
+        const { error: attendanceError } = await supabase
+          .from("attendance_logs")
+          .update({ 
+            timestamp: timeInTimestamp,
+            work_date: date
+          })
+          .eq("id", attendance_log_id)
 
-    let result
-    if (existingTimeLog.data) {
-      // Update existing time_log
-      result = await supabase
-        .from("time_logs")
-        .update({ time_in, time_out, status })
-        .eq("id", existingTimeLog.data.id)
-    } else {
-      // Create new time_log
-      result = await supabase
-        .from("time_logs")
-        .insert([{ employee_id: userId, date, time_in, time_out, status }])
-        .select()
-    }
+        if (attendanceError) {
+          console.error("Error updating attendance log:", attendanceError)
+          alert("Error updating time in. Please try again.")
+          return
+        }
+      } else if (time_in && !attendance_log_id) {
+        // Create new attendance log if doesn't exist
+        const timeInTimestamp = createTimestamp(date, time_in)
+        if (!timeInTimestamp) {
+          alert("Invalid time format. Please enter a valid time.")
+          return
+        }
+        
+        const { data: newAttendanceLog, error: attendanceError } = await supabase
+          .from("attendance_logs")
+          .insert([{
+            user_id: attendanceLogUserId,
+            timestamp: timeInTimestamp,
+            work_date: date,
+            status: "in"
+          }])
+          .select("id")
+          .single()
 
-    if (!result.error) {
-      // Refresh the logs
-      const updatedLog = { ...editLog, time_in, time_out, status }
-      const updatedLogs = logs.map((log) => (log.date === date ? updatedLog : log))
-      
-      // If this is a new log, add it to the list
-      if (!logs.find((log) => log.date === date)) {
-        updatedLogs.push(updatedLog)
+        if (attendanceError) {
+          console.error("Error creating attendance log:", attendanceError)
+          alert("Error creating time in record. Please try again.")
+          return
+        } else if (newAttendanceLog) {
+          editLog.attendance_log_id = newAttendanceLog.id
+        }
       }
-      
-      setLogs(updatedLogs)
-      setEditLog(null)
+
+      // Handle time_out and status update (update/create time_logs)
+      const existingTimeLog = await supabase
+        .from("time_logs")
+        .select("*")
+        .eq("employee_id", userId)
+        .eq("date", date)
+        .single()
+
+      let timeLogResult
+      if (existingTimeLog.data) {
+        // Update existing time_log
+        timeLogResult = await supabase
+          .from("time_logs")
+          .update({ time_in, time_out, status })
+          .eq("id", existingTimeLog.data.id)
+      } else {
+        // Create new time_log
+        timeLogResult = await supabase
+          .from("time_logs")
+          .insert([{ employee_id: userId, date, time_in, time_out, status }])
+          .select()
+      }
+
+      if (!timeLogResult.error) {
+        // Refresh the logs by updating state
+        const updatedLog = { ...editLog, time_in, time_out, status }
+        const updatedLogs = logs.map((log) => (log.date === date ? updatedLog : log))
+        
+        // If this is a new log, add it to the list
+        if (!logs.find((log) => log.date === date)) {
+          updatedLogs.push(updatedLog)
+        }
+        
+        setLogs(updatedLogs)
+        setEditLog(null)
+      } else {
+        console.error("Error updating time log:", timeLogResult.error)
+      }
+    } catch (error) {
+      console.error("Error updating log:", error)
     }
   }
 
@@ -223,10 +332,10 @@ export default function WeeklyTimesheet() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-6">
+    <div className="min-h-screen from-blue-50 via-indigo-50 to-purple-50 p-6">
       <div className="max-w-6xl mx-auto space-y-6">
         <div className="text-center">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">My Weekly Attendance</h1>
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text">My Weekly Attendance</h1>
           <p className="text-lg text-gray-600">Track your daily logs and time records</p>
         </div>
 
@@ -272,7 +381,14 @@ export default function WeeklyTimesheet() {
                         <Dialog>
                           <DialogTrigger asChild>
                             <Button size="sm" className="hover:scale-105" onClick={() =>
-                              setEditLog(log || { id: "", date, time_in: "", time_out: "", status: "" })
+                              setEditLog(log || { 
+                                id: "", 
+                                date, 
+                                time_in: "", 
+                                time_out: "", 
+                                status: "Present",
+                                attendance_log_id: null 
+                              })
                             }>
                               {log ? "Edit" : "Add"}
                             </Button>
