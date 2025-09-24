@@ -1,4 +1,4 @@
-// Redesigned WeeklyTimesheet with modern dashboard aesthetic
+// Redesigned WeeklyTimesheet with modern dashboard aesthetic and corrected timezone
 "use client"
 
 import { useEffect, useState } from "react"
@@ -67,9 +67,18 @@ export default function WeeklyTimesheet() {
     // Convert to total minutes for easier calculation
     let totalMinutes = Math.floor(diffMs / 1000 / 60)
 
-    // Deduct 1 hour (60 minutes) for lunch break if working more than 6 hours
-    if (totalMinutes > 6 * 60) {
-      totalMinutes -= 60 // Subtract 1 hour for lunch break
+    // Deduct 1 hour (60 minutes) for lunch break (12:00 PM - 1:00 PM) if working through lunch
+    const lunchStart = 12 * 60 // 720 minutes (12:00 PM)
+    const lunchEnd = 13 * 60   // 780 minutes (1:00 PM)
+    const timeInMinutes = inHour * 60 + inMinute
+    const timeOutMinutes = outHour * 60 + outMinute
+
+    // Check if lunch break overlaps with work time and subtract it
+    if (timeInMinutes < lunchEnd && timeOutMinutes > lunchStart) {
+      const overlapStart = Math.max(timeInMinutes, lunchStart)
+      const overlapEnd = Math.min(timeOutMinutes, lunchEnd)
+      const lunchOverlap = overlapEnd - overlapStart
+      totalMinutes -= lunchOverlap
     }
 
     if (totalMinutes <= 0) return "0h"
@@ -88,7 +97,7 @@ export default function WeeklyTimesheet() {
   const [editLog, setEditLog] = useState<TimeLog | null>(null)
   const supabase = createClientComponentClient()
 
-  // Helper function to create timestamp with validation
+  // Helper function to create timestamp with validation (stores Philippine time as UTC like ZKT)
   const createTimestamp = (date: string, time: string): string | null => {
     try {
       // Validate date format (YYYY-MM-DD)
@@ -106,17 +115,17 @@ export default function WeeklyTimesheet() {
       // Ensure time has seconds
       const timeWithSeconds = time.includes(':') && time.split(':').length === 2 ? `${time}:00` : time
 
-      // Create timestamp string
-      const timestampString = `${date}T${timeWithSeconds}+08:00`
+      // Create Philippine time and store as UTC (same as ZKT format)
+      const philippineDateTime = new Date(`${date}T${timeWithSeconds}`)
       
       // Test if the date is valid
-      const testDate = new Date(timestampString)
-      if (isNaN(testDate.getTime())) {
-        console.error("Invalid timestamp:", timestampString)
+      if (isNaN(philippineDateTime.getTime())) {
+        console.error("Invalid datetime:", `${date}T${timeWithSeconds}`)
         return null
       }
 
-      return testDate.toISOString()
+      // Store Philippine time as UTC timestamp (matching ZKT format)
+      return new Date(philippineDateTime.getTime() - philippineDateTime.getTimezoneOffset() * 60000).toISOString()
     } catch (error) {
       console.error("Error creating timestamp:", error)
       return null
@@ -144,7 +153,7 @@ export default function WeeklyTimesheet() {
       setUserId(employee.id)
       setAttendanceLogUserId(employee.attendance_log_userid)
 
-      // Get date range for the week in Philippines timezone
+      // Get date range for the week - use the same logic as the working time logs component
       const weekStartUTC = new Date(`${format(currentWeekStart, "yyyy-MM-dd")}T00:00:00+08:00`).toISOString()
       const weekEndUTC = new Date(`${format(currentWeekEnd, "yyyy-MM-dd")}T23:59:59+08:00`).toISOString()
 
@@ -169,14 +178,12 @@ export default function WeeklyTimesheet() {
         // Group attendance logs by date and get first entry (time in) for each day
         const groupedLogs: { [key: string]: TimeLog } = {}
         
-        // Process attendance logs (time in)
+        // Process attendance logs (time in) - ZKT stores Philippine time as UTC
         attendanceLogs.forEach((log) => {
           const logDate = log.work_date || format(new Date(log.timestamp), "yyyy-MM-dd")
           
-          // Convert UTC timestamp to Philippines timezone (UTC+8) and extract time
-          const utcDate = new Date(log.timestamp)
-          const philippinesDate = new Date(utcDate.getTime() + (8 * 60 * 60 * 1000)) // Add 8 hours
-          const timeIn = philippinesDate.toISOString().split('T')[1].substring(0, 8) // Extract HH:MM:SS
+          // Extract time directly from ZKT timestamp (it's Philippine time stored as UTC)
+          const timeIn = log.timestamp.split('T')[1].split('+')[0].substring(0, 8) // Extract HH:MM:SS
           
           if (!groupedLogs[logDate]) {
             groupedLogs[logDate] = {
@@ -263,7 +270,7 @@ export default function WeeklyTimesheet() {
             user_id: attendanceLogUserId,
             timestamp: timeInTimestamp,
             work_date: date,
-            status: "in"
+            status: "time_in"
           }])
           .select("id")
           .single()
@@ -361,7 +368,7 @@ export default function WeeklyTimesheet() {
                   <TableHead>Time Out</TableHead>
                   <TableHead>Total Hours</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Edit</TableHead>
+                  {/* <TableHead>Edit</TableHead> */}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -377,7 +384,7 @@ export default function WeeklyTimesheet() {
                       <TableCell>{formatTime(log?.time_out ?? null)}</TableCell>
                       <TableCell>{getTotalHours(log?.time_in ?? null, log?.time_out ?? null)}</TableCell>
                       <TableCell>{renderStatusBadge(log?.status || null)}</TableCell>
-                      <TableCell>
+                      {/* <TableCell>
                         <Dialog>
                           <DialogTrigger asChild>
                             <Button size="sm" className="hover:scale-105" onClick={() =>
@@ -430,7 +437,7 @@ export default function WeeklyTimesheet() {
                             </DialogContent>
                           )}
                         </Dialog>
-                      </TableCell>
+                      </TableCell> */}
                     </TableRow>
                   )
                 })}

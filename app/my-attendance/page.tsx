@@ -18,6 +18,7 @@ export default function MyTimeLogsPage() {
 
   const [todayLog, setTodayLog] = useState<any>(null);
   const [employeeId, setEmployeeId] = useState<string | null>(null);
+  const [attendanceLogUserId, setAttendanceLogUserId] = useState<number | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
 
   const supabase = createClientComponentClient();
@@ -41,7 +42,7 @@ export default function MyTimeLogsPage() {
 
       const { data: employee, error: empErr } = await supabase
         .from("employees")
-        .select("id")
+        .select("id, attendance_log_userid")
         .eq("email", user.email)
         .single();
 
@@ -51,6 +52,7 @@ export default function MyTimeLogsPage() {
       }
 
       setEmployeeId(employee.id);
+      setAttendanceLogUserId(employee.attendance_log_userid);
       fetchTodayLog(employee.id);
     };
 
@@ -85,7 +87,7 @@ export default function MyTimeLogsPage() {
     // Step 1: Get today's first attendance_log (time in) - query in UTC
     const { data: attendanceLog, error: attErr } = await supabase
       .from("attendance_logs")
-      .select("timestamp")
+      .select("id, timestamp")
       .eq("user_id", logUserId)
       .gte("timestamp", startOfDayUTC)
       .lte("timestamp", endOfDayUTC)
@@ -112,6 +114,7 @@ export default function MyTimeLogsPage() {
     // Set combined log - extract time directly from timestamp since it's Philippines time stored as UTC
     setTodayLog({
       id: timeLog?.id,
+      attendance_log_id: attendanceLog?.id || null,
       time_in: attendanceLog?.timestamp
         ? attendanceLog.timestamp.split('T')[1].split('+')[0]  // Extract just the time part "HH:MM:SS"
         : null,
@@ -150,14 +153,14 @@ export default function MyTimeLogsPage() {
     return `${hour12.toString().padStart(2, "0")}:${mm}:${ss} ${meridiem}`;
   };
 
-  // Calculate work duration
+  // Calculate work duration (excluding 12:00 PM - 1:00 PM lunch break)
   const getWorkDuration = () => {
     if (!todayLog?.time_in) return null;
     
     const timeIn = todayLog.time_in;
     const timeOut = todayLog.time_out || nowHms24();
     
-    // Convert to minutes for calculation
+    // Convert time string to minutes from midnight
     const parseTime = (timeStr: string) => {
       const [hours, minutes, seconds] = timeStr.split(':').map(Number);
       return hours * 60 + minutes + (seconds || 0) / 60;
@@ -165,59 +168,132 @@ export default function MyTimeLogsPage() {
     
     const timeInMinutes = parseTime(timeIn);
     const timeOutMinutes = parseTime(timeOut);
-    const diffMinutes = timeOutMinutes - timeInMinutes;
     
-    if (diffMinutes < 0) return null;
+    if (timeOutMinutes <= timeInMinutes) return null;
     
-    const hours = Math.floor(diffMinutes / 60);
-    const minutes = Math.floor(diffMinutes % 60);
+    // Define lunch break (12:00 PM to 1:00 PM = 720 to 780 minutes from midnight)
+    const lunchStart = 12 * 60; // 720 minutes (12:00 PM)
+    const lunchEnd = 13 * 60;   // 780 minutes (1:00 PM)
+    
+    let totalWorkMinutes = timeOutMinutes - timeInMinutes;
+    
+    // Check if lunch break overlaps with work time and subtract it
+    if (timeInMinutes < lunchEnd && timeOutMinutes > lunchStart) {
+      // Calculate the overlap between work time and lunch break
+      const overlapStart = Math.max(timeInMinutes, lunchStart);
+      const overlapEnd = Math.min(timeOutMinutes, lunchEnd);
+      const lunchOverlap = overlapEnd - overlapStart;
+      
+      // Subtract the lunch break overlap from total work time
+      totalWorkMinutes -= lunchOverlap;
+    }
+    
+    // Ensure we don't have negative time
+    if (totalWorkMinutes < 0) return null;
+    
+    const hours = Math.floor(totalWorkMinutes / 60);
+    const minutes = Math.floor(totalWorkMinutes % 60);
     
     return `${hours}h ${minutes}m`;
   };
 
   const handleTimeIn = async () => {
-    if (!employeeId) return;
+    if (!employeeId || !attendanceLogUserId) {
+      toast.error("Employee information not found. Please refresh the page.");
+      return;
+    }
+    
     setLoading(true);
 
-    // Get current date in Philippines timezone
-    const date = new Date().toLocaleDateString('en-CA', {
-      timeZone: 'Asia/Manila'
-    });
-    const time = nowHms24(); // Get current Philippines time
+    try {
+      // Get current Philippine time and format it for both tables
+      const now = new Date();
+      const philippineTime = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Manila" }));
+      
+      // For attendance_logs: Store Philippine time as UTC (same format as ZKT)
+      const timestamp = new Date(philippineTime.getTime() - philippineTime.getTimezoneOffset() * 60000).toISOString();
+      const workDate = philippineTime.toISOString().split('T')[0];
+      
+      // For time_logs: Store as time string
+      const timeString = philippineTime.toLocaleTimeString("en-PH", {
+        hour12: false,
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      });
 
-    const { error } = await supabase.from("time_logs").insert({
-      employee_id: employeeId,
-      date,
-      time_in: time,
-    });
+      // Insert into attendance_logs (to match ZKT format)
+      const { data: attendanceData, error: attendanceError } = await supabase
+        .from("attendance_logs")
+        .insert({
+          user_id: attendanceLogUserId,
+          timestamp,
+          work_date: workDate,
+          status: 'time_in',
+        })
+        .select()
+        .single();
 
-    if (error) toast.error("Failed to time in.");
-    else {
-      toast.success("Time in recorded.");
-      fetchTodayLog(employeeId);
+      if (attendanceError) {
+        console.error("Attendance log insertion error:", attendanceError);
+        toast.error(`Failed to record attendance: ${attendanceError.message}`);
+        setLoading(false);
+        return;
+      }
+
+      // Insert into time_logs (for time_out functionality)
+      const { error: timeLogError } = await supabase
+        .from("time_logs")
+        .insert({
+          employee_id: employeeId,
+          date: workDate,
+          time_in: timeString,
+        });
+
+      if (timeLogError) {
+        console.error("Time log insertion error:", timeLogError);
+        // Don't fail completely, just warn
+        toast.warning("Time recorded but there was an issue with time log.");
+      } else {
+        toast.success("Time in recorded successfully.");
+      }
+
+      // Refresh the display
+      await fetchTodayLog(employeeId);
+
+    } catch (err) {
+      console.error("Unexpected error during time in:", err);
+      toast.error("An unexpected error occurred. Please try again.");
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   const handleTimeOut = async () => {
-    if (!todayLog) return;
+    if (!todayLog?.id || !employeeId) return;
     setLoading(true);
 
-    const time = nowHms24(); // Get current Philippines time
+    try {
+      const time = nowHms24(); // Get current Philippines time
 
-    const { error } = await supabase
-      .from("time_logs")
-      .update({ time_out: time })
-      .eq("id", todayLog.id);
+      const { error } = await supabase
+        .from("time_logs")
+        .update({ time_out: time })
+        .eq("id", todayLog.id);
 
-    if (error) toast.error("Failed to time out.");
-    else {
-      toast.success("Time out recorded.");
-      fetchTodayLog(employeeId!);
+      if (error) {
+        console.error("Time out error:", error);
+        toast.error(`Failed to time out: ${error.message}`);
+      } else {
+        toast.success("Time out recorded.");
+        await fetchTodayLog(employeeId);
+      }
+    } catch (err) {
+      console.error("Unexpected error during time out:", err);
+      toast.error("An unexpected error occurred. Please try again.");
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   const getStatusColor = () => {
@@ -233,7 +309,7 @@ export default function MyTimeLogsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-4 md:p-8">
+    <div className="min-h-screen  from-blue-50 via-indigo-50 to-purple-50 p-4 md:p-8">
       <div className="mx-auto max-w-4xl space-y-6">
         {/* Header Section */}
         <div className="text-center">
