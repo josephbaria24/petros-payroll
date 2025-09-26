@@ -2,15 +2,13 @@
 
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabaseClient"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
-import { Download } from "lucide-react"
+import { Download, DollarSign, Users, TrendingUp, Calculator, FileText, Calendar, Building2, PieChart, BarChart3 } from "lucide-react"
 import { useProtectedPage } from "../hooks/useProtectedPage"
 
-// Note: You'll need to install xlsx: npm install xlsx
-// For now, we'll use a browser-compatible approach
 declare global {
   interface Window {
     XLSX: any;
@@ -64,7 +62,6 @@ type EmployeePayrollDetail = {
   tardiness: number
 }
 
-
 type Deduction = {
   id: string
   employee_name: string
@@ -81,8 +78,15 @@ type Expense = {
   incurred_on: string
 }
 
+const statusVariants: Record<string, string> = {
+  "Paid": "bg-slate-900 text-white border-slate-200",
+  "Pending Payment": "bg-white text-slate-900 border-slate-300",
+  "Cancelled": "bg-slate-100 text-slate-600 border-slate-200",
+}
+
 export default function ReportsPage() {
   useProtectedPage(["admin", "hr"])
+  
   const [payrollSummary, setPayrollSummary] = useState<PayrollSummary>({
     totalGross: 0,
     totalDeductions: 0,
@@ -100,7 +104,6 @@ export default function ReportsPage() {
     loadXLSXLibrary()
   }, [])
 
-  // Load XLSX library dynamically
   const loadXLSXLibrary = () => {
     if (typeof window !== 'undefined' && !window.XLSX) {
       const script = document.createElement('script')
@@ -123,7 +126,6 @@ export default function ReportsPage() {
       return
     }
 
-    // Prepare data for Excel export
     const excelData = employeePayrollDetails.map(emp => ({
       'Employee ID': emp.employee_id,
       'Employee Code': emp.employee_code || 'N/A',
@@ -144,61 +146,52 @@ export default function ReportsPage() {
       'Loans': emp.loans,
       'Uniform': emp.uniform,
       'Tardiness': emp.tardiness,
-
       'Total Deductions': emp.total_deductions,
       'Net Pay': emp.net_pay + emp.allowances,
       'Status': emp.status,
       'Month/Year': emp.month_year
     }))
 
-    // Create workbook and worksheet
     const wb = window.XLSX.utils.book_new()
     const ws = window.XLSX.utils.json_to_sheet(excelData)
 
-    // Set column widths
-  // Optional: Adjust column widths for new fields
-  ws['!cols'] = Array(24).fill({ width: 15 })
+    ws['!cols'] = Array(24).fill({ width: 15 })
 
-    // Add worksheet to workbook
     window.XLSX.utils.book_append_sheet(wb, ws, "Employee Payroll Details")
 
-    // Generate filename with current date
     const currentDate = new Date().toISOString().split('T')[0]
     const filename = `Employee_Payroll_Report_${currentDate}.xlsx`
 
-    // Write file
     window.XLSX.writeFile(wb, filename)
   }
 
   async function fetchReports() {
     try {
-      // Fetch payroll records with employee details
       const { data: payrollRecords, error: payrollError } = await supabase
-      .from("payroll_records")
-      .select(`
-        id,
-        employee_id,
-        period_start,
-        period_end,
-        basic_salary,
-        allowances,
-        overtime_pay,
-        holiday_pay,
-        gross_pay,
-        absences,
-        total_deductions,
-        net_pay,
-        sss,
-        philhealth,
-        pagibig,
-        withholding_tax,
-        loans,
-        uniform,
-        tardiness,
-        status,
-        employees(id, employee_code, full_name, pay_type)
-      `)
-    
+        .from("payroll_records")
+        .select(`
+          id,
+          employee_id,
+          period_start,
+          period_end,
+          basic_salary,
+          allowances,
+          overtime_pay,
+          holiday_pay,
+          gross_pay,
+          absences,
+          total_deductions,
+          net_pay,
+          sss,
+          philhealth,
+          pagibig,
+          withholding_tax,
+          loans,
+          uniform,
+          tardiness,
+          status,
+          employees(id, employee_code, full_name, pay_type)
+        `)
         .order("period_end", { ascending: false })
 
       if (payrollError) {
@@ -206,7 +199,6 @@ export default function ReportsPage() {
         return
       }
 
-      // Fetch deductions separately
       const { data: deductionRecords, error: deductionError } = await supabase
         .from("deductions")
         .select(`
@@ -223,7 +215,6 @@ export default function ReportsPage() {
         console.error("Error fetching deductions:", deductionError)
       }
 
-      // Process employee payroll details
       const employeeDetails: EmployeePayrollDetail[] = (payrollRecords || []).map((record: any) => {
         const periodEndDate = new Date(record.period_end)
         const monthYear = `${periodEndDate.toLocaleDateString('en-US', { month: 'long' })} ${periodEndDate.getFullYear()}`
@@ -258,7 +249,6 @@ export default function ReportsPage() {
 
       setEmployeePayrollDetails(employeeDetails)
 
-      // Process monthly payroll summary
       const monthlyMap = new Map<string, MonthlyPayrollSummary>()
 
       employeeDetails.forEach((record) => {
@@ -289,7 +279,6 @@ export default function ReportsPage() {
         monthlyData.totalNetPay += record.net_pay
         monthlyData.totalAllowances += record.allowances
 
-        // Count unique employees for this month
         const uniqueEmployees = new Set<string>()
         employeeDetails.forEach((emp) => {
           const empEndDate = new Date(emp.period_end)
@@ -300,7 +289,6 @@ export default function ReportsPage() {
         monthlyData.totalEmployees = uniqueEmployees.size
       })
 
-      // Convert to array and sort by year and month (most recent first)
       const monthlySummary = Array.from(monthlyMap.values()).sort((a, b) => {
         if (a.year !== b.year) return b.year - a.year
         return b.month.localeCompare(a.month)
@@ -308,7 +296,6 @@ export default function ReportsPage() {
 
       setMonthlyPayrollSummary(monthlySummary)
 
-      // Compute overall payroll summary
       const totalGross = employeeDetails.reduce((sum, record) => sum + (record.gross_pay || record.basic_salary || 0), 0)
       const totalDeductions = employeeDetails.reduce((sum, record) => sum + record.total_deductions, 0)
       const totalAllowances = employeeDetails.reduce((sum, record) => sum + record.allowances, 0)
@@ -323,7 +310,6 @@ export default function ReportsPage() {
         totalNetPay
       })
 
-      // Process deductions
       setDeductions(
         (deductionRecords || []).map((d: any) => ({
           id: d.id,
@@ -334,7 +320,6 @@ export default function ReportsPage() {
         }))
       )
 
-      // Fetch expenses
       const { data: expenseRecords, error: expenseError } = await supabase
         .from("company_expenses")
         .select("*")
@@ -359,118 +344,221 @@ export default function ReportsPage() {
     }
   }
 
+  // Calculate additional metrics
+  const additionalMetrics = {
+    totalEmployees: new Set(employeePayrollDetails.map(emp => emp.employee_id)).size,
+    totalExpenses: expenses.reduce((sum, exp) => sum + exp.amount, 0),
+    totalRecords: employeePayrollDetails.length,
+    averageGrossPay: employeePayrollDetails.length > 0 ? payrollSummary.totalGross / employeePayrollDetails.length : 0,
+  }
+
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Reports</h1>
+    <div className="space-y-8 p-6 min-h-screen bg-slate-50">
+      {/* Header Section */}
+      <div className="space-y-2">
+        <h1 className="text-3xl font-semibold text-slate-900">Reports & Analytics</h1>
+        <p className="text-slate-600">Comprehensive payroll and financial reporting dashboard</p>
       </div>
 
-      {/* Summary Cards */}
+      {/* Primary Summary Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Total Gross Payroll</p>
-            <h2 className="text-xl font-bold">₱ {payrollSummary.totalGross.toLocaleString()}</h2>
+        <Card className="border-0 shadow-sm">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium text-slate-600">Total Gross Payroll</p>
+              <DollarSign className="h-4 w-4 text-slate-500" />
+            </div>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="text-2xl font-bold text-slate-900">₱{payrollSummary.totalGross.toLocaleString()}</div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Total Allowances</p>
-            <h2 className="text-xl font-bold">₱ {payrollSummary.totalAllowances.toLocaleString()}</h2>
+
+        <Card className="border-0 shadow-sm">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium text-slate-600">Total Allowances</p>
+              <TrendingUp className="h-4 w-4 text-slate-500" />
+            </div>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="text-2xl font-bold text-slate-900">₱{payrollSummary.totalAllowances.toLocaleString()}</div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Total Deductions</p>
-            <h2 className="text-xl font-bold">₱ {payrollSummary.totalDeductions.toLocaleString()}</h2>
+
+        <Card className="border-0 shadow-sm">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium text-slate-600">Total Deductions</p>
+              <Calculator className="h-4 w-4 text-slate-500" />
+            </div>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="text-2xl font-bold text-slate-900">₱{payrollSummary.totalDeductions.toLocaleString()}</div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Total Net Pay</p>
-            <h2 className="text-xl font-bold">₱ {payrollSummary.totalNetPay.toLocaleString()}</h2>
+
+        <Card className="border-0 shadow-sm">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium text-slate-600">Total Net Pay</p>
+              <FileText className="h-4 w-4 text-slate-500" />
+            </div>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="text-2xl font-bold text-slate-900">₱{payrollSummary.totalNetPay.toLocaleString()}</div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Tabs for details */}
-      <Tabs defaultValue="employee-details">
-        <TabsList>
-          <TabsTrigger value="employee-details">Employee Details</TabsTrigger>
-          <TabsTrigger value="monthly-payroll">Monthly Payroll</TabsTrigger>
-          <TabsTrigger value="deductions">Deductions</TabsTrigger>
-          <TabsTrigger value="expenses">Expenses</TabsTrigger>
+      {/* Secondary Metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card className="border-0 shadow-sm">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-600">Total Employees</p>
+                <div className="text-lg font-bold text-slate-900">{additionalMetrics.totalEmployees}</div>
+              </div>
+              <Users className="h-5 w-5 text-slate-500" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-0 shadow-sm">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-600">Total Expenses</p>
+                <div className="text-lg font-bold text-slate-900">₱{additionalMetrics.totalExpenses.toLocaleString()}</div>
+              </div>
+              <Building2 className="h-5 w-5 text-slate-500" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-0 shadow-sm">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-600">Payroll Records</p>
+                <div className="text-lg font-bold text-slate-900">{additionalMetrics.totalRecords}</div>
+              </div>
+              <BarChart3 className="h-5 w-5 text-slate-500" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-0 shadow-sm">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-600">Avg. Gross Pay</p>
+                <div className="text-lg font-bold text-slate-900">₱{additionalMetrics.averageGrossPay.toLocaleString()}</div>
+              </div>
+              <PieChart className="h-5 w-5 text-slate-500" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Reports Tabs */}
+      <Tabs defaultValue="employee-details" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="employee-details" className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            Employee Details
+          </TabsTrigger>
+          <TabsTrigger value="monthly-payroll" className="flex items-center gap-2">
+            <Calendar className="h-4 w-4" />
+            Monthly Payroll
+          </TabsTrigger>
+          <TabsTrigger value="deductions" className="flex items-center gap-2">
+            <Calculator className="h-4 w-4" />
+            Deductions
+          </TabsTrigger>
+          <TabsTrigger value="expenses" className="flex items-center gap-2">
+            <Building2 className="h-4 w-4" />
+            Expenses
+          </TabsTrigger>
         </TabsList>
 
         {/* Employee Details Tab */}
         <TabsContent value="employee-details">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold">Employee Payroll Details</h3>
-                <Button onClick={exportToExcel} variant="outline" size="sm" className="flex items-center gap-2">
+          <Card className="border-0 shadow-sm">
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="text-lg font-medium text-slate-900">Employee Payroll Details</h3>
+                  <p className="text-slate-600">Detailed breakdown of employee payroll records</p>
+                </div>
+                <Button 
+                  onClick={exportToExcel} 
+                  variant="outline" 
+                  className="flex items-center gap-2"
+                >
                   <Download className="h-4 w-4" />
                   Export to Excel
                 </Button>
               </div>
+            </CardHeader>
+            <CardContent>
               {employeePayrollDetails.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <p>No employee payroll data available.</p>
-                  <p className="text-sm">Generate some payroll records to see reports.</p>
+                <div className="text-center py-12">
+                  <FileText className="h-12 w-12 mx-auto mb-4 text-slate-400" />
+                  <h3 className="text-lg font-medium text-slate-900 mb-2">No payroll data available</h3>
+                  <p className="text-slate-600">Generate payroll records to see detailed reports</p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Employee ID</TableHead>
-                        <TableHead>Full Name</TableHead>
-                        <TableHead>Pay Type</TableHead>
-                        <TableHead>Period</TableHead>
-                        <TableHead>Basic Salary</TableHead>
-                        <TableHead>Allowances</TableHead>
-                        <TableHead>Overtime</TableHead>
-                        <TableHead>Holiday Pay</TableHead>
-                        <TableHead>Gross Pay</TableHead>
-                        <TableHead>Absences</TableHead>
-                        <TableHead>Total Deductions</TableHead>
-                        <TableHead>Net Pay</TableHead>
-                        <TableHead>Status</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {employeePayrollDetails.map((emp) => (
-                        <TableRow key={emp.id}>
-                          <TableCell className="font-medium">{emp.employee_id}</TableCell>
-                          <TableCell>{emp.full_name}</TableCell>
-                          <TableCell>{emp.pay_type}</TableCell>
-                          <TableCell className="text-sm">
-                            {new Date(emp.period_start).toLocaleDateString()} - {new Date(emp.period_end).toLocaleDateString()}
-                          </TableCell>
-                          <TableCell>₱ {emp.basic_salary.toLocaleString()}</TableCell>
-                          <TableCell>₱ {emp.allowances.toLocaleString()}</TableCell>
-                          <TableCell>₱ {emp.overtime_pay.toLocaleString()}</TableCell>
-                          <TableCell>₱ {emp.holiday_pay.toLocaleString()}</TableCell>
-                          <TableCell>₱ {(emp.gross_pay || emp.basic_salary).toLocaleString()}</TableCell>
-                          <TableCell>₱ {emp.absences.toLocaleString()}</TableCell>
-                          <TableCell>₱ {emp.total_deductions.toLocaleString()}</TableCell>
-                          <TableCell className="font-bold">₱ {(emp.net_pay + emp.allowances).toLocaleString()}</TableCell>
-
-                          <TableCell>
-                            <span className={`px-2 py-1 rounded-full text-xs ${
-                              emp.status === 'Paid' 
-                                ? 'bg-green-100 text-green-800' 
-                                : emp.status === 'Pending Payment'
-                                ? 'bg-yellow-100 text-yellow-800'
-                                : 'bg-gray-100 text-gray-800'
-                            }`}>
-                              {emp.status}
-                            </span>
-                          </TableCell>
+                <div className="border border-slate-200 rounded-lg overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="border-b border-slate-200">
+                          <TableHead className="font-medium text-slate-900">Employee ID</TableHead>
+                          <TableHead className="font-medium text-slate-900">Full Name</TableHead>
+                          <TableHead className="font-medium text-slate-900">Pay Type</TableHead>
+                          <TableHead className="font-medium text-slate-900">Period</TableHead>
+                          <TableHead className="font-medium text-slate-900">Basic Salary</TableHead>
+                          <TableHead className="font-medium text-slate-900">Allowances</TableHead>
+                          <TableHead className="font-medium text-slate-900">Overtime</TableHead>
+                          <TableHead className="font-medium text-slate-900">Holiday Pay</TableHead>
+                          <TableHead className="font-medium text-slate-900">Gross Pay</TableHead>
+                          <TableHead className="font-medium text-slate-900">Absences</TableHead>
+                          <TableHead className="font-medium text-slate-900">Total Deductions</TableHead>
+                          <TableHead className="font-medium text-slate-900">Net Pay</TableHead>
+                          <TableHead className="font-medium text-slate-900">Status</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {employeePayrollDetails.map((emp) => (
+                          <TableRow key={emp.id} className="border-b border-slate-100 hover:bg-slate-50 transition">
+                            <TableCell className="font-medium text-slate-900">{emp.employee_code}</TableCell>
+                            <TableCell className="font-medium text-slate-900">{emp.full_name}</TableCell>
+                            <TableCell className="text-slate-600">{emp.pay_type}</TableCell>
+                            <TableCell className="text-sm text-slate-600">
+                              {new Date(emp.period_start).toLocaleDateString()} - {new Date(emp.period_end).toLocaleDateString()}
+                            </TableCell>
+                            <TableCell className="text-slate-900">₱{emp.basic_salary.toLocaleString()}</TableCell>
+                            <TableCell className="text-slate-900">₱{emp.allowances.toLocaleString()}</TableCell>
+                            <TableCell className="text-slate-900">₱{emp.overtime_pay.toLocaleString()}</TableCell>
+                            <TableCell className="text-slate-900">₱{emp.holiday_pay.toLocaleString()}</TableCell>
+                            <TableCell className="text-slate-900">₱{(emp.gross_pay || emp.basic_salary).toLocaleString()}</TableCell>
+                            <TableCell className="text-slate-900">₱{emp.absences.toLocaleString()}</TableCell>
+                            <TableCell className="text-slate-900">₱{emp.total_deductions.toLocaleString()}</TableCell>
+                            <TableCell className="font-bold text-slate-900">₱{(emp.net_pay + emp.allowances).toLocaleString()}</TableCell>
+                            <TableCell>
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium border ${
+                                statusVariants[emp.status] || "bg-slate-100 text-slate-600 border-slate-200"
+                              }`}>
+                                {emp.status}
+                              </span>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </div>
               )}
             </CardContent>
@@ -479,62 +567,70 @@ export default function ReportsPage() {
 
         {/* Monthly Payroll Tab */}
         <TabsContent value="monthly-payroll">
-          <Card>
-            <CardContent className="p-6">
-              <h3 className="text-lg font-semibold mb-4">Payroll Summary by Month</h3>
+          <Card className="border-0 shadow-sm">
+            <CardHeader>
+              <div>
+                <h3 className="text-lg font-medium text-slate-900">Monthly Payroll Summary</h3>
+                <p className="text-slate-600">Payroll breakdown organized by month</p>
+              </div>
+            </CardHeader>
+            <CardContent>
               {monthlyPayrollSummary.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <p>No payroll data available.</p>
+                <div className="text-center py-12">
+                  <Calendar className="h-12 w-12 mx-auto mb-4 text-slate-400" />
+                  <h3 className="text-lg font-medium text-slate-900 mb-2">No monthly data available</h3>
+                  <p className="text-slate-600">Generate payroll records to see monthly summaries</p>
                 </div>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Month</TableHead>
-                      <TableHead>Total Employees</TableHead>
-                      <TableHead>Payroll Records</TableHead>
-                      <TableHead>Gross Pay</TableHead>
-                      <TableHead>Allowances</TableHead>
-                      <TableHead>Deductions</TableHead>
-                      <TableHead>Net Pay (incl. Allowances)</TableHead>
-
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {monthlyPayrollSummary.map((summary) => (
-                      <TableRow key={`${summary.year}-${summary.month}`}>
-                        <TableCell className="font-medium">{summary.monthYear}</TableCell>
-                        <TableCell>{summary.totalEmployees}</TableCell>
-                        <TableCell>{summary.recordCount}</TableCell>
-                        <TableCell>₱ {summary.totalGrossPay.toLocaleString()}</TableCell>
-                        <TableCell>₱ {summary.totalAllowances.toLocaleString()}</TableCell>
-                        <TableCell>₱ {summary.totalDeductions.toLocaleString()}</TableCell>
-                        <TableCell className="font-bold">₱ {summary.totalNetPay.toLocaleString()}</TableCell>
+                <div className="border border-slate-200 rounded-lg overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-b border-slate-200">
+                        <TableHead className="font-medium text-slate-900">Month</TableHead>
+                        <TableHead className="font-medium text-slate-900">Total Employees</TableHead>
+                        <TableHead className="font-medium text-slate-900">Payroll Records</TableHead>
+                        <TableHead className="font-medium text-slate-900">Gross Pay</TableHead>
+                        <TableHead className="font-medium text-slate-900">Allowances</TableHead>
+                        <TableHead className="font-medium text-slate-900">Deductions</TableHead>
+                        <TableHead className="font-medium text-slate-900">Net Pay (incl. Allowances)</TableHead>
                       </TableRow>
-                    ))}
-                    {monthlyPayrollSummary.length > 1 && (
-                      <TableRow className="border-t-2 font-bold bg-muted/50">
-                        <TableCell>Total</TableCell>
-                        <TableCell>-</TableCell>
-                        <TableCell>
-                          {monthlyPayrollSummary.reduce((sum, s) => sum + s.recordCount, 0)}
-                        </TableCell>
-                        <TableCell>
-                          ₱ {monthlyPayrollSummary.reduce((sum, s) => sum + s.totalGrossPay, 0).toLocaleString()}
-                        </TableCell>
-                        <TableCell>
-                          ₱ {monthlyPayrollSummary.reduce((sum, s) => sum + s.totalAllowances, 0).toLocaleString()}
-                        </TableCell>
-                        <TableCell>
-                          ₱ {monthlyPayrollSummary.reduce((sum, s) => sum + s.totalDeductions, 0).toLocaleString()}
-                        </TableCell>
-                        <TableCell>
-                          ₱ {monthlyPayrollSummary.reduce((sum, s) => sum + s.totalNetPay, 0).toLocaleString()}
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {monthlyPayrollSummary.map((summary) => (
+                        <TableRow key={`${summary.year}-${summary.month}`} className="border-b border-slate-100 hover:bg-slate-50 transition">
+                          <TableCell className="font-medium text-slate-900">{summary.monthYear}</TableCell>
+                          <TableCell className="text-slate-900">{summary.totalEmployees}</TableCell>
+                          <TableCell className="text-slate-900">{summary.recordCount}</TableCell>
+                          <TableCell className="text-slate-900">₱{summary.totalGrossPay.toLocaleString()}</TableCell>
+                          <TableCell className="text-slate-900">₱{summary.totalAllowances.toLocaleString()}</TableCell>
+                          <TableCell className="text-slate-900">₱{summary.totalDeductions.toLocaleString()}</TableCell>
+                          <TableCell className="font-bold text-slate-900">₱{summary.totalNetPay.toLocaleString()}</TableCell>
+                        </TableRow>
+                      ))}
+                      {monthlyPayrollSummary.length > 1 && (
+                        <TableRow className="border-t-2 border-slate-300 font-bold bg-slate-50">
+                          <TableCell className="text-slate-900">Total</TableCell>
+                          <TableCell className="text-slate-500">—</TableCell>
+                          <TableCell className="text-slate-900">
+                            {monthlyPayrollSummary.reduce((sum, s) => sum + s.recordCount, 0)}
+                          </TableCell>
+                          <TableCell className="text-slate-900">
+                            ₱{monthlyPayrollSummary.reduce((sum, s) => sum + s.totalGrossPay, 0).toLocaleString()}
+                          </TableCell>
+                          <TableCell className="text-slate-900">
+                            ₱{monthlyPayrollSummary.reduce((sum, s) => sum + s.totalAllowances, 0).toLocaleString()}
+                          </TableCell>
+                          <TableCell className="text-slate-900">
+                            ₱{monthlyPayrollSummary.reduce((sum, s) => sum + s.totalDeductions, 0).toLocaleString()}
+                          </TableCell>
+                          <TableCell className="text-slate-900">
+                            ₱{monthlyPayrollSummary.reduce((sum, s) => sum + s.totalNetPay, 0).toLocaleString()}
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -542,80 +638,99 @@ export default function ReportsPage() {
 
         {/* Deductions Tab */}
         <TabsContent value="deductions">
-          <Card>
-            <CardContent className="p-6">
-              <h3 className="text-lg font-semibold mb-4">Employee Deductions (Detailed)</h3>
+          <Card className="border-0 shadow-sm">
+            <CardHeader>
+              <div>
+                <h3 className="text-lg font-medium text-slate-900">Employee Deductions (Detailed)</h3>
+                <p className="text-slate-600">Breakdown of all deduction types by employee</p>
+              </div>
+            </CardHeader>
+            <CardContent>
               {employeePayrollDetails.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <p>No deduction records found.</p>
+                <div className="text-center py-12">
+                  <Calculator className="h-12 w-12 mx-auto mb-4 text-slate-400" />
+                  <h3 className="text-lg font-medium text-slate-900 mb-2">No deduction records found</h3>
+                  <p className="text-slate-600">Add employee deductions to see detailed reports</p>
                 </div>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Employee</TableHead>
-                      <TableHead>SSS</TableHead>
-                      <TableHead>PhilHealth</TableHead>
-                      <TableHead>Pag-IBIG</TableHead>
-                      <TableHead>Withholding Tax</TableHead>
-                      <TableHead>Loans</TableHead>
-                      <TableHead>Uniform</TableHead>
-                      <TableHead>Tardiness</TableHead>
-                      <TableHead>Total</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {employeePayrollDetails.map(emp => (
-                      <TableRow key={emp.id}>
-                        <TableCell>{emp.full_name}</TableCell>
-                        <TableCell>₱ {emp.sss.toLocaleString()}</TableCell>
-                        <TableCell>₱ {emp.philhealth.toLocaleString()}</TableCell>
-                        <TableCell>₱ {emp.pagibig.toLocaleString()}</TableCell>
-                        <TableCell>₱ {emp.withholding_tax.toLocaleString()}</TableCell>
-                        <TableCell>₱ {emp.loans.toLocaleString()}</TableCell>
-                        <TableCell>₱ {emp.uniform.toLocaleString()}</TableCell>
-                        <TableCell>₱ {emp.tardiness.toLocaleString()}</TableCell>
-                        <TableCell className="font-bold">₱ {emp.total_deductions.toLocaleString()}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <div className="border border-slate-200 rounded-lg overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="border-b border-slate-200">
+                          <TableHead className="font-medium text-slate-900">Employee</TableHead>
+                          <TableHead className="font-medium text-slate-900">SSS</TableHead>
+                          <TableHead className="font-medium text-slate-900">PhilHealth</TableHead>
+                          <TableHead className="font-medium text-slate-900">Pag-IBIG</TableHead>
+                          <TableHead className="font-medium text-slate-900">Withholding Tax</TableHead>
+                          <TableHead className="font-medium text-slate-900">Loans</TableHead>
+                          <TableHead className="font-medium text-slate-900">Uniform</TableHead>
+                          <TableHead className="font-medium text-slate-900">Tardiness</TableHead>
+                          <TableHead className="font-medium text-slate-900">Total</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {employeePayrollDetails.map(emp => (
+                          <TableRow key={emp.id} className="border-b border-slate-100 hover:bg-slate-50 transition">
+                            <TableCell className="font-medium text-slate-900">{emp.full_name}</TableCell>
+                            <TableCell className="text-slate-900">₱{emp.sss.toLocaleString()}</TableCell>
+                            <TableCell className="text-slate-900">₱{emp.philhealth.toLocaleString()}</TableCell>
+                            <TableCell className="text-slate-900">₱{emp.pagibig.toLocaleString()}</TableCell>
+                            <TableCell className="text-slate-900">₱{emp.withholding_tax.toLocaleString()}</TableCell>
+                            <TableCell className="text-slate-900">₱{emp.loans.toLocaleString()}</TableCell>
+                            <TableCell className="text-slate-900">₱{emp.uniform.toLocaleString()}</TableCell>
+                            <TableCell className="text-slate-900">₱{emp.tardiness.toLocaleString()}</TableCell>
+                            <TableCell className="font-bold text-slate-900">₱{emp.total_deductions.toLocaleString()}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
               )}
             </CardContent>
           </Card>
         </TabsContent>
 
-
         {/* Expenses Tab */}
         <TabsContent value="expenses">
-          <Card>
-            <CardContent className="p-6">
-              <h3 className="text-lg font-semibold mb-4">Company Expenses</h3>
+          <Card className="border-0 shadow-sm">
+            <CardHeader>
+              <div>
+                <h3 className="text-lg font-medium text-slate-900">Company Expenses</h3>
+                <p className="text-slate-600">Overview of company operational expenses</p>
+              </div>
+            </CardHeader>
+            <CardContent>
               {expenses.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <p>No expense records found.</p>
+                <div className="text-center py-12">
+                  <Building2 className="h-12 w-12 mx-auto mb-4 text-slate-400" />
+                  <h3 className="text-lg font-medium text-slate-900 mb-2">No expense records found</h3>
+                  <p className="text-slate-600">Add company expenses to see financial reports</p>
                 </div>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Category</TableHead>
-                      <TableHead>Amount</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {expenses.map((e) => (
-                      <TableRow key={e.id}>
-                        <TableCell>{new Date(e.incurred_on).toLocaleDateString()}</TableCell>
-                        <TableCell>{e.expense_name}</TableCell>
-                        <TableCell>{e.category}</TableCell>
-                        <TableCell>₱ {e.amount.toLocaleString()}</TableCell>
+                <div className="border border-slate-200 rounded-lg overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-b border-slate-200">
+                        <TableHead className="font-medium text-slate-900">Date</TableHead>
+                        <TableHead className="font-medium text-slate-900">Name</TableHead>
+                        <TableHead className="font-medium text-slate-900">Category</TableHead>
+                        <TableHead className="font-medium text-slate-900">Amount</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {expenses.map((e) => (
+                        <TableRow key={e.id} className="border-b border-slate-100 hover:bg-slate-50 transition">
+                          <TableCell className="text-slate-900">{new Date(e.incurred_on).toLocaleDateString()}</TableCell>
+                          <TableCell className="font-medium text-slate-900">{e.expense_name}</TableCell>
+                          <TableCell className="text-slate-600">{e.category}</TableCell>
+                          <TableCell className="font-medium text-slate-900">₱{e.amount.toLocaleString()}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               )}
             </CardContent>
           </Card>
