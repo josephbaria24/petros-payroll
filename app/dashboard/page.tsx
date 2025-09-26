@@ -1,10 +1,6 @@
-//app\dashboard\page.tsx
-
 "use client"
 
 import { useRouter } from "next/navigation"
-
-
 import {
   AlertDialog,
   AlertDialogTrigger,
@@ -15,7 +11,7 @@ import {
   AlertDialogFooter,
   AlertDialogCancel,
   AlertDialogAction,
-  } from "@/components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog"
 
 import { useEffect, useState } from "react"
 import {
@@ -27,12 +23,21 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { MoreHorizontal } from "lucide-react"
+import { 
+  MoreHorizontal, 
+  Users, 
+  DollarSign, 
+  TrendingUp, 
+  Plus,
+  Search
+} from "lucide-react"
 
 import { supabase } from "@/lib/supabaseClient"
 import {
   Card,
   CardContent,
+  CardHeader,
+  CardTitle,
 } from "@/components/ui/card"
 import {
   Table,
@@ -52,7 +57,7 @@ import {
   BreadcrumbPage,
 } from "@/components/ui/breadcrumb"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { CalendarIcon, Check, ChevronsUpDown, LayoutGrid } from "lucide-react"
+import { CalendarIcon, Check, ChevronsUpDown } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -65,22 +70,32 @@ import { toast } from "sonner"
 import { useProtectedPage } from "../hooks/useProtectedPage"
 
 function getStatus(net_pay: number): string {
-  if (net_pay > 800000) return "On Hold Payment"
-  if (net_pay > 500000) return "Payment Success"
-  return "Pending Payment"
+  if (net_pay > 800000) return "On Hold"
+  if (net_pay > 500000) return "Completed"
+  return "Pending"
 }
 
 function statusBadge(status: string) {
-  switch (status) {
-    case "Payment Success":
-      return <Badge className="bg-blue-100 text-blue-600">● {status}</Badge>
-    case "Pending Payment":
-      return <Badge className="bg-orange-100 text-orange-600">● {status}</Badge>
-    case "On Hold Payment":
-      return <Badge className="bg-gray-100 text-gray-600">● {status}</Badge>
-    default:
-      return null
+  const variants: Record<string, string> = {
+    "Completed": "bg-slate-900 text-white border-slate-200",
+    "Payment Success": "bg-slate-900 text-white border-slate-200",
+    "Paid": "bg-slate-900 text-white border-slate-200",
+    "Pending": "bg-white text-slate-900 border-slate-300",
+    "Pending Payment": "bg-white text-slate-900 border-slate-300",
+    "On Hold": "bg-slate-100 text-slate-600 border-slate-200",
+    "On Hold Payment": "bg-slate-100 text-slate-600 border-slate-200",
   }
+
+  const className = variants[status] || "bg-slate-100 text-slate-600 border-slate-200"
+  
+  return (
+    <Badge 
+      variant="outline" 
+      className={`${className} font-medium`}
+    >
+      {status}
+    </Badge>
+  )
 }
 
 type PayrollRecord = {
@@ -95,12 +110,8 @@ type PayrollRecord = {
 
 export default function DashboardPage() {
   const { isChecking } = useProtectedPage(["admin", "hr"])
-
   const router = useRouter()
   const [role, setRole] = useState<string | null>(null)
-
-
-
   
   const [editRecord, setEditRecord] = useState<PayrollRecord | null>(null)
   const [deleteRecordId, setDeleteRecordId] = useState<string | null>(null)
@@ -109,71 +120,77 @@ export default function DashboardPage() {
   const [open, setOpen] = useState(false)
   const [payday, setPayday] = useState<Date | undefined>(undefined)
   const [dataLoading, setDataLoading] = useState(true)
-  
-  const [expenseOpen, setExpenseOpen] = useState(false)
-  const [expenseForm, setExpenseForm] = useState({
-    id: "",
-    expense_name: "",
-    category: "",
-    amount: "",
-    incurred_on: "",
-    notes: ""
-  })
+  const [searchTerm, setSearchTerm] = useState("")
   
   const [form, setForm] = useState({
     employee_id: "",
     period_start: "",
     period_end: "",
     net_pay: "",
-    status: "Pending Payment",   // default
+    status: "Pending Payment",
   })
 
+  const [employees, setEmployees] = useState<{id: string, full_name: string, employee_code: string, base_salary: number}[]>([])
+  const [employeePopoverOpen, setEmployeePopoverOpen] = useState(false)
+  const [periodStart, setPeriodStart] = useState<Date | undefined>(undefined)
+  const [periodEnd, setPeriodEnd] = useState<Date | undefined>(undefined)
+
+  const selectedEmployee = employees.find(emp => emp.id === form.employee_id)
+
   useEffect(() => {
-    fetchPayroll()
+    const loadData = async () => {
+      await Promise.all([
+        fetchPayroll(),
+        fetchEmployees(),
+      ])
+      setDataLoading(false)
+    }
+    loadData()
   }, [])
 
   useEffect(() => {
     const getRole = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-  
+      const { data: { session } } = await supabase.auth.getSession()
       if (!session) return
-  
+
       const { data: profile, error } = await supabase
         .from("profiles")
         .select("role")
         .eq("id", session.user.id)
         .single()
-  
+
       if (!error && profile?.role) {
         setRole(profile.role)
       }
     }
-  
     getRole()
   }, [])
-  // Function: filter records by payday
-async function handleFilterByPayday(date: Date) {
-  setPayday(date)
 
-  const formatted = date.toISOString().split("T")[0]
+  useEffect(() => {
+    setForm(f => ({
+      ...f,
+      period_start: periodStart ? periodStart.toISOString().split('T')[0] : "",
+      period_end: periodEnd ? periodEnd.toISOString().split('T')[0] : "",
+    }))
+  }, [periodStart, periodEnd])
 
-  const { data, error } = await supabase
-    .from("payroll_records")
-    .select(`
-      id,
-      employee_id,
-      period_end,
-      net_pay,
-      status,
-      employees ( full_name, employee_code, pay_type )
-    `)
-    .eq("period_end", formatted)   // ✅ filter by payday
+  async function fetchPayroll() {
+    const { data, error } = await supabase
+      .from("payroll_records")
+      .select(`
+        id,
+        employee_id,
+        period_end,
+        net_pay,
+        status,
+        employees ( full_name, employee_code, pay_type )
+      `)
 
-  if (error) {
-    console.error("Error filtering by payday:", error)
-  } else {
+    if (error) {
+      console.error("Error fetching payroll records:", error)
+      return
+    }
+
     const transformed = data.map((rec: any) => ({
       id: rec.id,
       employee_code: rec.employees.employee_code,
@@ -183,46 +200,58 @@ async function handleFilterByPayday(date: Date) {
       net_pay: rec.net_pay,
       status: rec.status,
     }))
+
     setRecords(transformed)
   }
-}
 
-
-async function fetchPayroll() {
-  const { data, error } = await supabase
-    .from("payroll_records")
-    .select(`
-      id,
-      employee_id,
-      period_end,
-      net_pay,
-      status,
-      employees ( full_name, employee_code, pay_type )
-    `)
-
-  if (error) {
-    console.error("Error fetching payroll records:", error)
-    return
+  async function fetchEmployees() {
+    const { data, error } = await supabase
+      .from("employees")
+      .select("id, full_name, employee_code, base_salary")
+    
+    if (error) {
+      console.error("Error fetching employees:", error)
+      return
+    }
+    setEmployees(data)
   }
 
-  const transformed = data.map((rec: any) => ({
-    id: rec.id,
-    employee_code: rec.employees.employee_code,
-    full_name: rec.employees.full_name,
-    pay_type: rec.employees.pay_type,
-    period_end: rec.period_end,
-    net_pay: rec.net_pay,
-    status: rec.status,
-  }))
+  async function handleFilterByPayday(date: Date) {
+    setPayday(date)
+    const formatted = date.toISOString().split("T")[0]
 
-  setRecords(transformed)
-}
+    const { data, error } = await supabase
+      .from("payroll_records")
+      .select(`
+        id,
+        employee_id,
+        period_end,
+        net_pay,
+        status,
+        employees ( full_name, employee_code, pay_type )
+      `)
+      .eq("period_end", formatted)
 
+    if (error) {
+      console.error("Error filtering by payday:", error)
+    } else {
+      const transformed = data.map((rec: any) => ({
+        id: rec.id,
+        employee_code: rec.employees.employee_code,
+        full_name: rec.employees.full_name,
+        pay_type: rec.employees.pay_type,
+        period_end: rec.period_end,
+        net_pay: rec.net_pay,
+        status: rec.status,
+      }))
+      setRecords(transformed)
+    }
+  }
 
   async function handleAddPayment(e: React.FormEvent) {
     e.preventDefault()
     const toastId = toast.loading("Adding payment...")
-  
+
     const { error } = await supabase
       .from("payroll_records")
       .insert({
@@ -235,601 +264,63 @@ async function fetchPayroll() {
         total_deductions: 0,
         status: form.status,
       })
-  
+
     if (error) {
       toast.error("Failed to add payment", { id: toastId })
     } else {
       toast.success("Payment added successfully", { id: toastId })
       fetchPayroll()
       setOpen(false)
+      resetForm()
     }
   }
-  
 
-  const filteredRecords =
-    filter === "all" ? records : records.filter((r) => r.pay_type === filter)
-
-
-
-    const [employees, setEmployees] = useState<{id: string, full_name: string, employee_code: string, base_salary: number}[]>([])
-const [search, setSearch] = useState("")
-
-useEffect(() => {
-  fetchPayroll()
-  fetchEmployees()
-}, [])
-
-async function fetchEmployees() {
-  const { data, error } = await supabase
-    .from("employees")
-    .select("id, full_name, employee_code, base_salary")
-  if (error) {
-    console.error("Error fetching employees:", error)
-    return
-  }
-  setEmployees(data)
-}
-
-
-const [employeePopoverOpen, setEmployeePopoverOpen] = useState(false)
-const selectedEmployee = employees.find(emp => emp.id === form.employee_id)
-
-const [periodStart, setPeriodStart] = useState<Date | undefined>(undefined);
-const [periodEnd, setPeriodEnd] = useState<Date | undefined>(undefined);
-const [expenses, setExpenses] = useState<{
-  id: string
-  expense_name: string
-  category: string
-  amount: number
-  incurred_on: string
-  notes?: string   // <-- add this
-}[]>([])
-
-
-useEffect(() => {
-  fetchExpenses()
-}, [])
-
-async function fetchExpenses() {
-  const { data, error } = await supabase
-    .from("company_expenses")
-    .select("*")
-    .order("incurred_on", { ascending: false })
-
-  if (error) {
-    console.error("Error fetching expenses:", error)
-    return
-  }
-  setExpenses(data)
-}
-
-useEffect(() => {
-  const loadData = async () => {
-    await Promise.all([
-      fetchPayroll(),
-      fetchEmployees(),
-      fetchExpenses()
-    ])
-    setDataLoading(false)
+  function resetForm() {
+    setForm({
+      employee_id: "",
+      period_start: "",
+      period_end: "",
+      net_pay: "",
+      status: "Pending Payment",
+    })
+    setPeriodStart(undefined)
+    setPeriodEnd(undefined)
   }
 
-  loadData()
-}, [])
-
-// Sync to form
-useEffect(() => {
-  setForm(f => ({
-    ...f,
-    period_start: periodStart ? periodStart.toISOString().split('T')[0] : "",
-    period_end: periodEnd ? periodEnd.toISOString().split('T')[0] : "",
-  }))
-}, [periodStart, periodEnd]);
-
-
-if (isChecking || !role || dataLoading) {
-  return (
-    <div className="flex items-center justify-center h-screen text-muted-foreground">
-      <span className="animate-pulse text-lg">Loading dashboard...</span>
-    </div>
-  )
-}
-
-  return (
-    
-    <div className="pr-4 space-y-6">
-      <header className="bg-background sticky top-0 flex h-14 shrink-0 items-center gap-2 px-3">
-        <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbPage className="line-clamp-1">
-                Employees management
-              </BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-      </header>
-
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h2 className="text-xl font-semibold">Generate Financial Report</h2>
-          <p className="text-muted-foreground text-sm">
-            Analyze your financial report more easily with our virtual assistant!
-          </p>
-        </div>
-        <Button>Generate Report</Button>
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        <Card className="flex-1 min-w-[200px]">
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Monthly Payroll</p>
-            <h2 className="text-xl font-bold">
-              ₱ {records.reduce((sum, r) => sum + r.net_pay, 0).toLocaleString()}
-            </h2>
-          </CardContent>
-        </Card>
-        <Dialog open={expenseOpen} onOpenChange={setExpenseOpen}>
-  <DialogTrigger asChild>
-    <Card className="flex-1 min-w-[200px] cursor-pointer hover:shadow-md transition">
-      <CardContent className="p-4 flex justify-between items-start">
-        <div>
-          <p className="text-sm text-muted-foreground">Company Expenses</p>
-          <h2 className="text-xl font-bold">
-            ₱ {expenses.reduce((sum, e) => sum + e.amount, 0).toLocaleString()}
-          </h2>
-        </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={(e) => {
-            e.stopPropagation()
-            setExpenseOpen(true)
-          }}
-        >
-          <MoreHorizontal className="h-4 w-4" />
-        </Button>
-      </CardContent>
-    </Card>
-  </DialogTrigger>
-
-  {/* HERE: Add the dialog content */}
-  <DialogContent className="max-w-3xl">
-    <DialogHeader>
-      <DialogTitle>Company Expenses</DialogTitle>
-    </DialogHeader>
-
-    {/* Expense Table */}
-    <Table className="min-w-[700px]">
-      <TableHeader>
-        <TableRow>
-          <TableHead>Date</TableHead>
-          <TableHead>Name</TableHead>
-          <TableHead>Category</TableHead>
-          <TableHead>Amount</TableHead>
-          <TableHead>Notes</TableHead>
-          <TableHead>Action</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {expenses.map((exp) => (
-          <TableRow key={exp.id}>
-            <TableCell>{new Date(exp.incurred_on).toLocaleDateString()}</TableCell>
-            <TableCell>{exp.expense_name}</TableCell>
-            <TableCell>{exp.category}</TableCell>
-            <TableCell>₱ {exp.amount.toLocaleString()}</TableCell>
-            <TableCell>{exp.notes || "-"}</TableCell>
-            <TableCell>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() =>
-                setExpenseForm({
-                  ...exp,
-                  amount: exp.amount.toString(), // convert number → string
-                  notes: exp.notes || "",        // ensure notes exists
-                })
-              }
-            >
-              Edit
-            </Button>
-
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
-
-    {/* Add/Edit Form */}
-    <form onSubmit={handleSaveExpense} className="space-y-4 mt-6">
-      <div>
-        <Label>Expense Name</Label>
-        <Input
-          value={expenseForm.expense_name}
-          onChange={(e) => setExpenseForm({ ...expenseForm, expense_name: e.target.value })}
-          required
-        />
-      </div>
-      <div>
-        <Label>Category</Label>
-        <Input
-          value={expenseForm.category}
-          onChange={(e) => setExpenseForm({ ...expenseForm, category: e.target.value })}
-        />
-      </div>
-      <div>
-        <Label>Amount</Label>
-        <Input
-          type="number"
-          value={expenseForm.amount}
-          onChange={(e) => setExpenseForm({ ...expenseForm, amount: e.target.value })}
-          required
-        />
-      </div>
-      <div>
-        <Label>Date</Label>
-        <Input
-          type="date"
-          value={expenseForm.incurred_on}
-          onChange={(e) => setExpenseForm({ ...expenseForm, incurred_on: e.target.value })}
-        />
-      </div>
-      <div>
-        <Label>Notes</Label>
-        <Input
-          value={expenseForm.notes}
-          onChange={(e) => setExpenseForm({ ...expenseForm, notes: e.target.value })}
-        />
-      </div>
-      <Button type="submit" className="w-full">
-        {expenseForm.id ? "Update Expense" : "Add Expense"}
-      </Button>
-    </form>
-  </DialogContent>
-</Dialog>
-
-      </div>
-
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <Tabs defaultValue="all" onValueChange={setFilter} className="w-full md:w-fit">
-          <TabsList>
-            <TabsTrigger value="all">All Payment</TabsTrigger>
-            <TabsTrigger value="Member">Member</TabsTrigger>
-            <TabsTrigger value="Staff">Staff</TabsTrigger>
-            <TabsTrigger value="Freelance">Freelance</TabsTrigger>
-            <TabsTrigger value="Part-Time">Part-Time</TabsTrigger>
-          </TabsList>
-        </Tabs>
-
-        <div className="flex gap-2">
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" size="sm">
-              <CalendarIcon className="w-4 h-4 mr-2" />
-              {payday ? payday.toLocaleDateString() : "Select Payday"}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0">
-            <Calendar
-              mode="single"
-              selected={payday}
-              onSelect={(date) => {
-                if (date) handleFilterByPayday(date)
-              }}
-              initialFocus
-            />
-          </PopoverContent>
-        </Popover>
-
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button variant="default" size="sm">
-                + Add New Payment
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-              <DialogTitle>{editRecord ? `Edit Payment for ${editRecord.full_name}` : "Add New Payment"}</DialogTitle>
-              <Dialog onOpenChange={(v) => {
-              setOpen(v)
-              if (!v) setEditRecord(null)
-              }} open={open}></Dialog>
-              </DialogHeader>
-              <form onSubmit={handleAddPayment} className="space-y-4">
-              <div>
-              <Label>Employee</Label>
-              <Popover open={employeePopoverOpen} onOpenChange={setEmployeePopoverOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={employeePopoverOpen}
-                    className="w-full justify-between"
-                  >
-                    {selectedEmployee
-                      ? `${selectedEmployee.full_name} (${selectedEmployee.employee_code})`
-                      : "Select employee..."}
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-full p-0">
-                  <Command>
-                    <CommandInput placeholder="Search employee..." className="h-9" />
-                    <CommandList>
-                      <CommandEmpty>No employee found.</CommandEmpty>
-                      {employees.map(emp => (
-                        <CommandItem
-                          key={emp.id}
-                          value={emp.id}
-                          onSelect={() => {
-                            setForm((prev) => ({
-                              ...prev,
-                              employee_id: emp.id,
-                              // calculate net_pay as half the base_salary
-                              net_pay: emp.base_salary ? (emp.base_salary / 2).toString() : "",
-                            }))
-                            setEmployeePopoverOpen(false)
-                          }}
-                          
-                        >
-                          {emp.full_name} ({emp.employee_code})
-                          <Check
-                            className={cn(
-                              "ml-auto h-4 w-4",
-                              form.employee_id === emp.id ? "opacity-100" : "opacity-0"
-                            )}
-                          />
-                        </CommandItem>
-                      ))}
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            </div>
-            <div>
-            <Label>Period Start</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn("w-full justify-between font-normal", !periodStart && "text-muted-foreground")}
-                >
-                  {periodStart ? periodStart.toLocaleDateString() : "Select date"}
-                  <CalendarIcon className="ml-2 h-4 w-4 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                <Calendar
-                  mode="single"
-                  selected={periodStart}
-                  onSelect={setPeriodStart}
-                  captionLayout="dropdown"
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
-          <div>
-            <Label>Period End</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn("w-full justify-between font-normal", !periodEnd && "text-muted-foreground")}
-                >
-                  {periodEnd ? periodEnd.toLocaleDateString() : "Select date"}
-                  <CalendarIcon className="ml-2 h-4 w-4 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                <Calendar
-                  mode="single"
-                  selected={periodEnd}
-                  onSelect={setPeriodEnd}
-                  captionLayout="dropdown"
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
-
-                <div>
-                  <Label>Net Pay</Label>
-                  <Input
-                    type="number"
-                    value={form.net_pay}
-                    onChange={(e) => setForm({ ...form, net_pay: e.target.value })}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label>Status</Label>
-                  <Select
-                    value={form.status}
-                    onValueChange={v => setForm({ ...form, status: v })}
-                    required
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Pending Payment">Pending Payment</SelectItem>
-                      <SelectItem value="Payment Success">Payment Success</SelectItem>
-                      <SelectItem value="On Hold Payment">On Hold Payment</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <Button type="submit" className="w-full">
-                  Save
-                </Button>
-              </form>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </div>
-
-      <div className="overflow-x-auto">
-        <Table className="min-w-[900px]">
-          <TableHeader>
-            <TableRow>
-              <TableHead>Employee</TableHead>
-              <TableHead>Payday</TableHead>
-              <TableHead>Payment Amount</TableHead>
-              <TableHead>Payment Category</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Action</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredRecords.map((record) => (
-              <TableRow key={record.id}>
-                <TableCell>
-                  <div className="font-medium">{record.full_name}</div>
-                  <div className="text-sm text-muted-foreground">
-                    {record.employee_code}
-                  </div>
-                </TableCell>
-                <TableCell>{record.period_end}</TableCell>
-                <TableCell>₱ {record.net_pay.toLocaleString()}</TableCell>
-                <TableCell>{record.pay_type} Payday</TableCell>
-                <TableCell>{statusBadge(record.status)}</TableCell>
-                <TableCell className="text-center">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button size="icon" variant="ghost">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => handleEdit(record)}>Edit</DropdownMenuItem>
-                    <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <DropdownMenuItem
-                        className="text-red-600"
-                        onSelect={(e) => {
-                          e.preventDefault() // <-- prevent dropdown from auto-closing
-                          setDeleteRecordId(record.id)
-                        }}
-                      >
-                        Delete
-                      </DropdownMenuItem>
-                    </AlertDialogTrigger>
-
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Confirm Deletion</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Are you sure you want to delete this payroll record? This action cannot be undone.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDeleteConfirm}>Delete</AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-
-                    <DropdownMenuSub>
-                      <DropdownMenuSubTrigger>Status</DropdownMenuSubTrigger>
-                      <DropdownMenuSubContent>
-                        <DropdownMenuItem onClick={() => handleStatusUpdate(record.id, "Pending Payment")}>
-                          Pending
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleStatusUpdate(record.id, "Payment Success")}>
-                          Paid
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleStatusUpdate(record.id, "On Hold Payment")}>
-                          On Hold
-                        </DropdownMenuItem>
-                      </DropdownMenuSubContent>
-                    </DropdownMenuSub>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </TableCell>
-
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-        
-      </div>
-
-
-    </div>
-  )
   function handleEdit(record: PayrollRecord) {
     setEditRecord(record)
-    setOpen(true) // reuse existing dialog
+    setOpen(true)
     setForm({
-    employee_id: record.id,
-    period_start: "",
-    period_end: record.period_end,
-    net_pay: record.net_pay.toString(),
-    status: record.status,
+      employee_id: record.id,
+      period_start: "",
+      period_end: record.period_end,
+      net_pay: record.net_pay.toString(),
+      status: record.status,
     })
-    }
-  
+  }
 
-    async function handleSaveExpense(e: React.FormEvent) {
-      e.preventDefault()
-      const toastId = toast.loading(expenseForm.id ? "Updating expense..." : "Adding expense...")
+  async function handleDeleteConfirm() {
+    if (!deleteRecordId) return
     
-      const payload = {
-        expense_name: expenseForm.expense_name,
-        category: expenseForm.category,
-        amount: parseFloat(expenseForm.amount),
-        incurred_on: expenseForm.incurred_on || new Date().toISOString().split("T")[0],
-        notes: expenseForm.notes,
-      }
+    const toastId = toast.loading("Deleting payment...")
+    const { error } = await supabase.from("payroll_records").delete().eq("id", deleteRecordId)
     
-      let error
-      if (expenseForm.id) {
-        // Update
-        const res = await supabase.from("company_expenses").update(payload).eq("id", expenseForm.id)
-        error = res.error
-      } else {
-        // Insert
-        const res = await supabase.from("company_expenses").insert(payload)
-        error = res.error
-      }
-    
-      if (error) {
-        toast.error("Failed to save expense", { id: toastId })
-      } else {
-        toast.success("Expense saved", { id: toastId })
-        setExpenseForm({ id: "", expense_name: "", category: "", amount: "", incurred_on: "", notes: "" })
-        fetchExpenses()
-      }
+    if (error) toast.error("Failed to delete", { id: toastId })
+    else {
+      toast.success("Deleted successfully", { id: toastId })
+      fetchPayroll()
     }
-    
-// REPLACE handleDelete()
-async function handleDeleteConfirm() {
-  if (!deleteRecordId) return
-  
-  
-  const toastId = toast.loading("Deleting payment...")
-  const { error } = await supabase.from("payroll_records").delete().eq("id", deleteRecordId)
-  
-  
-  if (error) toast.error("Failed to delete", { id: toastId })
-  else {
-  toast.success("Deleted successfully", { id: toastId })
-  fetchPayroll()
+    setDeleteRecordId(null)
   }
-  setDeleteRecordId(null)
-  }
-  
-  
+
   async function handleStatusUpdate(id: string, newStatus: string) {
     const toastId = toast.loading("Updating status...")
-  
+
     const { error } = await supabase
       .from("payroll_records")
       .update({ status: newStatus })
       .eq("id", id)
-  
+
     if (error) {
       toast.error("Failed to update status.", { id: toastId })
     } else {
@@ -837,7 +328,439 @@ async function handleDeleteConfirm() {
       fetchPayroll()
     }
   }
-  
-  
-  
+
+  const filteredRecords = records.filter(record => {
+    const matchesFilter = filter === "all" || record.pay_type === filter
+    const matchesSearch = record.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         record.employee_code.toLowerCase().includes(searchTerm.toLowerCase())
+    return matchesFilter && matchesSearch
+  })
+
+  // Calculate metrics
+  const totalPayroll = records.reduce((sum, r) => sum + r.net_pay, 0)
+  const completedPayments = records.filter(r => r.status.includes("Success") || r.status === "Paid").length
+  const pendingPayments = records.filter(r => r.status.includes("Pending")).length
+
+  if (isChecking || !role || dataLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="flex items-center space-x-2">
+          <div className="w-4 h-4 bg-slate-400 rounded-full animate-pulse"></div>
+          <span className="text-slate-600">Loading dashboard...</span>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-8 p-6 bg-slate-50 min-h-screen">
+      {/* Header */}
+      {/* <div className="bg-white border-b">
+        <div className="px-6 py-4">
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbPage className="text-slate-600">
+                  Payroll Management
+                </BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
+        </div>
+      </div> */}
+
+      {/* Page Title */}
+      <div className="space-y-2">
+        <h1 className="text-3xl font-semibold text-slate-900">Dashboard</h1>
+        <p className="text-slate-600">
+          Monitor and manage employee payroll efficiently
+        </p>
+      </div>
+
+      {/* Metrics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card className="border-0 shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-slate-600">
+              Total Payroll
+            </CardTitle>
+            <DollarSign className="h-4 w-4 text-slate-400" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-slate-900">
+              ₱{totalPayroll.toLocaleString()}
+            </div>
+            <p className="text-xs text-slate-500 mt-1">
+              Current period total
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-0 shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-slate-600">
+              Completed Payments
+            </CardTitle>
+            <TrendingUp className="h-4 w-4 text-slate-400" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-slate-900">
+              {completedPayments}
+            </div>
+            <p className="text-xs text-slate-500 mt-1">
+              Successfully processed
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-0 shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-slate-600">
+              Pending Payments
+            </CardTitle>
+            <Users className="h-4 w-4 text-slate-400" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-slate-900">
+              {pendingPayments}
+            </div>
+            <p className="text-xs text-slate-500 mt-1">
+              Awaiting processing
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Controls */}
+      <Card className="border-0 shadow-sm">
+        <CardContent className="p-6">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            {/* Filters */}
+            <div className="flex flex-col sm:flex-row gap-4">
+              <Tabs defaultValue="all" onValueChange={setFilter} className="w-full sm:w-fit">
+                <TabsList className="grid w-full grid-cols-5 sm:w-fit">
+                  <TabsTrigger value="all" className="text-xs">All</TabsTrigger>
+                  <TabsTrigger value="Member" className="text-xs">Member</TabsTrigger>
+                  <TabsTrigger value="Staff" className="text-xs">Staff</TabsTrigger>
+                  <TabsTrigger value="Freelance" className="text-xs">Freelance</TabsTrigger>
+                  <TabsTrigger value="Part-Time" className="text-xs">Part-Time</TabsTrigger>
+                </TabsList>
+              </Tabs>
+
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Input
+                  placeholder="Search employees..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 w-full sm:w-64"
+                />
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-3">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <div className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3 cursor-pointer justify-start">
+                    <CalendarIcon className="w-4 h-4 mr-2" />
+                    {payday ? payday.toLocaleDateString() : "Filter by Date"}
+                  </div>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={payday}
+                    onSelect={(date) => {
+                      if (date) handleFilterByPayday(date)
+                    }}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+
+              <Dialog open={open} onOpenChange={(v) => {
+                setOpen(v)
+                if (!v) {
+                  setEditRecord(null)
+                  resetForm()
+                }
+              }}>
+                <DialogTrigger asChild>
+                  <Button size="sm" className="bg-slate-900 hover:bg-slate-800">
+                    <Plus className="w-4 h-4 mr-2" />
+                    New Payment
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>
+                      {editRecord ? `Edit Payment - ${editRecord.full_name}` : "Add New Payment"}
+                    </DialogTitle>
+                  </DialogHeader>
+                  <form onSubmit={handleAddPayment} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Employee</Label>
+                      <Popover open={employeePopoverOpen} onOpenChange={setEmployeePopoverOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            role="combobox"
+                            className="w-full justify-between font-normal"
+                          >
+                            {selectedEmployee
+                              ? `${selectedEmployee.full_name} (${selectedEmployee.employee_code})`
+                              : "Select employee..."}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-full p-0">
+                          <Command>
+                            <CommandInput placeholder="Search employee..." />
+                            <CommandList>
+                              <CommandEmpty>No employee found.</CommandEmpty>
+                              {employees.map(emp => (
+                                <CommandItem
+                                  key={emp.id}
+                                  value={emp.id}
+                                  onSelect={() => {
+                                    setForm((prev) => ({
+                                      ...prev,
+                                      employee_id: emp.id,
+                                      net_pay: emp.base_salary ? (emp.base_salary / 2).toString() : "",
+                                    }))
+                                    setEmployeePopoverOpen(false)
+                                  }}
+                                >
+                                  {emp.full_name} ({emp.employee_code})
+                                  <Check
+                                    className={cn(
+                                      "ml-auto h-4 w-4",
+                                      form.employee_id === emp.id ? "opacity-100" : "opacity-0"
+                                    )}
+                                  />
+                                </CommandItem>
+                              ))}
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Period Start</Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <div
+                              className={cn(
+                                "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-3 w-full justify-start font-normal cursor-pointer",
+                                !periodStart && "text-slate-500"
+                              )}
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {periodStart ? periodStart.toLocaleDateString() : "Select date"}
+                            </div>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0">
+                            <Calendar
+                              mode="single"
+                              selected={periodStart}
+                              onSelect={(date) => setPeriodStart(date)}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Period End</Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className={cn(
+                                "w-full justify-start font-normal",
+                                !periodEnd && "text-slate-500"
+                              )}
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {periodEnd ? periodEnd.toLocaleDateString() : "Select date"}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0">
+                            <Calendar
+                              mode="single"
+                              selected={periodEnd}
+                              onSelect={(date) => setPeriodEnd(date)}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Net Pay</Label>
+                        <Input
+                          type="number"
+                          value={form.net_pay}
+                          onChange={(e) => setForm({ ...form, net_pay: e.target.value })}
+                          placeholder="0.00"
+                          required
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Status</Label>
+                        <Select
+                          value={form.status}
+                          onValueChange={v => setForm({ ...form, status: v })}
+                          required
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Pending Payment">Pending Payment</SelectItem>
+                            <SelectItem value="Payment Success">Payment Success</SelectItem>
+                            <SelectItem value="On Hold Payment">On Hold Payment</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <Button type="submit" className="w-full bg-slate-900 hover:bg-slate-800">
+                      {editRecord ? "Update Payment" : "Add Payment"}
+                    </Button>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Data Table */}
+      <Card className="border-0 shadow-sm">
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-b border-slate-200">
+                  <TableHead className="font-medium text-slate-900">Employee</TableHead>
+                  <TableHead className="font-medium text-slate-900">Pay Period</TableHead>
+                  <TableHead className="font-medium text-slate-900">Amount</TableHead>
+                  <TableHead className="font-medium text-slate-900">Category</TableHead>
+                  <TableHead className="font-medium text-slate-900">Status</TableHead>
+                  <TableHead className="font-medium text-slate-900 text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredRecords.map((record) => (
+                  <TableRow key={record.id} className="border-b border-slate-100 hover:bg-slate-50">
+                    <TableCell>
+                      <div>
+                        <div className="font-medium text-slate-900">{record.full_name}</div>
+                        <div className="text-sm text-slate-500">{record.employee_code}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-slate-700">
+                      {new Date(record.period_end).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell className="font-medium text-slate-900">
+                      ₱{record.net_pay.toLocaleString()}
+                    </TableCell>
+                    <TableCell className="text-slate-700">
+                      {record.pay_type}
+                    </TableCell>
+                    <TableCell>
+                      {statusBadge(record.status)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button size="icon" variant="ghost" className="h-8 w-8">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleEdit(record)}>
+                            Edit Payment
+                          </DropdownMenuItem>
+                          <DropdownMenuSub>
+                            <DropdownMenuSubTrigger>Update Status</DropdownMenuSubTrigger>
+                            <DropdownMenuSubContent>
+                              <DropdownMenuItem onClick={() => handleStatusUpdate(record.id, "Pending Payment")}>
+                                Mark as Pending
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleStatusUpdate(record.id, "Payment Success")}>
+                                Mark as Completed
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleStatusUpdate(record.id, "On Hold Payment")}>
+                                Put On Hold
+                              </DropdownMenuItem>
+                            </DropdownMenuSubContent>
+                          </DropdownMenuSub>
+                          <Separator />
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <DropdownMenuItem
+                                className="text-red-600 focus:text-red-600"
+                                onSelect={(e) => {
+                                  e.preventDefault()
+                                  setDeleteRecordId(record.id)
+                                }}
+                              >
+                                Delete Payment
+                              </DropdownMenuItem>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Payment Record</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This action cannot be undone. The payroll record for {record.full_name} will be permanently deleted.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={handleDeleteConfirm}
+                                  className="bg-red-600 hover:bg-red-700"
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          {filteredRecords.length === 0 && (
+            <div className="text-center py-12">
+              <div className="text-slate-400 mb-2">
+                <Users className="h-12 w-12 mx-auto" />
+              </div>
+              <h3 className="text-lg font-medium text-slate-900 mb-1">No payments found</h3>
+              <p className="text-slate-500">
+                {searchTerm || filter !== "all" 
+                  ? "Try adjusting your search or filter criteria"
+                  : "Get started by adding your first payment record"
+                }
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  )
 }
