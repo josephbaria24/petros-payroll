@@ -343,7 +343,7 @@ export default function AdminRequestsPage() {
 
       {/* Request Details Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl lg:w-[40vw]">
           <DialogHeader>
             <DialogTitle className="text-xl font-semibold text-slate-900">
               Request Details
