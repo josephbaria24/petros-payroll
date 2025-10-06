@@ -15,6 +15,8 @@ import {
   Calendar,
   Droplet,
   Newspaper,
+  MessageCircleReply,
+  MessageCircleReplyIcon,
 } from "lucide-react"
 
 import { usePathname, useRouter } from "next/navigation"
@@ -102,6 +104,11 @@ export function SidebarLeft({ ...props }: React.ComponentProps<typeof Sidebar>) 
             url: "/reports",
             icon: FileText,
           },
+          {
+            title: "Requests",
+            url: "/admin-requests",
+            icon: MessageCircleReplyIcon,
+          },
         ]
       : role === "employee"
       ? [
@@ -119,6 +126,11 @@ export function SidebarLeft({ ...props }: React.ComponentProps<typeof Sidebar>) 
             title: "My Timesheet",
             url: "/timesheet",
             icon: Calendar, // already imported in your sidebar
+          },
+          {
+            title: "Requests",
+            url: "/requests",
+            icon: MessageCircleReply, // already imported in your sidebar
           }
         ]
       : [])

@@ -19,22 +19,11 @@ import {
   SidebarSeparator,
 } from "@/components/ui/sidebar"
 
-const data = {
-  user: {
-    name: "payroll",
-    email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
-  },
-  calendars: [
-    { name: "Favorites", items: ["Holidays", "Birthdays"] },
-    { name: "Other", items: ["Travel", "Reminders", "Deadlines"] },
-  ],
-}
-
 export function SidebarRight(props: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
   const [holidays, setHolidays] = React.useState<any[]>([])
   const [selectedCalendars, setSelectedCalendars] = React.useState<string[]>(["Holidays"])
+  const [user, setUser] = React.useState<any>(null)
 
   React.useEffect(() => {
     if (selectedCalendars.includes("Holidays")) {
@@ -48,7 +37,26 @@ export function SidebarRight(props: React.ComponentProps<typeof Sidebar>) {
     }
   }, [selectedCalendars])
 
-  // ✅ Place return *after* hooks
+  React.useEffect(() => {
+    const fetchUser = async () => {
+      const { data, error } = await supabase.auth.getUser()
+      if (error || !data?.user) {
+        console.error("Failed to get user", error)
+        return
+      }
+
+      const u = data.user
+      setUser({
+        name: u.user_metadata?.name || u.email,
+        email: u.email,
+        avatar: u.user_metadata?.avatar_url || "/default-avatar.png",
+      })
+    }
+
+    fetchUser()
+  }, [])
+
+  // ✅ Don't render sidebar if in /employees route
   if (pathname?.startsWith("/employees")) {
     return null
   }
@@ -60,14 +68,17 @@ export function SidebarRight(props: React.ComponentProps<typeof Sidebar>) {
       {...props}
     >
       <SidebarHeader className="border-sidebar-border h-16 border-b">
-        <NavUser user={data.user} />
+        {user && <NavUser user={user} />}
       </SidebarHeader>
 
       <SidebarContent>
         <DatePicker holidays={selectedCalendars.includes("Holidays") ? holidays : []} />
         <SidebarSeparator className="mx-0" />
         <Calendars
-          calendars={data.calendars}
+          calendars={[
+            { name: "Favorites", items: ["Holidays", "Birthdays"] },
+            { name: "Other", items: ["Travel", "Reminders", "Deadlines"] },
+          ]}
           selected={selectedCalendars}
           onChange={setSelectedCalendars}
         />
