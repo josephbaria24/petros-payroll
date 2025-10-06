@@ -12,17 +12,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Download, DollarSign, FileText, TrendingUp, Calendar } from "lucide-react"
+import { Download, DollarSign, FileText, TrendingUp, Calendar, ChevronRight } from "lucide-react"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
 export default function MyPayrollPage() {
   const [records, setRecords] = useState<any[]>([])
@@ -45,7 +38,6 @@ export default function MyPayrollPage() {
         return
       }
   
-      // Get employee record
       const { data: employee } = await supabase
         .from("employees")
         .select("id, employee_code, full_name, department, position")
@@ -58,38 +50,35 @@ export default function MyPayrollPage() {
         return
       }
       setEmployeeDetails(employee)
-      
   
-      // Fetch payroll records
       const { data: payroll, error: payrollError } = await supabase
-      .from("payroll_records")
-      .select(`
-        id,
-        period_start,
-        period_end,
-        status,
-        net_pay,
-        gross_pay,
-        basic_salary,
-        overtime_pay,
-        holiday_pay,
-        night_diff,
-        allowances,
-        bonuses,
-        commission,
-        sss,
-        philhealth,
-        pagibig,
-        withholding_tax,
-        absences,
-        tardiness,
-        loans,
-        uniform,
-        total_deductions
-      `)
-      .eq("employee_id", employee.id)
-      .order("period_end", { ascending: false })
-    
+        .from("payroll_records")
+        .select(`
+          id,
+          period_start,
+          period_end,
+          status,
+          net_pay,
+          gross_pay,
+          basic_salary,
+          overtime_pay,
+          holiday_pay,
+          night_diff,
+          allowances,
+          bonuses,
+          commission,
+          sss,
+          philhealth,
+          pagibig,
+          withholding_tax,
+          absences,
+          tardiness,
+          loans,
+          uniform,
+          total_deductions
+        `)
+        .eq("employee_id", employee.id)
+        .order("period_end", { ascending: false })
   
       if (payrollError) {
         setError("Error fetching payroll records.")
@@ -97,7 +86,6 @@ export default function MyPayrollPage() {
         return
       }
   
-      // Fetch deductions separately
       const { data: deductions, error: dedError } = await supabase
         .from("deductions")
         .select("employee_id, amount, created_at")
@@ -107,7 +95,6 @@ export default function MyPayrollPage() {
         console.error(dedError)
       }
   
-      // Merge: attach deductions into payroll
       const merged = payroll.map((rec: any) => {
         const additionalDeductions =
           deductions
@@ -118,7 +105,6 @@ export default function MyPayrollPage() {
             )
             .reduce((sum, d) => sum + d.amount, 0) || 0
       
-        // Compute total earnings manually
         const totalEarnings =
           (rec.basic_salary || 0) +
           (rec.overtime_pay || 0) +
@@ -128,8 +114,6 @@ export default function MyPayrollPage() {
           (rec.bonuses || 0) +
           (rec.commission || 0)
       
-        // Compute all deductions (database fields + additional deductions)
-        // Note: absences should already be included in the payroll record, not added separately
         const allDeductions =
           (rec.sss || 0) +
           (rec.philhealth || 0) +
@@ -149,7 +133,6 @@ export default function MyPayrollPage() {
           calculated_net_pay: totalEarnings - allDeductions,
         }
       })
-      
   
       setRecords(merged || [])
       setLoading(false)
@@ -162,7 +145,6 @@ export default function MyPayrollPage() {
     if (!selectedRecord) return
 
     try {
-      // Import html2canvas dynamically
       const html2canvas = (await import('html2canvas')).default
       
       const element = document.getElementById('payslip-content')
@@ -187,18 +169,18 @@ export default function MyPayrollPage() {
   }
 
   const statusBadge = (status: string) => {
-    switch (status) {
-      case "Paid":
-        return <Badge className="bg-green-100 text-green-600 border-green-200">● {status}</Badge>
-      case "Payment Success":
-        return <Badge className="bg-green-100 text-green-600 border-green-200">● {status}</Badge>
-      case "Pending Payment":
-        return <Badge className="bg-orange-100 text-orange-600 border-orange-200">● {status}</Badge>
-      case "Cancelled":
-        return <Badge className="bg-gray-100 text-gray-600 border-gray-200">● {status}</Badge>
-      default:
-        return <Badge className="bg-muted text-muted-foreground">● Unknown</Badge>
+    const variants: Record<string, string> = {
+      "Paid": "bg-slate-900 text-white border-slate-200",
+      "Payment Success": "bg-slate-900 text-white border-slate-200",
+      "Pending Payment": "bg-white text-slate-900 border-slate-300",
+      "Cancelled": "bg-slate-100 text-slate-600 border-slate-200",
     }
+    
+    return (
+      <Badge className={variants[status] || "bg-slate-100 text-slate-600 border-slate-200"}>
+        {status}
+      </Badge>
+    )
   }
 
   const formatCurrency = (amount: number | null | undefined) => {
@@ -219,132 +201,127 @@ export default function MyPayrollPage() {
     return `${startDate.toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })} - ${endDate.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}`
   }
 
-  // Calculate summary stats
   const totalEarnings = records.reduce((sum, rec) => sum + (rec.calculated_net_pay || 0), 0)
   const avgEarnings = records.length > 0 ? totalEarnings / records.length : 0
   const latestPay = records.length > 0 ? records[0].calculated_net_pay || 0 : 0
 
   return (
-    <div className="min-h-screen from-green-50 via-emerald-50 to-teal-50 p-4 md:p-8">
+    <div className="min-h-screen bg-[#f8fafc] p-6 space-y-8">
       <div className="mx-auto max-w-7xl space-y-6">
+        {/* Breadcrumb Navigation */}
+        <div className="flex items-center space-x-2 text-sm text-slate-600">
+          <span>Dashboard</span>
+          <ChevronRight className="h-4 w-4" />
+          <span className="text-slate-900 font-medium">My Payroll</span>
+        </div>
+
         {/* Header Section */}
-        <div className="text-center">
-          <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text">
-            Payroll Dashboard
-          </h1>
-          <p className="mt-2 text-lg text-gray-600">
-            Track your earnings and pay slips
-          </p>
+        <div>
+          <h1 className="text-3xl font-semibold text-slate-900">My Payroll</h1>
+          <p className="mt-1 text-slate-600">View your earnings history and download pay slips</p>
         </div>
 
         {loading ? (
           <div className="flex items-center justify-center py-12">
-            <div className="text-center space-y-4">
-              <div className="animate-spin h-12 w-12 border-4 border-green-500 border-t-transparent rounded-full mx-auto" />
-              <p className="text-gray-600">Loading payroll records...</p>
+            <div className="flex items-center space-x-2">
+              <div className="w-4 h-4 bg-slate-400 rounded-full animate-pulse"></div>
+              <span className="text-slate-600">Loading payroll records...</span>
             </div>
           </div>
         ) : error ? (
-          <Card className="border-red-200 bg-red-50">
-            <CardContent className="p-8 text-center">
-              <p className="text-red-600 text-lg">{error}</p>
+          <Card className="border-0 shadow-sm">
+            <CardContent className="p-12 text-center">
+              <p className="text-slate-600">{error}</p>
             </CardContent>
           </Card>
         ) : records.length === 0 ? (
-          <Card className="border-gray-200 bg-gray-50">
-            <CardContent className="p-8 text-center">
-              <FileText className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600 text-lg">No payroll records found.</p>
-              <p className="text-gray-500 mt-2">Your pay slips will appear here once they're processed.</p>
+          <Card className="border-0 shadow-sm">
+            <CardContent className="py-12 text-center">
+              <FileText className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-slate-900 mb-2">No payroll records found</h3>
+              <p className="text-slate-600">Your pay slips will appear here once they're processed.</p>
             </CardContent>
           </Card>
         ) : (
           <>
             {/* Summary Stats */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card className="border-0 shadow-lg bg-white/70 backdrop-blur-sm">
-                <CardContent className="p-6">
+              <Card className="border-0 shadow-sm">
+                <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-600">Latest Pay</p>
-                      <p className="text-2xl font-bold text-green-600">{formatCurrency(latestPay)}</p>
-                    </div>
-                    <div className="p-3 bg-green-100 rounded-full">
-                      <DollarSign className="h-6 w-6 text-green-600" />
-                    </div>
+                    <CardTitle className="text-sm font-medium text-slate-600">Latest Pay</CardTitle>
+                    <DollarSign className="h-5 w-5 text-slate-400" />
                   </div>
+                </CardHeader>
+                <CardContent className="pb-6">
+                  <p className="text-2xl font-bold text-slate-900">{formatCurrency(latestPay)}</p>
                 </CardContent>
               </Card>
 
-              <Card className="border-0 shadow-lg bg-white/70 backdrop-blur-sm">
-                <CardContent className="p-6">
+              <Card className="border-0 shadow-sm">
+                <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-600">Average Pay</p>
-                      <p className="text-2xl font-bold text-blue-600">{formatCurrency(avgEarnings)}</p>
-                    </div>
-                    <div className="p-3 bg-blue-100 rounded-full">
-                      <TrendingUp className="h-6 w-6 text-blue-600" />
-                    </div>
+                    <CardTitle className="text-sm font-medium text-slate-600">Average Pay</CardTitle>
+                    <TrendingUp className="h-5 w-5 text-slate-400" />
                   </div>
+                </CardHeader>
+                <CardContent className="pb-6">
+                  <p className="text-2xl font-bold text-slate-900">{formatCurrency(avgEarnings)}</p>
                 </CardContent>
               </Card>
 
-              <Card className="border-0 shadow-lg bg-white/70 backdrop-blur-sm">
-                <CardContent className="p-6">
+              <Card className="border-0 shadow-sm">
+                <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-600">Total Records</p>
-                      <p className="text-2xl font-bold text-purple-600">{records.length}</p>
-                    </div>
-                    <div className="p-3 bg-purple-100 rounded-full">
-                      <Calendar className="h-6 w-6 text-purple-600" />
-                    </div>
+                    <CardTitle className="text-sm font-medium text-slate-600">Total Records</CardTitle>
+                    <Calendar className="h-5 w-5 text-slate-400" />
                   </div>
+                </CardHeader>
+                <CardContent className="pb-6">
+                  <p className="text-2xl font-bold text-slate-900">{records.length}</p>
                 </CardContent>
               </Card>
             </div>
 
             {/* Payroll Records Table */}
-            <Card className="border-0 shadow-xl bg-white/90 backdrop-blur-sm">
-              <CardHeader className="bg-gradient-to-r from-blue-600 to-yellow-500 text-white rounded-t-lg px-5 py-2">
-                <CardTitle className="text-xl flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
-                  Payroll History
-                </CardTitle>
-                <CardDescription className="text-green-100">
-                  View and download your pay slips
-                </CardDescription>
+            <Card className="border-0 shadow-sm">
+              <CardHeader className="border-b border-slate-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-xl font-semibold text-slate-900">Payroll History</CardTitle>
+                    <p className="text-sm text-slate-600 mt-1">Complete record of your compensation</p>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent className="p-0">
                 <div className="overflow-x-auto">
-                  <Table className="min-w-[900px]">
+                  <Table>
                     <TableHeader>
-                      <TableRow className="bg-gray-50">
-                        <TableHead className="font-semibold text-gray-700">Pay Period</TableHead>
-                        <TableHead className="font-semibold text-gray-700">Gross Pay</TableHead>
-                        <TableHead className="font-semibold text-gray-700">Deductions</TableHead>
-                        <TableHead className="font-semibold text-gray-700">Net Pay</TableHead>
-                        <TableHead className="font-semibold text-gray-700">Status</TableHead>
-                        <TableHead className="font-semibold text-gray-700">Action</TableHead>
+                      <TableRow className="border-b border-slate-200 hover:bg-transparent">
+                        <TableHead className="font-medium text-slate-900">Pay Period</TableHead>
+                        <TableHead className="font-medium text-slate-900">Gross Pay</TableHead>
+                        <TableHead className="font-medium text-slate-900">Deductions</TableHead>
+                        <TableHead className="font-medium text-slate-900">Net Pay</TableHead>
+                        <TableHead className="font-medium text-slate-900">Status</TableHead>
+                        <TableHead className="font-medium text-slate-900">Action</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {records.map((rec, i) => (
-                        <TableRow key={i} className="hover:bg-green-50/50 transition-colors duration-200">
-                          <TableCell className="font-medium">
+                        <TableRow key={i} className="border-b border-slate-100 hover:bg-slate-50">
+                          <TableCell>
                             <div className="flex items-center gap-2">
-                              <Calendar className="h-4 w-4 text-gray-400" />
-                              {formatPeriod(rec.period_start, rec.period_end)}
+                              <Calendar className="h-4 w-4 text-slate-400" />
+                              <span className="text-slate-900">{formatPeriod(rec.period_start, rec.period_end)}</span>
                             </div>
                           </TableCell>
-                          <TableCell className="font-semibold text-green-600">
+                          <TableCell className="font-medium text-slate-900">
                             {formatCurrency(rec.gross_pay)}
                           </TableCell>
-                          <TableCell className="text-red-600">
-                            -{formatCurrency(rec.calculated_total_deductions)}
+                          <TableCell className="text-slate-600">
+                            {formatCurrency(rec.calculated_total_deductions)}
                           </TableCell>
-                          <TableCell className="font-bold text-lg">
+                          <TableCell className="font-semibold text-slate-900">
                             {formatCurrency(rec.calculated_net_pay)}
                           </TableCell>
                           <TableCell>{statusBadge(rec.status)}</TableCell>
@@ -355,22 +332,21 @@ export default function MyPayrollPage() {
                                   variant="outline"
                                   size="sm"
                                   onClick={() => setSelectedRecord(rec)}
-                                  className="hover:bg-green-50 hover:border-green-300 transition-colors duration-200"
+                                  className="hover:bg-slate-50"
                                 >
                                   <FileText className="h-4 w-4 mr-2" />
                                   View Slip
                                 </Button>
                               </DialogTrigger>
-                              <DialogContent className="lg:w-[45vw] max-h-[90vh] overflow-y-auto">
+                              <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
                                 <DialogHeader className="flex flex-row items-center justify-between pb-4">
-                                  <DialogTitle className="text-xl">Digital Pay Slip</DialogTitle>
+                                  <DialogTitle className="text-xl font-semibold text-slate-900">Pay Slip Details</DialogTitle>
                                   <Button
                                     onClick={downloadPaySlip}
-                                    variant="outline"
+                                    className="bg-slate-900 hover:bg-slate-800 text-white mr-8"
                                     size="sm"
-                                    className="flex items-center gap-2 mr-4 hover:bg-green-50"
                                   >
-                                    <Download className="w-4 h-4" />
+                                    <Download className="w-4 h-4 mr-2" />
                                     Download
                                   </Button>
                                 </DialogHeader>
@@ -487,7 +463,7 @@ export default function MyPayrollPage() {
                                     <div style={{ backgroundColor: '#f3f4f6', padding: '16px', borderRadius: '8px', border: '2px solid #1f2937' }}>
                                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                         <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#1f2937' }}>NET PAY:</span>
-                                        <span style={{ fontSize: '24px', fontWeight: 'bold', color: '#16a34a' }}>
+                                        <span style={{ fontSize: '24px', fontWeight: 'bold', color: '#0f172a' }}>
                                           {formatCurrency(selectedRecord.calculated_net_pay)}
                                         </span>
                                       </div>
