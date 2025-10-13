@@ -39,9 +39,25 @@ export function SidebarLeft({ ...props }: React.ComponentProps<typeof Sidebar>) 
   const pathname = usePathname()
   const router = useRouter()
   const [role, setRole] = React.useState<string | null>(null)
+  const [pendingCount, setPendingCount] = React.useState<number>(0)
 
   const supabase = createPagesBrowserClient()
-
+  const fetchPendingRequests = async () => {
+    const { count, error } = await supabase
+      .from("employee_requests")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "Pending")
+  
+    if (!error && count !== null) {
+      setPendingCount(count)
+    }
+  }
+  React.useEffect(() => {
+    fetchPendingRequests()
+    const interval = setInterval(fetchPendingRequests, 60000) // refresh every 60s
+    return () => clearInterval(interval)
+  }, [])
+  
   // Fetch user role on mount
   React.useEffect(() => {
     const fetchRole = async () => {
@@ -107,8 +123,17 @@ export function SidebarLeft({ ...props }: React.ComponentProps<typeof Sidebar>) 
           {
             title: "Requests",
             url: "/admin-requests",
-            icon: MessageCircleReplyIcon,
+            icon: (
+              <div className="relative">
+                <MessageCircleReplyIcon className="h-5 w-5" />
+                {pendingCount > 0 && (
+                  <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+                )}
+              </div>
+            )
+            
           },
+          
         ]
       : role === "employee"
       ? [

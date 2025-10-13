@@ -60,6 +60,7 @@ type EmployeePayrollDetail = {
   loans: number
   uniform: number
   tardiness: number
+  cash_advance: number
 }
 
 type Deduction = {
@@ -146,8 +147,9 @@ export default function ReportsPage() {
       'Loans': emp.loans,
       'Uniform': emp.uniform,
       'Tardiness': emp.tardiness,
-      'Total Deductions': emp.total_deductions,
-      'Net Pay': emp.net_pay + emp.allowances,
+      'Cash Advance': emp.cash_advance, // ✅ add this
+      'Total Deductions': emp.total_deductions + emp.cash_advance, // ✅ updated
+      'Net Pay': emp.net_pay + emp.allowances - emp.cash_advance, // ✅ adjusted
       'Status': emp.status,
       'Month/Year': emp.month_year
     }))
@@ -180,6 +182,7 @@ export default function ReportsPage() {
           holiday_pay,
           gross_pay,
           absences,
+          cash_advance,
           total_deductions,
           net_pay,
           sss,
@@ -244,6 +247,7 @@ export default function ReportsPage() {
           loans: record.loans || 0,
           uniform: record.uniform || 0,
           tardiness: record.tardiness || 0,
+          cash_advance: record.cash_advance || 0,
         }
       })
 
@@ -275,8 +279,8 @@ export default function ReportsPage() {
         const monthlyData = monthlyMap.get(monthYearKey)!
         monthlyData.recordCount += 1
         monthlyData.totalGrossPay += record.gross_pay || record.basic_salary || 0
-        monthlyData.totalDeductions += record.total_deductions
-        monthlyData.totalNetPay += record.net_pay
+        monthlyData.totalDeductions += (record.total_deductions || 0) + (record.cash_advance || 0)
+        monthlyData.totalNetPay += (record.net_pay || 0) - (record.cash_advance || 0)
         monthlyData.totalAllowances += record.allowances
 
         const uniqueEmployees = new Set<string>()
@@ -297,9 +301,16 @@ export default function ReportsPage() {
       setMonthlyPayrollSummary(monthlySummary)
 
       const totalGross = employeeDetails.reduce((sum, record) => sum + (record.gross_pay || record.basic_salary || 0), 0)
-      const totalDeductions = employeeDetails.reduce((sum, record) => sum + record.total_deductions, 0)
       const totalAllowances = employeeDetails.reduce((sum, record) => sum + record.allowances, 0)
-      const totalNetPay = employeeDetails.reduce((sum, record) => sum + record.net_pay, 0)
+      const totalDeductions = employeeDetails.reduce(
+        (sum, record) => sum + record.total_deductions + (record.cash_advance || 0),
+        0
+      )
+      const totalNetPay = employeeDetails.reduce(
+        (sum, record) => sum + (record.net_pay - (record.cash_advance || 0)),
+        0
+      )
+      
       const netAfterDeductions = totalGross - totalDeductions
 
       setPayrollSummary({ 
@@ -525,6 +536,7 @@ export default function ReportsPage() {
                           <TableHead className="font-medium text-slate-900">Holiday Pay</TableHead>
                           <TableHead className="font-medium text-slate-900">Gross Pay</TableHead>
                           <TableHead className="font-medium text-slate-900">Absences</TableHead>
+                          <TableHead className="font-medium text-slate-900">Cash Advance</TableHead>
                           <TableHead className="font-medium text-slate-900">Total Deductions</TableHead>
                           <TableHead className="font-medium text-slate-900">Net Pay</TableHead>
                           <TableHead className="font-medium text-slate-900">Status</TableHead>
@@ -545,6 +557,7 @@ export default function ReportsPage() {
                             <TableCell className="text-slate-900">₱{emp.holiday_pay.toLocaleString()}</TableCell>
                             <TableCell className="text-slate-900">₱{(emp.gross_pay || emp.basic_salary).toLocaleString()}</TableCell>
                             <TableCell className="text-slate-900">₱{emp.absences.toLocaleString()}</TableCell>
+                            <TableCell className="text-slate-900">₱{emp.cash_advance.toLocaleString()}</TableCell>
                             <TableCell className="text-slate-900">₱{emp.total_deductions.toLocaleString()}</TableCell>
                             <TableCell className="font-bold text-slate-900">₱{(emp.net_pay + emp.allowances).toLocaleString()}</TableCell>
                             <TableCell>
@@ -666,6 +679,7 @@ export default function ReportsPage() {
                           <TableHead className="font-medium text-slate-900">Loans</TableHead>
                           <TableHead className="font-medium text-slate-900">Uniform</TableHead>
                           <TableHead className="font-medium text-slate-900">Tardiness</TableHead>
+                          <TableHead className="font-medium text-slate-900">Cash Advance</TableHead>
                           <TableHead className="font-medium text-slate-900">Total</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -680,7 +694,10 @@ export default function ReportsPage() {
                             <TableCell className="text-slate-900">₱{emp.loans.toLocaleString()}</TableCell>
                             <TableCell className="text-slate-900">₱{emp.uniform.toLocaleString()}</TableCell>
                             <TableCell className="text-slate-900">₱{emp.tardiness.toLocaleString()}</TableCell>
-                            <TableCell className="font-bold text-slate-900">₱{emp.total_deductions.toLocaleString()}</TableCell>
+                            <TableCell className="text-slate-900">₱{emp.cash_advance.toLocaleString()}</TableCell>
+                            <TableCell className="font-bold text-slate-900">
+                              ₱{(emp.total_deductions + emp.cash_advance).toLocaleString()}
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
