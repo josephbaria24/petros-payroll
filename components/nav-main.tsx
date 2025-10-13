@@ -1,9 +1,7 @@
-"use client"
-
+import React from "react"
 import Link from "next/link"
 import { type LucideIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
-
 import {
   SidebarMenu,
   SidebarMenuButton,
@@ -16,7 +14,7 @@ export function NavMain({
   items: {
     title: string
     url: string
-    icon: LucideIcon
+    icon: LucideIcon | React.ReactElement
     isActive?: boolean
   }[]
 }) {
@@ -34,12 +32,17 @@ export function NavMain({
             )}
           >
             <Link href={item.url}>
-              <item.icon className="h-4 w-4" />
+              {/* ✅ FIXED: Proper conditional rendering */}
+              {React.isValidElement(item.icon) ? (
+                item.icon
+              ) : (
+                <item.icon className="h-4 w-4" />
+              )}
               <span>{item.title}</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
       ))}
-    </SidebarMenu>  
+    </SidebarMenu>
   )
 }
