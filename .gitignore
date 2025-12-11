@@ -17,6 +17,7 @@
 /.next/
 /out/
 
+zk-puller.log*
 # production
 /build
 
