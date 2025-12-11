@@ -21,6 +21,8 @@ zk-puller.log*
 # production
 /build
 
+
+zk-service\zk-puller.log
 # misc
 .DS_Store
 *.pem
