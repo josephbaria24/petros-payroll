@@ -1,0 +1,67 @@
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 3, in <module>
+    from supabase import create_client, Client
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\__init__.py", line 1, in <module>
+    from gotrue.errors import (
+    ...<8 lines>...
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\gotrue\__init__.py", line 3, in <module>
+    from ._async.gotrue_admin_api import AsyncGoTrueAdminAPI  # type: ignore # noqa: F401
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\gotrue\_async\gotrue_admin_api.py", line 6, in <module>
+    from ..helpers import model_validate, parse_link_response, parse_user_response
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\gotrue\helpers.py", line 26, in <module>
+    from .types import (
+    ...<12 lines>...
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\gotrue\types.py", line 66, in <module>
+    class AMREntry(BaseModel):
+    ...<15 lines>...
+        """
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\pydantic\_internal\_model_construction.py", line 223, in __new__
+    complete_model_class(
+    ~~~~~~~~~~~~~~~~~~~~^
+        cls,
+        ^^^^
+    ...<4 lines>...
+        create_model_module=_create_model_module,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\pydantic\_internal\_model_construction.py", line 568, in complete_model_class
+    schema = cls.__get_pydantic_core_schema__(cls, handler)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\pydantic\main.py", line 670, in __get_pydantic_core_schema__
+    return handler(source)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\pydantic\_internal\_schema_generation_shared.py", line 83, in __call__
+    schema = self._handler(source_type)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\pydantic\_internal\_generate_schema.py", line 655, in generate_schema
+    schema = self._generate_schema_inner(obj)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\pydantic\_internal\_generate_schema.py", line 924, in _generate_schema_inner
+    return self._model_schema(obj)
+           ~~~~~~~~~~~~~~~~~~^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\pydantic\_internal\_generate_schema.py", line 739, in _model_schema
+    {k: self._generate_md_field_schema(k, v, decorators) for k, v in fields.items()},
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\pydantic\_internal\_generate_schema.py", line 1115, in _generate_md_field_schema
+    common_field = self._common_field_schema(name, field_info, decorators)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\pydantic\_internal\_generate_schema.py", line 1308, in _common_field_schema
+    schema = self._apply_annotations(
+        source_type,
+        annotations + validators_from_decorators,
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\pydantic\_internal\_generate_schema.py", line 2076, in _apply_annotations
+    res = self._get_prepare_pydantic_annotations_for_known_type(source_type, tuple(annotations))
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\pydantic\_internal\_generate_schema.py", line 2036, in _get_prepare_pydantic_annotations_for_known_type
+    from ._std_types_schema import (
+    ...<3 lines>...
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\pydantic\_internal\_std_types_schema.py", line 27, in <module>
+    from pydantic._internal._serializers import serialize_sequence_via_list
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1322, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 1262, in _find_spec
+  File "<frozen importlib._bootstrap_external>", line 1559, in find_spec
+  File "<frozen importlib._bootstrap_external>", line 1533, in _get_spec
+  File "<frozen importlib._bootstrap_external>", line 1632, in find_spec
+  File "<frozen importlib._bootstrap_external>", line 152, in _path_stat
+KeyboardInterrupt
