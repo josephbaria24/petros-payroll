@@ -338,7 +338,7 @@ export default function MyPayrollPage() {
                                   View Slip
                                 </Button>
                               </DialogTrigger>
-                              <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+                              <DialogContent className="lg:w-[50vw] max-h-[90vh] overflow-y-auto">
                                 <DialogHeader className="flex flex-row items-center justify-between pb-4">
                                   <DialogTitle className="text-xl font-semibold text-slate-900">Pay Slip Details</DialogTitle>
                                   <Button

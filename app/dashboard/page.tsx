@@ -492,7 +492,7 @@ export default function DashboardPage() {
                     New Payment
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-md">
+                <DialogContent className="lg:w-[50vw]">
                   <DialogHeader>
                     <DialogTitle>
                       {editRecord ? `Edit Payment - ${editRecord.full_name}` : "Add New Payment"}

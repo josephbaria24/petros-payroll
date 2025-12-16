@@ -361,7 +361,7 @@ export default function EmployeesPage() {
                   Add Employee
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogContent className="lg:w-[50vw] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>
                     {isEditing ? "Edit Employee" : "Add New Employee"}

@@ -467,7 +467,7 @@ export default function DeductionsPage() {
                 Bulk Add
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="lg:w-[60vw] max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="text-xl font-semibold text-slate-900">Add Bulk Deductions</DialogTitle>
               </DialogHeader>
@@ -587,7 +587,7 @@ export default function DeductionsPage() {
                 Add Single Deduction
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-md">
+            <DialogContent className="lg:w-[50vw]">
               <DialogHeader>
                 <DialogTitle className="text-xl font-semibold text-slate-900">
                   {editDeduction ? "Edit Deduction" : "Add Single Deduction"}

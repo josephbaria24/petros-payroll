@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { CalendarIcon, Eye, Trash2, Plus, X, Calculator, Users, DollarSign, TrendingUp, FileText, Check, XCircle, Clock } from "lucide-react"
+import { CalendarIcon, Eye, Trash2, Plus, X, Calculator, Users, DollarSign, TrendingUp, FileText, Check, XCircle, Clock, CheckCircle } from "lucide-react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 import {
@@ -746,6 +746,82 @@ export default function PayrollPage() {
   const pendingRequests = employeeRequests.filter(r => r.status === "Pending")
   const approvedRequests = employeeRequests.filter(r => r.status === "Approved")
 
+
+
+
+
+
+  function handleSelectAll() {
+  if (selectedIds.length === selectedPeriodRecords.length) {
+    setSelectedIds([])
+  } else {
+    setSelectedIds(selectedPeriodRecords.map(r => r.id))
+  }
+}
+
+async function handleMarkSelectedAsPaid() {
+  if (selectedIds.length === 0) {
+    toast.warning("No records selected.")
+    return
+  }
+
+  const confirm = window.confirm(`Mark ${selectedIds.length} record(s) as paid?`)
+  if (!confirm) return
+
+  const toastId = toast.loading("Updating payment status...")
+
+  const { error } = await supabase
+    .from("payroll_records")
+    .update({ status: "Paid" })
+    .in("id", selectedIds)
+
+  if (error) {
+    toast.error("Failed to update status", { id: toastId })
+    return
+  }
+
+  toast.success("Records marked as paid!", { id: toastId })
+
+  setSelectedIds([])
+  fetchPayrollPeriods()
+
+  if (periodDialogOpen) {
+    setSelectedPeriodRecords(prev =>
+      prev.map(r =>
+        selectedIds.includes(r.id) ? { ...r, status: "Paid" } : r
+      )
+    )
+  }
+}
+
+async function handleMarkAsPaid(recordId: string) {
+  const toastId = toast.loading("Marking as paid...")
+
+  const { error } = await supabase
+    .from("payroll_records")
+    .update({ status: "Paid" })
+    .eq("id", recordId)
+
+  if (error) {
+    toast.error("Failed to update status", { id: toastId })
+    return
+  }
+
+  toast.success("Marked as paid!", { id: toastId })
+  fetchPayrollPeriods()
+
+  if (periodDialogOpen) {
+    setSelectedPeriodRecords(prev =>
+      prev.map(r =>
+        r.id === recordId ? { ...r, status: "Paid" } : r
+      )
+    )
+  }
+}
+
+
+
+
   return (
     <div className="space-y-8 p-6 min-h-screen bg-slate-50">
       <div className="space-y-2">
@@ -926,7 +1002,19 @@ export default function PayrollPage() {
                       <Table>
                         <TableHeader>
                           <TableRow className="bg-slate-50">
-                            <TableHead className="w-12"></TableHead>
+                            <TableHead className="w-12">
+                              <input
+                                type="checkbox"
+                                checked={
+                                  selectedIds.length === selectedPeriodRecords.length &&
+                                  selectedPeriodRecords.length > 0
+                                }
+                                onChange={handleSelectAll}
+                                className="rounded"
+                                title="Select all"
+                              />
+                            </TableHead>
+
                             <TableHead>Employee</TableHead>
                             <TableHead>Type</TableHead>
                             <TableHead>Date</TableHead>
@@ -1416,7 +1504,17 @@ export default function PayrollPage() {
       </Card>
 
       <Dialog open={periodDialogOpen} onOpenChange={setPeriodDialogOpen}>
-        <DialogContent className="lg:w-[100vw] max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogContent
+  className="
+    max-w-[95vw]
+    w-full
+    h-[90vh]
+    overflow-hidden
+    flex
+    flex-col
+  "
+>
+
           <DialogHeader className="pb-4 border-b border-slate-200">
             <DialogTitle className="text-xl font-semibold text-slate-900">
               Payroll Details - {selectedPeriodName}
@@ -1424,26 +1522,53 @@ export default function PayrollPage() {
           </DialogHeader>
 
           <div className="flex-1 overflow-y-auto space-y-4">
+         
+
             {selectedIds.length > 0 && (
-              <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg border border-slate-200">
-                <span className="text-sm text-slate-600">{selectedIds.length} records selected</span>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={handleDeleteSelected}
-                  className="text-slate-700 border-slate-300"
-                >
-                  <Trash2 className="h-4 w-4 mr-1" />
-                  Delete Selected
-                </Button>
-              </div>
-            )}
+  <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg border">
+    <span className="text-sm text-slate-600">
+      {selectedIds.length} records selected
+    </span>
+
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={handleMarkSelectedAsPaid}
+      className="text-green-700 border-green-300 hover:bg-green-50"
+    >
+      <CheckCircle className="h-4 w-4 mr-1" />
+      Mark as Paid
+    </Button>
+
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={handleDeleteSelected}
+    >
+      <Trash2 className="h-4 w-4 mr-1" />
+      Delete
+    </Button>
+  </div>
+)}
+
 
             <div className="border border-slate-200 rounded-lg overflow-hidden">
               <Table>
                 <TableHeader>
                   <TableRow className="border-b border-slate-200">
-                    <TableHead className="w-12"></TableHead>
+                    <TableHead className="w-12">
+  <input
+    type="checkbox"
+    checked={
+      selectedIds.length === selectedPeriodRecords.length &&
+      selectedPeriodRecords.length > 0
+    }
+    onChange={handleSelectAll}
+    className="rounded"
+    title="Select all"
+  />
+</TableHead>
+
                     <TableHead className="font-medium text-slate-900">Employee</TableHead>
                     <TableHead className="font-medium text-slate-900">Pay Type</TableHead>
                     <TableHead className="font-medium text-slate-900">Basic Salary</TableHead>
@@ -1497,6 +1622,23 @@ export default function PayrollPage() {
                           {rec.status}
                         </span>
                       </TableCell>
+                      <TableCell className="text-right">
+                        {rec.status !== "Paid" && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleMarkAsPaid(rec.id)
+                            }}
+                            className="text-green-600 hover:bg-green-50"
+                          >
+                            <CheckCircle className="h-4 w-4 mr-1" />
+                            Mark Paid
+                          </Button>
+                        )}
+                      </TableCell>
+
                     </TableRow>
                   ))}
                 </TableBody>
@@ -1507,7 +1649,7 @@ export default function PayrollPage() {
       </Dialog>
 
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="lg:w-[50vw] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-xl font-semibold text-slate-900">Edit Payroll Record</DialogTitle>
           </DialogHeader>
