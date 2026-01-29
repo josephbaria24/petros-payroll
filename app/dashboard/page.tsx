@@ -371,7 +371,7 @@ export default function DashboardPage() {
 
       {/* Page Title */}
       <div className="space-y-2">
-        <h1 className="text-3xl font-semibold text-slate-900">Dashboard TESTING</h1>
+        <h1 className="text-3xl font-semibold text-slate-900">Dashboard</h1>
         <p className="text-slate-600">
           Monitor and manage employee payroll efficiently
         </p>
