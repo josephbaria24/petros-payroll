@@ -414,3 +414,2289 @@ Traceback (most recent call last):
     context.load_verify_locations(cafile, capath, cadata)
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
 KeyboardInterrupt
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 204, in <module>
+    fetch_logs()
+    ~~~~~~~~~~^^
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 121, in fetch_logs
+    if not test_supabase_connection():
+           ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 22, in test_supabase_connection
+    response = supabase.table("attendance_logs").select("*").limit(1).execute()
+               ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\client.py", line 124, in table
+    return self.from_(table_name)
+           ~~~~~~~~~~^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\client.py", line 138, in from_
+    return self.postgrest.from_(table_name)
+           ^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\client.py", line 165, in postgrest
+    self._postgrest = self._init_postgrest_client(
+                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        rest_url=self.rest_url,
+        ^^^^^^^^^^^^^^^^^^^^^^^
+    ...<2 lines>...
+        timeout=self.options.postgrest_client_timeout,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\client.py", line 262, in _init_postgrest_client
+    return SyncPostgrestClient(
+        rest_url,
+    ...<4 lines>...
+        proxy=proxy,
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\postgrest\_sync\client.py", line 34, in __init__
+    BasePostgrestClient.__init__(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self,
+        ^^^^^
+    ...<5 lines>...
+        proxy=proxy,
+        ^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\postgrest\base_client.py", line 36, in __init__
+    self.session = self.create_session(
+                   ~~~~~~~~~~~~~~~~~~~^
+        self.base_url, self.headers, self.timeout, self.verify, self.proxy
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\postgrest\_sync\client.py", line 53, in create_session
+    return SyncClient(
+        base_url=base_url,
+    ...<5 lines>...
+        http2=True,
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_client.py", line 688, in __init__
+    self._transport = self._init_transport(
+                      ~~~~~~~~~~~~~~~~~~~~^
+        verify=verify,
+        ^^^^^^^^^^^^^^
+    ...<5 lines>...
+        transport=transport,
+        ^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_client.py", line 731, in _init_transport
+    return HTTPTransport(
+        verify=verify,
+    ...<4 lines>...
+        limits=limits,
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_transports\default.py", line 153, in __init__
+    ssl_context = create_ssl_context(verify=verify, cert=cert, trust_env=trust_env)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_config.py", line 40, in create_ssl_context
+    ctx = ssl.create_default_context(cafile=certifi.where())
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\ssl.py", line 717, in create_default_context
+    context.load_verify_locations(cafile, capath, cadata)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 3, in <module>
+    from supabase import create_client, Client
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\__init__.py", line 1, in <module>
+    from gotrue.errors import (
+    ...<8 lines>...
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\gotrue\__init__.py", line 3, in <module>
+    from ._async.gotrue_admin_api import AsyncGoTrueAdminAPI  # type: ignore # noqa: F401
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\gotrue\_async\gotrue_admin_api.py", line 6, in <module>
+    from ..helpers import model_validate, parse_link_response, parse_user_response
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\gotrue\helpers.py", line 26, in <module>
+    from .types import (
+    ...<12 lines>...
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\gotrue\types.py", line 827, in <module>
+    class ClaimsResponse(TypedDict):
+    ...<2 lines>...
+        signature: bytes
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\typing_extensions.py", line 1027, in __new__
+    n: typing._type_check(tp, msg, module=tp_dict.__module__)
+       ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\typing.py", line 191, in _type_check
+    arg = _type_convert(arg, module=module, allow_special_forms=allow_special_forms)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\typing.py", line 169, in _type_convert
+    return ForwardRef(arg, module=module, is_class=allow_special_forms)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\typing.py", line 1035, in __init__
+    code = compile(arg_to_compile, '<string>', 'eval')
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 17, in <module>
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+                       ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\client.py", line 331, in create_client
+    return SyncClient.create(
+           ~~~~~~~~~~~~~~~~~^
+        supabase_url=supabase_url, supabase_key=supabase_key, options=options
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\client.py", line 102, in create
+    client = cls(supabase_url, supabase_key, options)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\client.py", line 80, in __init__
+    self.auth = self._init_supabase_auth_client(
+                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        auth_url=self.auth_url,
+        ^^^^^^^^^^^^^^^^^^^^^^^
+        client_options=options,
+        ^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\client.py", line 241, in _init_supabase_auth_client
+    return SyncSupabaseAuthClient(
+        url=auth_url,
+    ...<6 lines>...
+        proxy=proxy,
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\auth_client.py", line 47, in __init__
+    super().__init__(
+    ~~~~~~~~~~~~~~~~^
+        url=url,
+        ^^^^^^^^
+    ...<8 lines>...
+        proxy=proxy,
+        ^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\gotrue\_sync\gotrue_client.py", line 108, in __init__
+    SyncGoTrueBaseAPI.__init__(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self,
+        ^^^^^
+    ...<4 lines>...
+        proxy=proxy,
+        ^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\gotrue\_sync\gotrue_base_api.py", line 28, in __init__
+    self._http_client = http_client or SyncClient(
+                                       ~~~~~~~~~~^
+        verify=bool(verify),
+        ^^^^^^^^^^^^^^^^^^^^
+    ...<2 lines>...
+        http2=True,
+        ^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_client.py", line 688, in __init__
+    self._transport = self._init_transport(
+                      ~~~~~~~~~~~~~~~~~~~~^
+        verify=verify,
+        ^^^^^^^^^^^^^^
+    ...<5 lines>...
+        transport=transport,
+        ^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_client.py", line 731, in _init_transport
+    return HTTPTransport(
+        verify=verify,
+    ...<4 lines>...
+        limits=limits,
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_transports\default.py", line 153, in __init__
+    ssl_context = create_ssl_context(verify=verify, cert=cert, trust_env=trust_env)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_config.py", line 40, in create_ssl_context
+    ctx = ssl.create_default_context(cafile=certifi.where())
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\ssl.py", line 717, in create_default_context
+    context.load_verify_locations(cafile, capath, cadata)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+KeyboardInterrupt
+Exception ignored in: <function SyncGoTrueClient.__del__ at 0x0000020A02730680>
+Traceback (most recent call last):
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\gotrue\_sync\gotrue_client.py", line 1237, in __del__
+    if self._refresh_token_timer:
+AttributeError: 'SyncSupabaseAuthClient' object has no attribute '_refresh_token_timer'
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 204, in <module>
+    fetch_logs()
+    ~~~~~~~~~~^^
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 121, in fetch_logs
+    if not test_supabase_connection():
+           ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 22, in test_supabase_connection
+    response = supabase.table("attendance_logs").select("*").limit(1).execute()
+               ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\client.py", line 124, in table
+    return self.from_(table_name)
+           ~~~~~~~~~~^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\client.py", line 138, in from_
+    return self.postgrest.from_(table_name)
+           ^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\client.py", line 165, in postgrest
+    self._postgrest = self._init_postgrest_client(
+                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        rest_url=self.rest_url,
+        ^^^^^^^^^^^^^^^^^^^^^^^
+    ...<2 lines>...
+        timeout=self.options.postgrest_client_timeout,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\client.py", line 262, in _init_postgrest_client
+    return SyncPostgrestClient(
+        rest_url,
+    ...<4 lines>...
+        proxy=proxy,
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\postgrest\_sync\client.py", line 34, in __init__
+    BasePostgrestClient.__init__(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self,
+        ^^^^^
+    ...<5 lines>...
+        proxy=proxy,
+        ^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\postgrest\base_client.py", line 36, in __init__
+    self.session = self.create_session(
+                   ~~~~~~~~~~~~~~~~~~~^
+        self.base_url, self.headers, self.timeout, self.verify, self.proxy
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\postgrest\_sync\client.py", line 53, in create_session
+    return SyncClient(
+        base_url=base_url,
+    ...<5 lines>...
+        http2=True,
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_client.py", line 688, in __init__
+    self._transport = self._init_transport(
+                      ~~~~~~~~~~~~~~~~~~~~^
+        verify=verify,
+        ^^^^^^^^^^^^^^
+    ...<5 lines>...
+        transport=transport,
+        ^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_client.py", line 731, in _init_transport
+    return HTTPTransport(
+        verify=verify,
+    ...<4 lines>...
+        limits=limits,
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_transports\default.py", line 153, in __init__
+    ssl_context = create_ssl_context(verify=verify, cert=cert, trust_env=trust_env)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_config.py", line 40, in create_ssl_context
+    ctx = ssl.create_default_context(cafile=certifi.where())
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\ssl.py", line 717, in create_default_context
+    context.load_verify_locations(cafile, capath, cadata)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 204, in <module>
+    fetch_logs()
+    ~~~~~~~~~~^^
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 139, in fetch_logs
+    conn = zk.connect()
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 366, in connect
+    if not self.ommit_ping and not self.helper.test_ping():
+                                   ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 85, in test_ping
+    return subprocess.call(args,
+           ~~~~~~~~~~~~~~~^^^^^^
+                        stdout=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        stderr=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        shell=need_sh) == 0
+                        ^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 397, in call
+    return p.wait(timeout=timeout)
+           ~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1277, in wait
+    return self._wait(timeout=timeout)
+           ~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1603, in _wait
+    result = _winapi.WaitForSingleObject(self._handle,
+                                         timeout_millis)
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\platform.py", line 330, in _wmi_query
+    data = _wmi.exec_query("SELECT {} FROM {}".format(
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        ",".join(keys),
+        ^^^^^^^^^^^^^^^
+        table,
+        ^^^^^^
+    )).split("\0")
+    ^^
+TimeoutError: [WinError 258] The wait operation timed out
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 204, in <module>
+    fetch_logs()
+    ~~~~~~~~~~^^
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 139, in fetch_logs
+    conn = zk.connect()
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 366, in connect
+    if not self.ommit_ping and not self.helper.test_ping():
+                                   ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 81, in test_ping
+    ping_str = "-n 1" if  platform.system().lower()=="windows" else "-c 1 -W 5"
+                          ~~~~~~~~~~~~~~~^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\platform.py", line 1073, in system
+    return uname().system
+           ~~~~~^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\platform.py", line 999, in uname
+    release, version, csd, ptype = win32_ver()
+                                   ~~~~~~~~~^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\platform.py", line 450, in win32_ver
+    version, csd, ptype, is_client = _win32_ver(version, csd, ptype)
+                                     ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\platform.py", line 391, in _win32_ver
+    (version, product_type, ptype, spmajor, spminor)  = _wmi_query(
+                                                        ~~~~~~~~~~^
+        'OS',
+        ^^^^^
+    ...<4 lines>...
+        'ServicePackMinorVersion',
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\platform.py", line 336, in _wmi_query
+    raise OSError("not supported")
+          ~~~~~~~^^^^^^^^^^^^^^^^^
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 204, in <module>
+    fetch_logs()
+    ~~~~~~~~~~^^
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 139, in fetch_logs
+    conn = zk.connect()
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 366, in connect
+    if not self.ommit_ping and not self.helper.test_ping():
+                                   ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 85, in test_ping
+    return subprocess.call(args,
+           ~~~~~~~~~~~~~~~^^^^^^
+                        stdout=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        stderr=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        shell=need_sh) == 0
+                        ^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 397, in call
+    return p.wait(timeout=timeout)
+           ~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1277, in wait
+    return self._wait(timeout=timeout)
+           ~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1603, in _wait
+    result = _winapi.WaitForSingleObject(self._handle,
+                                         timeout_millis)
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 204, in <module>
+    fetch_logs()
+    ~~~~~~~~~~^^
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 121, in fetch_logs
+    if not test_supabase_connection():
+           ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 22, in test_supabase_connection
+    response = supabase.table("attendance_logs").select("*").limit(1).execute()
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\postgrest\_sync\request_builder.py", line 58, in execute
+    r = self.session.request(
+        self.http_method,
+    ...<3 lines>...
+        headers=self.headers,
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_client.py", line 825, in request
+    return self.send(request, auth=auth, follow_redirects=follow_redirects)
+           ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_client.py", line 914, in send
+    response = self._send_handling_auth(
+        request,
+    ...<2 lines>...
+        history=[],
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_client.py", line 942, in _send_handling_auth
+    response = self._send_handling_redirects(
+        request,
+        follow_redirects=follow_redirects,
+        history=history,
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_client.py", line 979, in _send_handling_redirects
+    response = self._send_single_request(request)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_client.py", line 1014, in _send_single_request
+    response = transport.handle_request(request)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_transports\default.py", line 250, in handle_request
+    resp = self._pool.handle_request(req)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpcore\_sync\connection_pool.py", line 256, in handle_request
+    raise exc from None
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpcore\_sync\connection_pool.py", line 236, in handle_request
+    response = connection.handle_request(
+        pool_request.request
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpcore\_sync\connection.py", line 103, in handle_request
+    return self._connection.handle_request(request)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpcore\_sync\http2.py", line 187, in handle_request
+    raise exc
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpcore\_sync\http2.py", line 150, in handle_request
+    status, headers = self._receive_response(
+                      ~~~~~~~~~~~~~~~~~~~~~~^
+        request=request, stream_id=stream_id
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpcore\_sync\http2.py", line 294, in _receive_response
+    event = self._receive_stream_event(request, stream_id)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpcore\_sync\http2.py", line 336, in _receive_stream_event
+    self._receive_events(request, stream_id)
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpcore\_sync\http2.py", line 364, in _receive_events
+    events = self._read_incoming_data(request)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpcore\_sync\http2.py", line 441, in _read_incoming_data
+    data = self._network_stream.read(self.READ_NUM_BYTES, timeout)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpcore\_backends\sync.py", line 128, in read
+    return self._sock.recv(max_bytes)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\ssl.py", line 1285, in recv
+    return self.read(buflen)
+           ~~~~~~~~~^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\ssl.py", line 1140, in read
+    return self._sslobj.read(len)
+           ~~~~~~~~~~~~~~~~~^^^^^
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 17, in <module>
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+                       ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\client.py", line 331, in create_client
+    return SyncClient.create(
+           ~~~~~~~~~~~~~~~~~^
+        supabase_url=supabase_url, supabase_key=supabase_key, options=options
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\client.py", line 102, in create
+    client = cls(supabase_url, supabase_key, options)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\client.py", line 80, in __init__
+    self.auth = self._init_supabase_auth_client(
+                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        auth_url=self.auth_url,
+        ^^^^^^^^^^^^^^^^^^^^^^^
+        client_options=options,
+        ^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\client.py", line 241, in _init_supabase_auth_client
+    return SyncSupabaseAuthClient(
+        url=auth_url,
+    ...<6 lines>...
+        proxy=proxy,
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\auth_client.py", line 47, in __init__
+    super().__init__(
+    ~~~~~~~~~~~~~~~~^
+        url=url,
+        ^^^^^^^^
+    ...<8 lines>...
+        proxy=proxy,
+        ^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\gotrue\_sync\gotrue_client.py", line 108, in __init__
+    SyncGoTrueBaseAPI.__init__(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self,
+        ^^^^^
+    ...<4 lines>...
+        proxy=proxy,
+        ^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\gotrue\_sync\gotrue_base_api.py", line 28, in __init__
+    self._http_client = http_client or SyncClient(
+                                       ~~~~~~~~~~^
+        verify=bool(verify),
+        ^^^^^^^^^^^^^^^^^^^^
+    ...<2 lines>...
+        http2=True,
+        ^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_client.py", line 688, in __init__
+    self._transport = self._init_transport(
+                      ~~~~~~~~~~~~~~~~~~~~^
+        verify=verify,
+        ^^^^^^^^^^^^^^
+    ...<5 lines>...
+        transport=transport,
+        ^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_client.py", line 731, in _init_transport
+    return HTTPTransport(
+        verify=verify,
+    ...<4 lines>...
+        limits=limits,
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_transports\default.py", line 153, in __init__
+    ssl_context = create_ssl_context(verify=verify, cert=cert, trust_env=trust_env)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_config.py", line 40, in create_ssl_context
+    ctx = ssl.create_default_context(cafile=certifi.where())
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\ssl.py", line 717, in create_default_context
+    context.load_verify_locations(cafile, capath, cadata)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+KeyboardInterrupt
+Exception ignored in: <function SyncGoTrueClient.__del__ at 0x00000149948B0680>
+Traceback (most recent call last):
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\gotrue\_sync\gotrue_client.py", line 1237, in __del__
+    if self._refresh_token_timer:
+AttributeError: 'SyncSupabaseAuthClient' object has no attribute '_refresh_token_timer'
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 204, in <module>
+    fetch_logs()
+    ~~~~~~~~~~^^
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 139, in fetch_logs
+    conn = zk.connect()
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 366, in connect
+    if not self.ommit_ping and not self.helper.test_ping():
+                                   ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 85, in test_ping
+    return subprocess.call(args,
+           ~~~~~~~~~~~~~~~^^^^^^
+                        stdout=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        stderr=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        shell=need_sh) == 0
+                        ^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 397, in call
+    return p.wait(timeout=timeout)
+           ~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1277, in wait
+    return self._wait(timeout=timeout)
+           ~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1603, in _wait
+    result = _winapi.WaitForSingleObject(self._handle,
+                                         timeout_millis)
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 204, in <module>
+    fetch_logs()
+    ~~~~~~~~~~^^
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 139, in fetch_logs
+    conn = zk.connect()
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 366, in connect
+    if not self.ommit_ping and not self.helper.test_ping():
+                                   ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 85, in test_ping
+    return subprocess.call(args,
+           ~~~~~~~~~~~~~~~^^^^^^
+                        stdout=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        stderr=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        shell=need_sh) == 0
+                        ^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 397, in call
+    return p.wait(timeout=timeout)
+           ~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1277, in wait
+    return self._wait(timeout=timeout)
+           ~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1603, in _wait
+    result = _winapi.WaitForSingleObject(self._handle,
+                                         timeout_millis)
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 3, in <module>
+    from supabase import create_client, Client
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\__init__.py", line 1, in <module>
+    from gotrue.errors import (
+    ...<8 lines>...
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\gotrue\__init__.py", line 3, in <module>
+    from ._async.gotrue_admin_api import AsyncGoTrueAdminAPI  # type: ignore # noqa: F401
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\gotrue\_async\gotrue_admin_api.py", line 6, in <module>
+    from ..helpers import model_validate, parse_link_response, parse_user_response
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\gotrue\helpers.py", line 26, in <module>
+    from .types import (
+    ...<12 lines>...
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\gotrue\types.py", line 66, in <module>
+    class AMREntry(BaseModel):
+    ...<15 lines>...
+        """
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\pydantic\_internal\_model_construction.py", line 223, in __new__
+    complete_model_class(
+    ~~~~~~~~~~~~~~~~~~~~^
+        cls,
+        ^^^^
+    ...<4 lines>...
+        create_model_module=_create_model_module,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\pydantic\_internal\_model_construction.py", line 568, in complete_model_class
+    schema = cls.__get_pydantic_core_schema__(cls, handler)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\pydantic\main.py", line 670, in __get_pydantic_core_schema__
+    return handler(source)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\pydantic\_internal\_schema_generation_shared.py", line 83, in __call__
+    schema = self._handler(source_type)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\pydantic\_internal\_generate_schema.py", line 655, in generate_schema
+    schema = self._generate_schema_inner(obj)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\pydantic\_internal\_generate_schema.py", line 924, in _generate_schema_inner
+    return self._model_schema(obj)
+           ~~~~~~~~~~~~~~~~~~^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\pydantic\_internal\_generate_schema.py", line 686, in _model_schema
+    title = self._get_model_title_from_config(cls, config_wrapper)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\pydantic\_internal\_generate_schema.py", line 777, in _get_model_title_from_config
+    if config_wrapper.title:
+       ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\pydantic\_internal\_config.py", line 148, in __getattr__
+    def __getattr__(self, name: str) -> Any:
+    
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 204, in <module>
+    fetch_logs()
+    ~~~~~~~~~~^^
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 139, in fetch_logs
+    conn = zk.connect()
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 366, in connect
+    if not self.ommit_ping and not self.helper.test_ping():
+                                   ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 85, in test_ping
+    return subprocess.call(args,
+           ~~~~~~~~~~~~~~~^^^^^^
+                        stdout=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        stderr=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        shell=need_sh) == 0
+                        ^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 397, in call
+    return p.wait(timeout=timeout)
+           ~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1277, in wait
+    return self._wait(timeout=timeout)
+           ~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1603, in _wait
+    result = _winapi.WaitForSingleObject(self._handle,
+                                         timeout_millis)
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 204, in <module>
+    fetch_logs()
+    ~~~~~~~~~~^^
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 139, in fetch_logs
+    conn = zk.connect()
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 366, in connect
+    if not self.ommit_ping and not self.helper.test_ping():
+                                   ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 85, in test_ping
+    return subprocess.call(args,
+           ~~~~~~~~~~~~~~~^^^^^^
+                        stdout=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        stderr=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        shell=need_sh) == 0
+                        ^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 397, in call
+    return p.wait(timeout=timeout)
+           ~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1277, in wait
+    return self._wait(timeout=timeout)
+           ~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1603, in _wait
+    result = _winapi.WaitForSingleObject(self._handle,
+                                         timeout_millis)
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 204, in <module>
+    fetch_logs()
+    ~~~~~~~~~~^^
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 139, in fetch_logs
+    conn = zk.connect()
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 366, in connect
+    if not self.ommit_ping and not self.helper.test_ping():
+                                   ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 85, in test_ping
+    return subprocess.call(args,
+           ~~~~~~~~~~~~~~~^^^^^^
+                        stdout=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        stderr=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        shell=need_sh) == 0
+                        ^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 397, in call
+    return p.wait(timeout=timeout)
+           ~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1277, in wait
+    return self._wait(timeout=timeout)
+           ~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1603, in _wait
+    result = _winapi.WaitForSingleObject(self._handle,
+                                         timeout_millis)
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 17, in <module>
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+                       ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\client.py", line 331, in create_client
+    return SyncClient.create(
+           ~~~~~~~~~~~~~~~~~^
+        supabase_url=supabase_url, supabase_key=supabase_key, options=options
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\client.py", line 102, in create
+    client = cls(supabase_url, supabase_key, options)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\client.py", line 80, in __init__
+    self.auth = self._init_supabase_auth_client(
+                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        auth_url=self.auth_url,
+        ^^^^^^^^^^^^^^^^^^^^^^^
+        client_options=options,
+        ^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\client.py", line 241, in _init_supabase_auth_client
+    return SyncSupabaseAuthClient(
+        url=auth_url,
+    ...<6 lines>...
+        proxy=proxy,
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\auth_client.py", line 47, in __init__
+    super().__init__(
+    ~~~~~~~~~~~~~~~~^
+        url=url,
+        ^^^^^^^^
+    ...<8 lines>...
+        proxy=proxy,
+        ^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\gotrue\_sync\gotrue_client.py", line 108, in __init__
+    SyncGoTrueBaseAPI.__init__(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self,
+        ^^^^^
+    ...<4 lines>...
+        proxy=proxy,
+        ^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\gotrue\_sync\gotrue_base_api.py", line 28, in __init__
+    self._http_client = http_client or SyncClient(
+                                       ~~~~~~~~~~^
+        verify=bool(verify),
+        ^^^^^^^^^^^^^^^^^^^^
+    ...<2 lines>...
+        http2=True,
+        ^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_client.py", line 688, in __init__
+    self._transport = self._init_transport(
+                      ~~~~~~~~~~~~~~~~~~~~^
+        verify=verify,
+        ^^^^^^^^^^^^^^
+    ...<5 lines>...
+        transport=transport,
+        ^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_client.py", line 731, in _init_transport
+    return HTTPTransport(
+        verify=verify,
+    ...<4 lines>...
+        limits=limits,
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_transports\default.py", line 153, in __init__
+    ssl_context = create_ssl_context(verify=verify, cert=cert, trust_env=trust_env)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_config.py", line 40, in create_ssl_context
+    ctx = ssl.create_default_context(cafile=certifi.where())
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\ssl.py", line 717, in create_default_context
+    context.load_verify_locations(cafile, capath, cadata)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+KeyboardInterrupt
+Exception ignored in: <function SyncGoTrueClient.__del__ at 0x000002215D440680>
+Traceback (most recent call last):
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\gotrue\_sync\gotrue_client.py", line 1237, in __del__
+    if self._refresh_token_timer:
+AttributeError: 'SyncSupabaseAuthClient' object has no attribute '_refresh_token_timer'
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 204, in <module>
+    fetch_logs()
+    ~~~~~~~~~~^^
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 139, in fetch_logs
+    conn = zk.connect()
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 366, in connect
+    if not self.ommit_ping and not self.helper.test_ping():
+                                   ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 85, in test_ping
+    return subprocess.call(args,
+           ~~~~~~~~~~~~~~~^^^^^^
+                        stdout=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        stderr=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        shell=need_sh) == 0
+                        ^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 397, in call
+    return p.wait(timeout=timeout)
+           ~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1277, in wait
+    return self._wait(timeout=timeout)
+           ~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1603, in _wait
+    result = _winapi.WaitForSingleObject(self._handle,
+                                         timeout_millis)
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 204, in <module>
+    fetch_logs()
+    ~~~~~~~~~~^^
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 139, in fetch_logs
+    conn = zk.connect()
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 366, in connect
+    if not self.ommit_ping and not self.helper.test_ping():
+                                   ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 85, in test_ping
+    return subprocess.call(args,
+           ~~~~~~~~~~~~~~~^^^^^^
+                        stdout=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        stderr=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        shell=need_sh) == 0
+                        ^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 397, in call
+    return p.wait(timeout=timeout)
+           ~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1277, in wait
+    return self._wait(timeout=timeout)
+           ~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1603, in _wait
+    result = _winapi.WaitForSingleObject(self._handle,
+                                         timeout_millis)
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 204, in <module>
+    fetch_logs()
+    ~~~~~~~~~~^^
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 139, in fetch_logs
+    conn = zk.connect()
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 366, in connect
+    if not self.ommit_ping and not self.helper.test_ping():
+                                   ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 85, in test_ping
+    return subprocess.call(args,
+           ~~~~~~~~~~~~~~~^^^^^^
+                        stdout=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        stderr=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        shell=need_sh) == 0
+                        ^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 397, in call
+    return p.wait(timeout=timeout)
+           ~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1277, in wait
+    return self._wait(timeout=timeout)
+           ~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1603, in _wait
+    result = _winapi.WaitForSingleObject(self._handle,
+                                         timeout_millis)
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 204, in <module>
+    fetch_logs()
+    ~~~~~~~~~~^^
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 139, in fetch_logs
+    conn = zk.connect()
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 366, in connect
+    if not self.ommit_ping and not self.helper.test_ping():
+                                   ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 85, in test_ping
+    return subprocess.call(args,
+           ~~~~~~~~~~~~~~~^^^^^^
+                        stdout=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        stderr=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        shell=need_sh) == 0
+                        ^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 397, in call
+    return p.wait(timeout=timeout)
+           ~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1277, in wait
+    return self._wait(timeout=timeout)
+           ~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1603, in _wait
+    result = _winapi.WaitForSingleObject(self._handle,
+                                         timeout_millis)
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 204, in <module>
+    fetch_logs()
+    ~~~~~~~~~~^^
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 139, in fetch_logs
+    conn = zk.connect()
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 366, in connect
+    if not self.ommit_ping and not self.helper.test_ping():
+                                   ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 85, in test_ping
+    return subprocess.call(args,
+           ~~~~~~~~~~~~~~~^^^^^^
+                        stdout=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        stderr=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        shell=need_sh) == 0
+                        ^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 397, in call
+    return p.wait(timeout=timeout)
+           ~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1277, in wait
+    return self._wait(timeout=timeout)
+           ~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1603, in _wait
+    result = _winapi.WaitForSingleObject(self._handle,
+                                         timeout_millis)
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 3, in <module>
+    from supabase import create_client, Client
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\__init__.py", line 1, in <module>
+    from gotrue.errors import (
+    ...<8 lines>...
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\gotrue\__init__.py", line 3, in <module>
+    from ._async.gotrue_admin_api import AsyncGoTrueAdminAPI  # type: ignore # noqa: F401
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\gotrue\_async\gotrue_admin_api.py", line 6, in <module>
+    from ..helpers import model_validate, parse_link_response, parse_user_response
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\gotrue\helpers.py", line 14, in <module>
+    from httpx import HTTPStatusError, Response
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\__init__.py", line 2, in <module>
+    from ._api import *
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_api.py", line 6, in <module>
+    from ._client import Client
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_client.py", line 13, in <module>
+    from ._auth import Auth, BasicAuth, FunctionAuth
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_auth.py", line 9, in <module>
+    from urllib.request import parse_http_list
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\urllib\request.py", line 88, in <module>
+    import http.client
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\http\client.py", line 71, in <module>
+    import email.parser
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\email\parser.py", line 12, in <module>
+    from email.feedparser import FeedParser, BytesFeedParser
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\email\feedparser.py", line 27, in <module>
+    from email._policybase import compat32
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\email\_policybase.py", line 7, in <module>
+    from email import header
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\email\header.py", line 20, in <module>
+    from email import charset as _charset
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\email\charset.py", line 18, in <module>
+    from email.encoders import encode_7or8bit
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\email\encoders.py", line 16, in <module>
+    from quopri import encodestring as _encodestring
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 921, in _load_unlocked
+  File "<frozen importlib._bootstrap>", line 819, in module_from_spec
+  File "<frozen importlib._bootstrap>", line 798, in _init_module_attrs
+  File "<frozen importlib._bootstrap>", line 638, in cached
+  File "<frozen importlib._bootstrap_external>", line 645, in _get_cached
+  File "<frozen importlib._bootstrap_external>", line 539, in cache_from_source
+  File "<frozen importlib._bootstrap_external>", line 139, in _path_split
+  File "<frozen importlib._bootstrap_external>", line 139, in <genexpr>
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 204, in <module>
+    fetch_logs()
+    ~~~~~~~~~~^^
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 121, in fetch_logs
+    if not test_supabase_connection():
+           ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 22, in test_supabase_connection
+    response = supabase.table("attendance_logs").select("*").limit(1).execute()
+               ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\client.py", line 124, in table
+    return self.from_(table_name)
+           ~~~~~~~~~~^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\client.py", line 138, in from_
+    return self.postgrest.from_(table_name)
+           ^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\client.py", line 165, in postgrest
+    self._postgrest = self._init_postgrest_client(
+                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        rest_url=self.rest_url,
+        ^^^^^^^^^^^^^^^^^^^^^^^
+    ...<2 lines>...
+        timeout=self.options.postgrest_client_timeout,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\client.py", line 262, in _init_postgrest_client
+    return SyncPostgrestClient(
+        rest_url,
+    ...<4 lines>...
+        proxy=proxy,
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\postgrest\_sync\client.py", line 34, in __init__
+    BasePostgrestClient.__init__(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self,
+        ^^^^^
+    ...<5 lines>...
+        proxy=proxy,
+        ^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\postgrest\base_client.py", line 36, in __init__
+    self.session = self.create_session(
+                   ~~~~~~~~~~~~~~~~~~~^
+        self.base_url, self.headers, self.timeout, self.verify, self.proxy
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\postgrest\_sync\client.py", line 53, in create_session
+    return SyncClient(
+        base_url=base_url,
+    ...<5 lines>...
+        http2=True,
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_client.py", line 688, in __init__
+    self._transport = self._init_transport(
+                      ~~~~~~~~~~~~~~~~~~~~^
+        verify=verify,
+        ^^^^^^^^^^^^^^
+    ...<5 lines>...
+        transport=transport,
+        ^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_client.py", line 731, in _init_transport
+    return HTTPTransport(
+        verify=verify,
+    ...<4 lines>...
+        limits=limits,
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_transports\default.py", line 153, in __init__
+    ssl_context = create_ssl_context(verify=verify, cert=cert, trust_env=trust_env)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_config.py", line 40, in create_ssl_context
+    ctx = ssl.create_default_context(cafile=certifi.where())
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\ssl.py", line 717, in create_default_context
+    context.load_verify_locations(cafile, capath, cadata)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 204, in <module>
+    fetch_logs()
+    ~~~~~~~~~~^^
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 121, in fetch_logs
+    if not test_supabase_connection():
+           ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 22, in test_supabase_connection
+    response = supabase.table("attendance_logs").select("*").limit(1).execute()
+               ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\client.py", line 124, in table
+    return self.from_(table_name)
+           ~~~~~~~~~~^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\client.py", line 138, in from_
+    return self.postgrest.from_(table_name)
+           ^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\client.py", line 165, in postgrest
+    self._postgrest = self._init_postgrest_client(
+                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        rest_url=self.rest_url,
+        ^^^^^^^^^^^^^^^^^^^^^^^
+    ...<2 lines>...
+        timeout=self.options.postgrest_client_timeout,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\client.py", line 262, in _init_postgrest_client
+    return SyncPostgrestClient(
+        rest_url,
+    ...<4 lines>...
+        proxy=proxy,
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\postgrest\_sync\client.py", line 34, in __init__
+    BasePostgrestClient.__init__(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self,
+        ^^^^^
+    ...<5 lines>...
+        proxy=proxy,
+        ^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\postgrest\base_client.py", line 36, in __init__
+    self.session = self.create_session(
+                   ~~~~~~~~~~~~~~~~~~~^
+        self.base_url, self.headers, self.timeout, self.verify, self.proxy
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\postgrest\_sync\client.py", line 53, in create_session
+    return SyncClient(
+        base_url=base_url,
+    ...<5 lines>...
+        http2=True,
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_client.py", line 688, in __init__
+    self._transport = self._init_transport(
+                      ~~~~~~~~~~~~~~~~~~~~^
+        verify=verify,
+        ^^^^^^^^^^^^^^
+    ...<5 lines>...
+        transport=transport,
+        ^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_client.py", line 731, in _init_transport
+    return HTTPTransport(
+        verify=verify,
+    ...<4 lines>...
+        limits=limits,
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_transports\default.py", line 153, in __init__
+    ssl_context = create_ssl_context(verify=verify, cert=cert, trust_env=trust_env)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_config.py", line 40, in create_ssl_context
+    ctx = ssl.create_default_context(cafile=certifi.where())
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\ssl.py", line 717, in create_default_context
+    context.load_verify_locations(cafile, capath, cadata)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 204, in <module>
+    fetch_logs()
+    ~~~~~~~~~~^^
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 139, in fetch_logs
+    conn = zk.connect()
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 366, in connect
+    if not self.ommit_ping and not self.helper.test_ping():
+                                   ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 81, in test_ping
+    ping_str = "-n 1" if  platform.system().lower()=="windows" else "-c 1 -W 5"
+                          ~~~~~~~~~~~~~~~^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\platform.py", line 1073, in system
+    return uname().system
+           ~~~~~^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\platform.py", line 999, in uname
+    release, version, csd, ptype = win32_ver()
+                                   ~~~~~~~~~^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\platform.py", line 450, in win32_ver
+    version, csd, ptype, is_client = _win32_ver(version, csd, ptype)
+                                     ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\platform.py", line 391, in _win32_ver
+    (version, product_type, ptype, spmajor, spminor)  = _wmi_query(
+                                                        ~~~~~~~~~~^
+        'OS',
+        ^^^^^
+    ...<4 lines>...
+        'ServicePackMinorVersion',
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\platform.py", line 330, in _wmi_query
+    data = _wmi.exec_query("SELECT {} FROM {}".format(
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        ",".join(keys),
+        ^^^^^^^^^^^^^^^
+        table,
+        ^^^^^^
+    )).split("\0")
+    ^^
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 204, in <module>
+    fetch_logs()
+    ~~~~~~~~~~^^
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 139, in fetch_logs
+    conn = zk.connect()
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 366, in connect
+    if not self.ommit_ping and not self.helper.test_ping():
+                                   ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 85, in test_ping
+    return subprocess.call(args,
+           ~~~~~~~~~~~~~~~^^^^^^
+                        stdout=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        stderr=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        shell=need_sh) == 0
+                        ^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 397, in call
+    return p.wait(timeout=timeout)
+           ~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1277, in wait
+    return self._wait(timeout=timeout)
+           ~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1603, in _wait
+    result = _winapi.WaitForSingleObject(self._handle,
+                                         timeout_millis)
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 204, in <module>
+    fetch_logs()
+    ~~~~~~~~~~^^
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 139, in fetch_logs
+    conn = zk.connect()
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 366, in connect
+    if not self.ommit_ping and not self.helper.test_ping():
+                                   ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 85, in test_ping
+    return subprocess.call(args,
+           ~~~~~~~~~~~~~~~^^^^^^
+                        stdout=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        stderr=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        shell=need_sh) == 0
+                        ^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 397, in call
+    return p.wait(timeout=timeout)
+           ~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1277, in wait
+    return self._wait(timeout=timeout)
+           ~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1603, in _wait
+    result = _winapi.WaitForSingleObject(self._handle,
+                                         timeout_millis)
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 204, in <module>
+    fetch_logs()
+    ~~~~~~~~~~^^
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 139, in fetch_logs
+    conn = zk.connect()
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 366, in connect
+    if not self.ommit_ping and not self.helper.test_ping():
+                                   ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 85, in test_ping
+    return subprocess.call(args,
+           ~~~~~~~~~~~~~~~^^^^^^
+                        stdout=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        stderr=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        shell=need_sh) == 0
+                        ^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 397, in call
+    return p.wait(timeout=timeout)
+           ~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1277, in wait
+    return self._wait(timeout=timeout)
+           ~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1603, in _wait
+    result = _winapi.WaitForSingleObject(self._handle,
+                                         timeout_millis)
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 3, in <module>
+    from supabase import create_client, Client
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\__init__.py", line 1, in <module>
+    from gotrue.errors import (
+    ...<8 lines>...
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\gotrue\__init__.py", line 3, in <module>
+    from ._async.gotrue_admin_api import AsyncGoTrueAdminAPI  # type: ignore # noqa: F401
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\gotrue\_async\gotrue_admin_api.py", line 6, in <module>
+    from ..helpers import model_validate, parse_link_response, parse_user_response
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\gotrue\helpers.py", line 14, in <module>
+    from httpx import HTTPStatusError, Response
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\__init__.py", line 15, in <module>
+    from ._main import main
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_main.py", line 8, in <module>
+    import click
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\click\__init__.py", line 8, in <module>
+    from .core import Argument as Argument
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\click\core.py", line 16, in <module>
+    from . import types
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\click\types.py", line 9, in <module>
+    from ._compat import _get_argv_encoding
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\click\_compat.py", line 510, in <module>
+    from ._winconsole import _get_windows_console_stream
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\click\_winconsole.py", line 13, in <module>
+    from ctypes import byref
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\ctypes\__init__.py", line 8, in <module>
+    from _ctypes import Union, Structure, Array
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 921, in _load_unlocked
+  File "<frozen importlib._bootstrap>", line 813, in module_from_spec
+  File "<frozen importlib._bootstrap_external>", line 1322, in create_module
+  File "<frozen importlib._bootstrap>", line 491, in _verbose_message
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 204, in <module>
+    fetch_logs()
+    ~~~~~~~~~~^^
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 139, in fetch_logs
+    conn = zk.connect()
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 366, in connect
+    if not self.ommit_ping and not self.helper.test_ping():
+                                   ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 85, in test_ping
+    return subprocess.call(args,
+           ~~~~~~~~~~~~~~~^^^^^^
+                        stdout=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        stderr=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        shell=need_sh) == 0
+                        ^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 397, in call
+    return p.wait(timeout=timeout)
+           ~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1277, in wait
+    return self._wait(timeout=timeout)
+           ~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1603, in _wait
+    result = _winapi.WaitForSingleObject(self._handle,
+                                         timeout_millis)
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 17, in <module>
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+                       ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\client.py", line 331, in create_client
+    return SyncClient.create(
+           ~~~~~~~~~~~~~~~~~^
+        supabase_url=supabase_url, supabase_key=supabase_key, options=options
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\client.py", line 102, in create
+    client = cls(supabase_url, supabase_key, options)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\client.py", line 80, in __init__
+    self.auth = self._init_supabase_auth_client(
+                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        auth_url=self.auth_url,
+        ^^^^^^^^^^^^^^^^^^^^^^^
+        client_options=options,
+        ^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\client.py", line 241, in _init_supabase_auth_client
+    return SyncSupabaseAuthClient(
+        url=auth_url,
+    ...<6 lines>...
+        proxy=proxy,
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\auth_client.py", line 47, in __init__
+    super().__init__(
+    ~~~~~~~~~~~~~~~~^
+        url=url,
+        ^^^^^^^^
+    ...<8 lines>...
+        proxy=proxy,
+        ^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\gotrue\_sync\gotrue_client.py", line 108, in __init__
+    SyncGoTrueBaseAPI.__init__(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self,
+        ^^^^^
+    ...<4 lines>...
+        proxy=proxy,
+        ^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\gotrue\_sync\gotrue_base_api.py", line 28, in __init__
+    self._http_client = http_client or SyncClient(
+                                       ~~~~~~~~~~^
+        verify=bool(verify),
+        ^^^^^^^^^^^^^^^^^^^^
+    ...<2 lines>...
+        http2=True,
+        ^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_client.py", line 688, in __init__
+    self._transport = self._init_transport(
+                      ~~~~~~~~~~~~~~~~~~~~^
+        verify=verify,
+        ^^^^^^^^^^^^^^
+    ...<5 lines>...
+        transport=transport,
+        ^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_client.py", line 731, in _init_transport
+    return HTTPTransport(
+        verify=verify,
+    ...<4 lines>...
+        limits=limits,
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_transports\default.py", line 153, in __init__
+    ssl_context = create_ssl_context(verify=verify, cert=cert, trust_env=trust_env)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_config.py", line 40, in create_ssl_context
+    ctx = ssl.create_default_context(cafile=certifi.where())
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\ssl.py", line 717, in create_default_context
+    context.load_verify_locations(cafile, capath, cadata)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+KeyboardInterrupt
+Exception ignored in: <function SyncGoTrueClient.__del__ at 0x000001FEEAB30680>
+Traceback (most recent call last):
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\gotrue\_sync\gotrue_client.py", line 1237, in __del__
+    if self._refresh_token_timer:
+AttributeError: 'SyncSupabaseAuthClient' object has no attribute '_refresh_token_timer'
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 204, in <module>
+    fetch_logs()
+    ~~~~~~~~~~^^
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 139, in fetch_logs
+    conn = zk.connect()
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 366, in connect
+    if not self.ommit_ping and not self.helper.test_ping():
+                                   ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 85, in test_ping
+    return subprocess.call(args,
+           ~~~~~~~~~~~~~~~^^^^^^
+                        stdout=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        stderr=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        shell=need_sh) == 0
+                        ^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 397, in call
+    return p.wait(timeout=timeout)
+           ~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1277, in wait
+    return self._wait(timeout=timeout)
+           ~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1603, in _wait
+    result = _winapi.WaitForSingleObject(self._handle,
+                                         timeout_millis)
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 204, in <module>
+    fetch_logs()
+    ~~~~~~~~~~^^
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 151, in fetch_logs
+    logs = conn.get_attendance()
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 1553, in get_attendance
+    attendance_data, size = self.read_with_buffer(const.CMD_ATTLOG_RRQ)
+                            ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 1532, in read_with_buffer
+    data.append(self.__read_chunk(start,MAX_CHUNK))
+                ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 1488, in __read_chunk
+    cmd_response = self.__send_command(command, command_string, response_size)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 249, in __send_command
+    self.__tcp_data_recv = self.__sock.recv(response_size + 8)
+                           ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 17, in <module>
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+                       ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\client.py", line 331, in create_client
+    return SyncClient.create(
+           ~~~~~~~~~~~~~~~~~^
+        supabase_url=supabase_url, supabase_key=supabase_key, options=options
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\client.py", line 102, in create
+    client = cls(supabase_url, supabase_key, options)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\client.py", line 80, in __init__
+    self.auth = self._init_supabase_auth_client(
+                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        auth_url=self.auth_url,
+        ^^^^^^^^^^^^^^^^^^^^^^^
+        client_options=options,
+        ^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\client.py", line 241, in _init_supabase_auth_client
+    return SyncSupabaseAuthClient(
+        url=auth_url,
+    ...<6 lines>...
+        proxy=proxy,
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\auth_client.py", line 47, in __init__
+    super().__init__(
+    ~~~~~~~~~~~~~~~~^
+        url=url,
+        ^^^^^^^^
+    ...<8 lines>...
+        proxy=proxy,
+        ^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\gotrue\_sync\gotrue_client.py", line 108, in __init__
+    SyncGoTrueBaseAPI.__init__(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self,
+        ^^^^^
+    ...<4 lines>...
+        proxy=proxy,
+        ^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\gotrue\_sync\gotrue_base_api.py", line 28, in __init__
+    self._http_client = http_client or SyncClient(
+                                       ~~~~~~~~~~^
+        verify=bool(verify),
+        ^^^^^^^^^^^^^^^^^^^^
+    ...<2 lines>...
+        http2=True,
+        ^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_client.py", line 688, in __init__
+    self._transport = self._init_transport(
+                      ~~~~~~~~~~~~~~~~~~~~^
+        verify=verify,
+        ^^^^^^^^^^^^^^
+    ...<5 lines>...
+        transport=transport,
+        ^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_client.py", line 731, in _init_transport
+    return HTTPTransport(
+        verify=verify,
+    ...<4 lines>...
+        limits=limits,
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_transports\default.py", line 153, in __init__
+    ssl_context = create_ssl_context(verify=verify, cert=cert, trust_env=trust_env)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_config.py", line 40, in create_ssl_context
+    ctx = ssl.create_default_context(cafile=certifi.where())
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\ssl.py", line 717, in create_default_context
+    context.load_verify_locations(cafile, capath, cadata)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+KeyboardInterrupt
+Exception ignored in: <function SyncGoTrueClient.__del__ at 0x0000025C35250680>
+Traceback (most recent call last):
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\gotrue\_sync\gotrue_client.py", line 1237, in __del__
+    if self._refresh_token_timer:
+AttributeError: 'SyncSupabaseAuthClient' object has no attribute '_refresh_token_timer'
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 204, in <module>
+    fetch_logs()
+    ~~~~~~~~~~^^
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 139, in fetch_logs
+    conn = zk.connect()
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 366, in connect
+    if not self.ommit_ping and not self.helper.test_ping():
+                                   ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 85, in test_ping
+    return subprocess.call(args,
+           ~~~~~~~~~~~~~~~^^^^^^
+                        stdout=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        stderr=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        shell=need_sh) == 0
+                        ^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 397, in call
+    return p.wait(timeout=timeout)
+           ~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1277, in wait
+    return self._wait(timeout=timeout)
+           ~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1603, in _wait
+    result = _winapi.WaitForSingleObject(self._handle,
+                                         timeout_millis)
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 249, in __send_command
+    self.__tcp_data_recv = self.__sock.recv(response_size + 8)
+                           ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 204, in <module>
+    fetch_logs()
+    ~~~~~~~~~~^^
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 151, in fetch_logs
+    logs = conn.get_attendance()
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 1553, in get_attendance
+    attendance_data, size = self.read_with_buffer(const.CMD_ATTLOG_RRQ)
+                            ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 1508, in read_with_buffer
+    cmd_response = self.__send_command(1503, command_string, response_size)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 260, in __send_command
+    raise ZKNetworkError(str(e))
+                         ~~~^^^
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 204, in <module>
+    fetch_logs()
+    ~~~~~~~~~~^^
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 139, in fetch_logs
+    conn = zk.connect()
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 366, in connect
+    if not self.ommit_ping and not self.helper.test_ping():
+                                   ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 85, in test_ping
+    return subprocess.call(args,
+           ~~~~~~~~~~~~~~~^^^^^^
+                        stdout=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        stderr=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        shell=need_sh) == 0
+                        ^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 397, in call
+    return p.wait(timeout=timeout)
+           ~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1277, in wait
+    return self._wait(timeout=timeout)
+           ~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1603, in _wait
+    result = _winapi.WaitForSingleObject(self._handle,
+                                         timeout_millis)
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 204, in <module>
+    fetch_logs()
+    ~~~~~~~~~~^^
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 139, in fetch_logs
+    conn = zk.connect()
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 366, in connect
+    if not self.ommit_ping and not self.helper.test_ping():
+                                   ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 85, in test_ping
+    return subprocess.call(args,
+           ~~~~~~~~~~~~~~~^^^^^^
+                        stdout=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        stderr=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        shell=need_sh) == 0
+                        ^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 397, in call
+    return p.wait(timeout=timeout)
+           ~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1277, in wait
+    return self._wait(timeout=timeout)
+           ~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1603, in _wait
+    result = _winapi.WaitForSingleObject(self._handle,
+                                         timeout_millis)
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 204, in <module>
+    fetch_logs()
+    ~~~~~~~~~~^^
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 139, in fetch_logs
+    conn = zk.connect()
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 366, in connect
+    if not self.ommit_ping and not self.helper.test_ping():
+                                   ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 85, in test_ping
+    return subprocess.call(args,
+           ~~~~~~~~~~~~~~~^^^^^^
+                        stdout=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        stderr=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        shell=need_sh) == 0
+                        ^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 397, in call
+    return p.wait(timeout=timeout)
+           ~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1277, in wait
+    return self._wait(timeout=timeout)
+           ~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1603, in _wait
+    result = _winapi.WaitForSingleObject(self._handle,
+                                         timeout_millis)
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 3, in <module>
+    from supabase import create_client, Client
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\__init__.py", line 13, in <module>
+    from realtime import AuthorizationError, NotConnectedError
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\realtime\__init__.py", line 9, in <module>
+    from ._async.client import AsyncRealtimeClient
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\realtime\_async\client.py", line 13, in <module>
+    from websockets import connect
+  File "<frozen importlib._bootstrap>", line 1412, in _handle_fromlist
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\websockets\imports.py", line 78, in __getattr__
+    return import_name(name, source, namespace)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\websockets\imports.py", line 28, in import_name
+    module = __import__(source[level:], namespace, None, [name], level)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\websockets\asyncio\client.py", line 12, in <module>
+    from ..client import ClientProtocol, backoff
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\websockets\client.py", line 20, in <module>
+    from .headers import (
+    ...<8 lines>...
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\websockets\headers.py", line 116, in <module>
+    _quoted_string_re = re.compile(
+        r'"(?:[\x09\x20-\x21\x23-\x5b\x5d-\x7e]|\\[\x09\x20-\x7e\x80-\xff])*"'
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\re\__init__.py", line 289, in compile
+    return _compile(pattern, flags)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\re\__init__.py", line 350, in _compile
+    p = _compiler.compile(pattern, flags)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\re\_compiler.py", line 748, in compile
+    p = _parser.parse(p, flags)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\re\_parser.py", line 980, in parse
+    p = _parse_sub(source, state, flags & SRE_FLAG_VERBOSE, 0)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\re\_parser.py", line 459, in _parse_sub
+    itemsappend(_parse(source, state, verbose, nested + 1,
+                ~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                       not nested and not items))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\re\_parser.py", line 863, in _parse
+    p = _parse_sub(source, state, sub_verbose, nested + 1)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\re\_parser.py", line 459, in _parse_sub
+    itemsappend(_parse(source, state, verbose, nested + 1,
+                ~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                       not nested and not items))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\re\_parser.py", line 550, in _parse
+    here = source.tell() - 1
+           ~~~~~~~~~~~^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\re\_parser.py", line 292, in tell
+    def tell(self):
+    
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 204, in <module>
+    fetch_logs()
+    ~~~~~~~~~~^^
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 163, in fetch_logs
+    should_process, log_type = should_process_log(log.user_id, log.timestamp)
+                               ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 57, in should_process_log
+    existing_logs = get_existing_logs_for_day(user_id, log_date)
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 40, in get_existing_logs_for_day
+    .execute()
+     ~~~~~~~^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\postgrest\_sync\request_builder.py", line 76, in execute
+    return APIResponse[_ReturnT].from_http_request_response(r)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\postgrest\base_request_builder.py", line 220, in from_http_request_response
+    return cls[_ReturnT](data=data, count=count)  # type: ignore
+           ~~~^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\pydantic\main.py", line 774, in __class_getitem__
+    submodel = _generics.create_generic_submodel(model_name, origin, args, params)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\pydantic\_internal\_generics.py", line 137, in create_generic_submodel
+    created_model = meta(
+        model_name,
+    ...<8 lines>...
+        **kwds,
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\pydantic\_internal\_model_construction.py", line 218, in __new__
+    set_model_fields(cls, bases, config_wrapper, types_namespace)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\pydantic\_internal\_model_construction.py", line 503, in set_model_fields
+    fields, class_vars = collect_model_fields(cls, bases, config_wrapper, types_namespace, typevars_map=typevars_map)
+                         ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\pydantic\_internal\_fields.py", line 105, in collect_model_fields
+    type_hints = get_cls_type_hints_lenient(cls, types_namespace)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\pydantic\_internal\_typing_extra.py", line 245, in get_cls_type_hints_lenient
+    hints[name] = eval_type_lenient(value, globalns, localns)
+                  ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\pydantic\_internal\_typing_extra.py", line 254, in eval_type_lenient
+    value = _make_forward_ref(value, is_argument=False, is_class=True)
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 17, in <module>
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+                       ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\client.py", line 331, in create_client
+    return SyncClient.create(
+           ~~~~~~~~~~~~~~~~~^
+        supabase_url=supabase_url, supabase_key=supabase_key, options=options
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\client.py", line 102, in create
+    client = cls(supabase_url, supabase_key, options)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\client.py", line 80, in __init__
+    self.auth = self._init_supabase_auth_client(
+                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        auth_url=self.auth_url,
+        ^^^^^^^^^^^^^^^^^^^^^^^
+        client_options=options,
+        ^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\client.py", line 241, in _init_supabase_auth_client
+    return SyncSupabaseAuthClient(
+        url=auth_url,
+    ...<6 lines>...
+        proxy=proxy,
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\auth_client.py", line 47, in __init__
+    super().__init__(
+    ~~~~~~~~~~~~~~~~^
+        url=url,
+        ^^^^^^^^
+    ...<8 lines>...
+        proxy=proxy,
+        ^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\gotrue\_sync\gotrue_client.py", line 108, in __init__
+    SyncGoTrueBaseAPI.__init__(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self,
+        ^^^^^
+    ...<4 lines>...
+        proxy=proxy,
+        ^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\gotrue\_sync\gotrue_base_api.py", line 28, in __init__
+    self._http_client = http_client or SyncClient(
+                                       ~~~~~~~~~~^
+        verify=bool(verify),
+        ^^^^^^^^^^^^^^^^^^^^
+    ...<2 lines>...
+        http2=True,
+        ^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_client.py", line 688, in __init__
+    self._transport = self._init_transport(
+                      ~~~~~~~~~~~~~~~~~~~~^
+        verify=verify,
+        ^^^^^^^^^^^^^^
+    ...<5 lines>...
+        transport=transport,
+        ^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_client.py", line 731, in _init_transport
+    return HTTPTransport(
+        verify=verify,
+    ...<4 lines>...
+        limits=limits,
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_transports\default.py", line 153, in __init__
+    ssl_context = create_ssl_context(verify=verify, cert=cert, trust_env=trust_env)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_config.py", line 40, in create_ssl_context
+    ctx = ssl.create_default_context(cafile=certifi.where())
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\ssl.py", line 717, in create_default_context
+    context.load_verify_locations(cafile, capath, cadata)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+KeyboardInterrupt
+Exception ignored in: <function SyncGoTrueClient.__del__ at 0x000002362A800680>
+Traceback (most recent call last):
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\gotrue\_sync\gotrue_client.py", line 1237, in __del__
+    if self._refresh_token_timer:
+AttributeError: 'SyncSupabaseAuthClient' object has no attribute '_refresh_token_timer'
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 204, in <module>
+    fetch_logs()
+    ~~~~~~~~~~^^
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 121, in fetch_logs
+    if not test_supabase_connection():
+           ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 22, in test_supabase_connection
+    response = supabase.table("attendance_logs").select("*").limit(1).execute()
+               ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\client.py", line 124, in table
+    return self.from_(table_name)
+           ~~~~~~~~~~^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\client.py", line 138, in from_
+    return self.postgrest.from_(table_name)
+           ^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\client.py", line 165, in postgrest
+    self._postgrest = self._init_postgrest_client(
+                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        rest_url=self.rest_url,
+        ^^^^^^^^^^^^^^^^^^^^^^^
+    ...<2 lines>...
+        timeout=self.options.postgrest_client_timeout,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\client.py", line 262, in _init_postgrest_client
+    return SyncPostgrestClient(
+        rest_url,
+    ...<4 lines>...
+        proxy=proxy,
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\postgrest\_sync\client.py", line 34, in __init__
+    BasePostgrestClient.__init__(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self,
+        ^^^^^
+    ...<5 lines>...
+        proxy=proxy,
+        ^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\postgrest\base_client.py", line 36, in __init__
+    self.session = self.create_session(
+                   ~~~~~~~~~~~~~~~~~~~^
+        self.base_url, self.headers, self.timeout, self.verify, self.proxy
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\postgrest\_sync\client.py", line 53, in create_session
+    return SyncClient(
+        base_url=base_url,
+    ...<5 lines>...
+        http2=True,
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_client.py", line 688, in __init__
+    self._transport = self._init_transport(
+                      ~~~~~~~~~~~~~~~~~~~~^
+        verify=verify,
+        ^^^^^^^^^^^^^^
+    ...<5 lines>...
+        transport=transport,
+        ^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_client.py", line 731, in _init_transport
+    return HTTPTransport(
+        verify=verify,
+    ...<4 lines>...
+        limits=limits,
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_transports\default.py", line 153, in __init__
+    ssl_context = create_ssl_context(verify=verify, cert=cert, trust_env=trust_env)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_config.py", line 40, in create_ssl_context
+    ctx = ssl.create_default_context(cafile=certifi.where())
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\ssl.py", line 717, in create_default_context
+    context.load_verify_locations(cafile, capath, cadata)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 3, in <module>
+    from supabase import create_client, Client
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\__init__.py", line 11, in <module>
+    from postgrest import APIError as PostgrestAPIError
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\postgrest\__init__.py", line 5, in <module>
+    from ._async.client import AsyncPostgrestClient
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\postgrest\_async\client.py", line 16, in <module>
+    from .request_builder import AsyncRequestBuilder, AsyncRPCFilterRequestBuilder
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\postgrest\_async\request_builder.py", line 9, in <module>
+    from ..base_request_builder import (
+    ...<11 lines>...
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\postgrest\base_request_builder.py", line 41, in <module>
+    class QueryArgs(NamedTuple):
+    ...<4 lines>...
+        json: Dict[Any, Any]
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\typing.py", line 3015, in __new__
+    nm_tpl = _make_nmtuple(typename, types.items(),
+                           defaults=[ns[n] for n in default_names],
+                           module=ns['__module__'])
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\typing.py", line 2983, in _make_nmtuple
+    nm_tpl = collections.namedtuple(name, fields,
+                                    defaults=defaults, module=module)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\collections\__init__.py", line 444, in namedtuple
+    __new__ = eval(code, namespace)
+  File "<string>", line 0, in <module>
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 204, in <module>
+    fetch_logs()
+    ~~~~~~~~~~^^
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 139, in fetch_logs
+    conn = zk.connect()
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 366, in connect
+    if not self.ommit_ping and not self.helper.test_ping():
+                                   ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 85, in test_ping
+    return subprocess.call(args,
+           ~~~~~~~~~~~~~~~^^^^^^
+                        stdout=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        stderr=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        shell=need_sh) == 0
+                        ^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 397, in call
+    return p.wait(timeout=timeout)
+           ~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1277, in wait
+    return self._wait(timeout=timeout)
+           ~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1603, in _wait
+    result = _winapi.WaitForSingleObject(self._handle,
+                                         timeout_millis)
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 204, in <module>
+    fetch_logs()
+    ~~~~~~~~~~^^
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 121, in fetch_logs
+    if not test_supabase_connection():
+           ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 22, in test_supabase_connection
+    response = supabase.table("attendance_logs").select("*").limit(1).execute()
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\postgrest\_sync\request_builder.py", line 58, in execute
+    r = self.session.request(
+        self.http_method,
+    ...<3 lines>...
+        headers=self.headers,
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_client.py", line 825, in request
+    return self.send(request, auth=auth, follow_redirects=follow_redirects)
+           ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_client.py", line 914, in send
+    response = self._send_handling_auth(
+        request,
+    ...<2 lines>...
+        history=[],
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_client.py", line 942, in _send_handling_auth
+    response = self._send_handling_redirects(
+        request,
+        follow_redirects=follow_redirects,
+        history=history,
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_client.py", line 979, in _send_handling_redirects
+    response = self._send_single_request(request)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_client.py", line 1014, in _send_single_request
+    response = transport.handle_request(request)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_transports\default.py", line 250, in handle_request
+    resp = self._pool.handle_request(req)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpcore\_sync\connection_pool.py", line 256, in handle_request
+    raise exc from None
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpcore\_sync\connection_pool.py", line 236, in handle_request
+    response = connection.handle_request(
+        pool_request.request
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpcore\_sync\connection.py", line 103, in handle_request
+    return self._connection.handle_request(request)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpcore\_sync\http2.py", line 187, in handle_request
+    raise exc
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpcore\_sync\http2.py", line 150, in handle_request
+    status, headers = self._receive_response(
+                      ~~~~~~~~~~~~~~~~~~~~~~^
+        request=request, stream_id=stream_id
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpcore\_sync\http2.py", line 294, in _receive_response
+    event = self._receive_stream_event(request, stream_id)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpcore\_sync\http2.py", line 336, in _receive_stream_event
+    self._receive_events(request, stream_id)
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpcore\_sync\http2.py", line 364, in _receive_events
+    events = self._read_incoming_data(request)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpcore\_sync\http2.py", line 441, in _read_incoming_data
+    data = self._network_stream.read(self.READ_NUM_BYTES, timeout)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpcore\_backends\sync.py", line 128, in read
+    return self._sock.recv(max_bytes)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\ssl.py", line 1285, in recv
+    return self.read(buflen)
+           ~~~~~~~~~^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\ssl.py", line 1140, in read
+    return self._sslobj.read(len)
+           ~~~~~~~~~~~~~~~~~^^^^^
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 204, in <module>
+    fetch_logs()
+    ~~~~~~~~~~^^
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 139, in fetch_logs
+    conn = zk.connect()
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 366, in connect
+    if not self.ommit_ping and not self.helper.test_ping():
+                                   ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 85, in test_ping
+    return subprocess.call(args,
+           ~~~~~~~~~~~~~~~^^^^^^
+                        stdout=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        stderr=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        shell=need_sh) == 0
+                        ^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 397, in call
+    return p.wait(timeout=timeout)
+           ~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1277, in wait
+    return self._wait(timeout=timeout)
+           ~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1603, in _wait
+    result = _winapi.WaitForSingleObject(self._handle,
+                                         timeout_millis)
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 204, in <module>
+    fetch_logs()
+    ~~~~~~~~~~^^
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 139, in fetch_logs
+    conn = zk.connect()
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 366, in connect
+    if not self.ommit_ping and not self.helper.test_ping():
+                                   ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 85, in test_ping
+    return subprocess.call(args,
+           ~~~~~~~~~~~~~~~^^^^^^
+                        stdout=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        stderr=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        shell=need_sh) == 0
+                        ^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 397, in call
+    return p.wait(timeout=timeout)
+           ~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1277, in wait
+    return self._wait(timeout=timeout)
+           ~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1603, in _wait
+    result = _winapi.WaitForSingleObject(self._handle,
+                                         timeout_millis)
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 204, in <module>
+    fetch_logs()
+    ~~~~~~~~~~^^
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 139, in fetch_logs
+    conn = zk.connect()
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 366, in connect
+    if not self.ommit_ping and not self.helper.test_ping():
+                                   ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 85, in test_ping
+    return subprocess.call(args,
+           ~~~~~~~~~~~~~~~^^^^^^
+                        stdout=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        stderr=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        shell=need_sh) == 0
+                        ^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 397, in call
+    return p.wait(timeout=timeout)
+           ~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1277, in wait
+    return self._wait(timeout=timeout)
+           ~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1603, in _wait
+    result = _winapi.WaitForSingleObject(self._handle,
+                                         timeout_millis)
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 204, in <module>
+    fetch_logs()
+    ~~~~~~~~~~^^
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 121, in fetch_logs
+    if not test_supabase_connection():
+           ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 22, in test_supabase_connection
+    response = supabase.table("attendance_logs").select("*").limit(1).execute()
+               ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\client.py", line 124, in table
+    return self.from_(table_name)
+           ~~~~~~~~~~^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\client.py", line 138, in from_
+    return self.postgrest.from_(table_name)
+           ^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\client.py", line 165, in postgrest
+    self._postgrest = self._init_postgrest_client(
+                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        rest_url=self.rest_url,
+        ^^^^^^^^^^^^^^^^^^^^^^^
+    ...<2 lines>...
+        timeout=self.options.postgrest_client_timeout,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\client.py", line 262, in _init_postgrest_client
+    return SyncPostgrestClient(
+        rest_url,
+    ...<4 lines>...
+        proxy=proxy,
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\postgrest\_sync\client.py", line 34, in __init__
+    BasePostgrestClient.__init__(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self,
+        ^^^^^
+    ...<5 lines>...
+        proxy=proxy,
+        ^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\postgrest\base_client.py", line 36, in __init__
+    self.session = self.create_session(
+                   ~~~~~~~~~~~~~~~~~~~^
+        self.base_url, self.headers, self.timeout, self.verify, self.proxy
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\postgrest\_sync\client.py", line 53, in create_session
+    return SyncClient(
+        base_url=base_url,
+    ...<5 lines>...
+        http2=True,
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_client.py", line 688, in __init__
+    self._transport = self._init_transport(
+                      ~~~~~~~~~~~~~~~~~~~~^
+        verify=verify,
+        ^^^^^^^^^^^^^^
+    ...<5 lines>...
+        transport=transport,
+        ^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_client.py", line 731, in _init_transport
+    return HTTPTransport(
+        verify=verify,
+    ...<4 lines>...
+        limits=limits,
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_transports\default.py", line 153, in __init__
+    ssl_context = create_ssl_context(verify=verify, cert=cert, trust_env=trust_env)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_config.py", line 40, in create_ssl_context
+    ctx = ssl.create_default_context(cafile=certifi.where())
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\ssl.py", line 717, in create_default_context
+    context.load_verify_locations(cafile, capath, cadata)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 204, in <module>
+    fetch_logs()
+    ~~~~~~~~~~^^
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 139, in fetch_logs
+    conn = zk.connect()
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 366, in connect
+    if not self.ommit_ping and not self.helper.test_ping():
+                                   ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 85, in test_ping
+    return subprocess.call(args,
+           ~~~~~~~~~~~~~~~^^^^^^
+                        stdout=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        stderr=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        shell=need_sh) == 0
+                        ^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 397, in call
+    return p.wait(timeout=timeout)
+           ~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1277, in wait
+    return self._wait(timeout=timeout)
+           ~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1603, in _wait
+    result = _winapi.WaitForSingleObject(self._handle,
+                                         timeout_millis)
+KeyboardInterrupt
