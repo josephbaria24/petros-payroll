@@ -20,9 +20,9 @@ const formatDate = (dateString: string) => {
 
 const formatDateTime = (dateString: string) => {
   const date = new Date(dateString)
-  return date.toLocaleDateString('en-US', { 
-    year: 'numeric', 
-    month: 'long', 
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
     day: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
@@ -99,7 +99,7 @@ export default function AdminRequestsPage() {
 
     // Filter by search term
     if (searchTerm) {
-      filtered = filtered.filter(r => 
+      filtered = filtered.filter(r =>
         r.employee?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         r.employee?.employee_code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         r.request_type.toLowerCase().includes(searchTerm.toLowerCase())
@@ -227,7 +227,7 @@ export default function AdminRequestsPage() {
                   <FileText className="h-12 w-12 text-slate-300" />
                   <h3 className="text-lg font-medium text-slate-900">No requests found</h3>
                   <p className="text-slate-500 max-w-sm">
-                    {searchTerm || statusFilter !== "all" 
+                    {searchTerm || statusFilter !== "all"
                       ? "Try adjusting your filters to see more results."
                       : "No employee requests have been submitted yet."}
                   </p>
@@ -343,7 +343,7 @@ export default function AdminRequestsPage() {
 
       {/* Request Details Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-2xl lg:w-[40vw]">
+        <DialogContent className="max-w-2xl lg:w-[40vw] max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-xl font-semibold text-slate-900">
               Request Details
@@ -406,9 +406,13 @@ export default function AdminRequestsPage() {
               {/* Reason */}
               <div>
                 <Label className="text-sm font-medium text-slate-900">Reason</Label>
-                <p className="text-sm text-slate-900 mt-2 p-3 bg-slate-50 rounded-lg">
-                  {selectedRequest.reason}
-                </p>
+                <div className="text-sm text-slate-900 mt-2 p-3 bg-slate-50 rounded-lg">
+                  {selectedRequest.reason.split(/(?=\d+\.)/g).map((part, i) => (
+                    <p key={i} className={i > 0 ? "mt-2" : ""}>
+                      {part.trim()}
+                    </p>
+                  ))}
+                </div>
               </div>
 
               {/* Admin Remarks */}
@@ -430,7 +434,7 @@ export default function AdminRequestsPage() {
                 <div className="flex items-start gap-2 p-3 bg-slate-50 rounded-lg">
                   <AlertCircle className="h-5 w-5 text-slate-500 mt-0.5" />
                   <p className="text-sm text-slate-600">
-                    This request has already been {selectedRequest.status.toLowerCase()}. 
+                    This request has already been {selectedRequest.status.toLowerCase()}.
                     You cannot change the status of processed requests.
                   </p>
                 </div>
@@ -438,9 +442,9 @@ export default function AdminRequestsPage() {
             </div>
           )}
 
-          <DialogFooter>
+          <DialogFooter className="sm:justify-center">
             {selectedRequest?.status === "Pending" ? (
-              <>
+              <div className="flex gap-2 w-full justify-center">
                 <Button
                   variant="outline"
                   onClick={() => setIsDialogOpen(false)}
@@ -483,7 +487,7 @@ export default function AdminRequestsPage() {
                     </>
                   )}
                 </Button>
-              </>
+              </div>
             ) : (
               <Button
                 onClick={() => setIsDialogOpen(false)}
