@@ -624,6 +624,89 @@ export default function PayrollPage() {
           .eq("period_end", format(periodEnd, "yyyy-MM-dd"))
       }
 
+      if (activeOrganization === "palawan") {
+        // Fetch Palawan data from localStorage
+        const storedEmployees = localStorage.getItem("palawan_employees")
+        const allEmployees = storedEmployees ? JSON.parse(storedEmployees) : []
+
+        const storedDeductions = localStorage.getItem("palawan_deductions")
+        const allDeductions = storedDeductions ? JSON.parse(storedDeductions) : []
+
+        const recordsToInsert = []
+
+        for (const emp of allEmployees) {
+          const { id: employee_id, base_salary, allowance, full_name } = emp
+
+          if (!base_salary) continue
+
+          const employeeDeductions = allDeductions.filter((d: any) => d.employee_id === employee_id)
+          let sss = 0, philhealth = 0, pagibig = 0, loans = 0
+
+          employeeDeductions.forEach((d: any) => {
+            if (d.type === 'sss') sss += d.amount
+            else if (d.type === 'philhealth') philhealth += d.amount
+            else if (d.type === 'pagibig') pagibig += d.amount
+            else if (d.type === 'other') loans += d.amount
+          })
+
+          const adjustment = employeeAdjustments.find(a => a.employee_id === employee_id)
+          let absenceDeduction = 0
+          let overtimePay = 0
+
+          if (adjustment) {
+            absenceDeduction = adjustment.absenceDays * (adjustment.absenceAmountPerDay || 0)
+            overtimePay = (adjustment.overtimeEntries || []).reduce((sum, ot) => sum + (ot.hours * ot.ratePerHour), 0)
+          }
+
+          const basicSalary = base_salary
+          const cashAdvance = adjustment?.cashAdvance || 0
+          const holidayPay = adjustment?.holidayPay || 0
+          const totalDeductions = sss + philhealth + pagibig + loans + absenceDeduction + cashAdvance
+          const grossPay = basicSalary + overtimePay + holidayPay
+          const netPay = grossPay - totalDeductions
+
+          recordsToInsert.push({
+            id: `palawan_payroll_${Date.now()}_${employee_id}`,
+            employee_id,
+            period_start: format(periodStart, "yyyy-MM-dd"),
+            period_end: format(periodEnd, "yyyy-MM-dd"),
+            basic_salary: basicSalary,
+            overtime_pay: overtimePay,
+            holiday_pay: holidayPay,
+            allowances: allowance || 0,
+            absences: absenceDeduction,
+            sss,
+            philhealth,
+            pagibig,
+            loans,
+            cash_advance: cashAdvance,
+            gross_pay: grossPay,
+            total_deductions: totalDeductions,
+            net_pay: netPay,
+            status: "Pending Payment",
+            created_at: new Date().toISOString()
+          })
+        }
+
+        if (recordsToInsert.length > 0) {
+          const storedPayroll = localStorage.getItem("palawan_payroll_records")
+          const palawanPayroll = storedPayroll ? JSON.parse(storedPayroll) : []
+
+          // Remove existing records for same period if regeneration
+          const filteredPayroll = palawanPayroll.filter((rec: any) =>
+            rec.period_start !== format(periodStart, "yyyy-MM-dd") ||
+            rec.period_end !== format(periodEnd, "yyyy-MM-dd")
+          )
+
+          const updatedPayroll = [...filteredPayroll, ...recordsToInsert]
+          localStorage.setItem("palawan_payroll_records", JSON.stringify(updatedPayroll))
+
+          toast.success("Payroll generated and saved to localStorage!", { id: toastId })
+          await fetchPayrollPeriods()
+        }
+        return
+      }
+
       const { data: allEmployees, error: empErr } = await supabase
         .from("employees")
         .select("id, base_salary, allowance, full_name")

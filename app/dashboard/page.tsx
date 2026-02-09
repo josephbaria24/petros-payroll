@@ -180,7 +180,24 @@ export default function DashboardPage() {
     if (activeOrganization === "palawan") {
       const stored = localStorage.getItem("palawan_payroll_records")
       const palawanRecords = stored ? JSON.parse(stored) : []
-      setRecords(palawanRecords)
+
+      const storedEmployees = localStorage.getItem("palawan_employees")
+      const palawanEmployees = storedEmployees ? JSON.parse(storedEmployees) : []
+
+      const transformed = palawanRecords.map((rec: any) => {
+        const emp = palawanEmployees.find((e: any) => e.id === rec.employee_id)
+        return {
+          id: rec.id,
+          employee_code: emp?.employee_code || "N/A",
+          full_name: emp?.full_name || "Unknown",
+          pay_type: emp?.pay_type || "N/A",
+          period_end: rec.period_end,
+          net_pay: rec.net_pay,
+          status: rec.status,
+        }
+      })
+
+      setRecords(transformed)
       return
     }
 
@@ -235,6 +252,32 @@ export default function DashboardPage() {
   async function handleFilterByPayday(date: Date) {
     setPayday(date)
     const formatted = date.toISOString().split("T")[0]
+
+    if (activeOrganization === "palawan") {
+      const stored = localStorage.getItem("palawan_payroll_records")
+      const palawanRecords = stored ? JSON.parse(stored) : []
+
+      const storedEmployees = localStorage.getItem("palawan_employees")
+      const palawanEmployees = storedEmployees ? JSON.parse(storedEmployees) : []
+
+      const filtered = palawanRecords.filter((rec: any) => rec.period_end === formatted)
+
+      const transformed = filtered.map((rec: any) => {
+        const emp = palawanEmployees.find((e: any) => e.id === rec.employee_id)
+        return {
+          id: rec.id,
+          employee_code: emp?.employee_code || "N/A",
+          full_name: emp?.full_name || "Unknown",
+          pay_type: emp?.pay_type || "N/A",
+          period_end: rec.period_end,
+          net_pay: rec.net_pay,
+          status: rec.status,
+        }
+      })
+
+      setRecords(transformed)
+      return
+    }
 
     const { data, error } = await supabase
       .from("payroll_records")

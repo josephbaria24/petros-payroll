@@ -117,7 +117,7 @@ export default function TimekeepingPage() {
     time_out: "",
     status: "Present",
   })
-  const [employees, setEmployees] = useState<{ id: string; full_name: string }[]>([])
+  const [employees, setEmployees] = useState<{ id: string; full_name: string; attendance_log_userid?: number | null }[]>([])
 
   useEffect(() => {
     const loadData = async () => {
@@ -207,7 +207,7 @@ export default function TimekeepingPage() {
       return
     }
 
-    const { data, error } = await supabase.from("employees").select("id, full_name")
+    const { data, error } = await supabase.from("employees").select("id, full_name, attendance_log_userid")
     if (error) {
       console.error(error)
       return
@@ -218,6 +218,31 @@ export default function TimekeepingPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     const toastId = toast.loading("Saving time log...")
+
+    if (activeOrganization === "palawan") {
+      const newLog = {
+        id: `palawan_log_${Date.now()}`,
+        employee_id: form.employee_id,
+        date: form.date,
+        time_in: form.time_in || null,
+        time_out: form.time_out || null,
+        status: form.status,
+        user_id: employees.find(emp => emp.id === form.employee_id)?.attendance_log_userid || null,
+        timestamp: form.time_in ? `${form.date}T${form.time_in}:00+08:00` : null,
+        timeout: form.time_out ? `${form.date}T${form.time_out}:00+08:00` : null,
+      }
+
+      const stored = localStorage.getItem("palawan_time_logs")
+      const palawanLogs = stored ? JSON.parse(stored) : []
+      palawanLogs.push(newLog)
+      localStorage.setItem("palawan_time_logs", JSON.stringify(palawanLogs))
+
+      toast.success("Time log saved to localStorage!", { id: toastId })
+      setOpen(false)
+      resetForm()
+      fetchLogs(selectedDate)
+      return
+    }
 
     const { error } = await supabase.from("time_logs").insert({
       employee_id: form.employee_id,

@@ -175,23 +175,42 @@ export default function ReportsPage() {
         // Load Palawan data from localStorage
         const storedPayroll = localStorage.getItem("palawan_payroll_records")
         const storedDeductions = localStorage.getItem("palawan_deductions")
+        const storedEmployees = localStorage.getItem("palawan_employees")
 
         const palawanPayroll = storedPayroll ? JSON.parse(storedPayroll) : []
         const palawanDeductions = storedDeductions ? JSON.parse(storedDeductions) : []
+        const palawanEmployees = storedEmployees ? JSON.parse(storedEmployees) : []
 
-        setEmployeePayrollDetails(palawanPayroll)
+        const enrichedPayroll = palawanPayroll.map((rec: any) => {
+          const emp = palawanEmployees.find((e: any) => e.id === rec.employee_id)
+          const periodEndDate = new Date(rec.period_end)
+          const monthYear = `${periodEndDate.toLocaleDateString('en-US', { month: 'long' })} ${periodEndDate.getFullYear()}`
+
+          return {
+            ...rec,
+            full_name: emp?.full_name || 'Unknown',
+            employee_code: emp?.employee_code || 'N/A',
+            pay_type: emp?.pay_type || 'N/A',
+            month_year: monthYear,
+            withholding_tax: rec.withholding_tax || 0,
+            uniform: rec.uniform || 0,
+            tardiness: rec.tardiness || 0,
+          }
+        })
+
+        setEmployeePayrollDetails(enrichedPayroll)
         setDeductions(palawanDeductions)
 
         // Calculate summary from localStorage data
-        const totalGross = palawanPayroll.reduce((sum: number, r: any) => sum + (r.gross_pay || 0), 0)
-        const totalDeductions = palawanPayroll.reduce((sum: number, r: any) => sum + (r.total_deductions || 0), 0)
-        const totalNetPay = palawanPayroll.reduce((sum: number, r: any) => sum + (r.net_pay || 0), 0)
+        const totalGross = enrichedPayroll.reduce((sum: number, r: any) => sum + (r.gross_pay || 0), 0)
+        const totalDeductions = enrichedPayroll.reduce((sum: number, r: any) => sum + (r.total_deductions || 0), 0)
+        const totalNetPay = enrichedPayroll.reduce((sum: number, r: any) => sum + (r.net_pay || 0), 0)
 
         setPayrollSummary({
           totalGross,
           totalDeductions,
           netAfterDeductions: totalNetPay,
-          totalAllowances: palawanPayroll.reduce((sum: number, r: any) => sum + (r.allowances || 0), 0),
+          totalAllowances: enrichedPayroll.reduce((sum: number, r: any) => sum + (r.allowances || 0), 0),
           totalNetPay
         })
 

@@ -155,6 +155,37 @@ export default function DeductionsPage() {
 
   async function applyDeductionsToExistingPayroll(employeeId: string, deductionType: string, amount: number) {
     try {
+      if (activeOrganization === "palawan") {
+        const storedPayroll = localStorage.getItem("palawan_payroll_records")
+        const palawanPayroll = storedPayroll ? JSON.parse(storedPayroll) : []
+
+        const latestPayroll = palawanPayroll
+          .filter((rec: any) => rec.employee_id === employeeId)
+          .sort((a: any, b: any) => new Date(b.period_end).getTime() - new Date(a.period_end).getTime())[0]
+
+        if (!latestPayroll) return
+
+        const columnMap: Record<string, string> = {
+          sss: "sss",
+          philhealth: "philhealth",
+          pagibig: "pagibig",
+          other: "loans"
+        }
+
+        const column = columnMap[deductionType]
+        if (!column) return
+
+        const currentDeduction = latestPayroll[column] || 0
+        const newDeduction = currentDeduction + amount
+
+        latestPayroll[column] = newDeduction
+        latestPayroll.total_deductions = (latestPayroll.sss || 0) + (latestPayroll.philhealth || 0) + (latestPayroll.pagibig || 0) + (latestPayroll.loans || 0) + (latestPayroll.absences || 0) + (latestPayroll.cash_advance || 0)
+        latestPayroll.net_pay = latestPayroll.gross_pay - latestPayroll.total_deductions
+
+        localStorage.setItem("palawan_payroll_records", JSON.stringify(palawanPayroll))
+        return
+      }
+
       const { data: latestPayroll, error } = await supabase
         .from("payroll_records")
         .select("*")
@@ -223,6 +254,34 @@ export default function DeductionsPage() {
       notes: form.notes,
     }
 
+    if (activeOrganization === "palawan") {
+      const stored = localStorage.getItem("palawan_deductions")
+      const palawanDeductions = stored ? JSON.parse(stored) : []
+
+      if (editDeduction) {
+        const index = palawanDeductions.findIndex((d: any) => d.id === editDeduction.id)
+        if (index !== -1) {
+          palawanDeductions[index] = { ...palawanDeductions[index], ...payload, updated_at: new Date().toISOString() }
+        }
+      } else {
+        const newDeduction = {
+          ...payload,
+          id: `palawan_ded_${Date.now()}`,
+          created_at: new Date().toISOString()
+        }
+        palawanDeductions.push(newDeduction)
+        await applyDeductionsToExistingPayroll(newDeduction.employee_id, newDeduction.type, newDeduction.amount)
+      }
+
+      localStorage.setItem("palawan_deductions", JSON.stringify(palawanDeductions))
+      toast.success("Deduction saved to localStorage!", { id: toastId })
+      setOpen(false)
+      setEditDeduction(null)
+      setForm({ employee_id: "", type: "", amount: "", notes: "" })
+      fetchDeductions()
+      return
+    }
+
     let error
     if (editDeduction) {
       const res = await supabase.from("deductions").update(payload).eq("id", editDeduction.id)
@@ -278,6 +337,40 @@ export default function DeductionsPage() {
 
     if (deductionsToInsert.length === 0) {
       toast.error("Please enter at least one deduction amount", { id: toastId })
+      return
+    }
+
+    if (activeOrganization === "palawan") {
+      const stored = localStorage.getItem("palawan_deductions")
+      const palawanDeductions = stored ? JSON.parse(stored) : []
+
+      const newDeductions = deductionsToInsert.map(d => ({
+        ...d,
+        id: `palawan_ded_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+        created_at: new Date().toISOString()
+      }))
+
+      const updatedDeductions = [...palawanDeductions, ...newDeductions]
+      localStorage.setItem("palawan_deductions", JSON.stringify(updatedDeductions))
+
+      for (const d of newDeductions) {
+        await applyDeductionsToExistingPayroll(d.employee_id, d.type, d.amount)
+      }
+
+      toast.success("Bulk deductions saved to localStorage!", { id: toastId })
+      setBulkOpen(false)
+      setBulkForm({
+        employee_id: "",
+        sss: "",
+        sss_notes: "",
+        philhealth: "",
+        philhealth_notes: "",
+        pagibig: "",
+        pagibig_notes: "",
+        other: "",
+        other_notes: "",
+      })
+      fetchDeductions()
       return
     }
 
@@ -345,6 +438,20 @@ export default function DeductionsPage() {
   async function handleDelete() {
     if (!deleteId) return
     const toastId = toast.loading("Deleting deduction...")
+
+    if (activeOrganization === "palawan") {
+      const stored = localStorage.getItem("palawan_deductions")
+      const palawanDeductions = stored ? JSON.parse(stored) : []
+
+      const updatedDeductions = palawanDeductions.filter((d: any) => d.id !== deleteId)
+      localStorage.setItem("palawan_deductions", JSON.stringify(updatedDeductions))
+
+      toast.success("Deduction deleted from localStorage!", { id: toastId })
+      fetchDeductions()
+      setDeleteId(null)
+      return
+    }
+
     const { error } = await supabase.from("deductions").delete().eq("id", deleteId)
     if (error) {
       toast.error("Error deleting deduction", { id: toastId })
