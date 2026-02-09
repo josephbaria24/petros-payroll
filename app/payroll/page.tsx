@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabaseClient"
+import { useOrganization } from "@/contexts/OrganizationContext"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -101,8 +102,9 @@ const statusVariants: Record<string, string> = {
 }
 
 export default function PayrollPage() {
-  
+
   useProtectedPage(["admin", "hr"])
+  const { activeOrganization } = useOrganization()
   const [periods, setPeriods] = useState<PayrollPeriod[]>([])
   const [open, setOpen] = useState(false)
   const [selectedPeriodRecords, setSelectedPeriodRecords] = useState<PayrollRecord[]>([])
@@ -111,7 +113,7 @@ export default function PayrollPage() {
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [employeeRequests, setEmployeeRequests] = useState<EmployeeRequest[]>([])
   const [selectedRequests, setSelectedRequests] = useState<string[]>([])
-  
+
   function handleSelect(id: string) {
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
@@ -133,7 +135,7 @@ export default function PayrollPage() {
     })
     setEmployeeAdjustments(updated)
   }
-  
+
   function updateOvertimeEntry(
     adjIndex: number,
     entryIndex: number,
@@ -150,7 +152,7 @@ export default function PayrollPage() {
     }
     setEmployeeAdjustments(updated)
   }
-  
+
   const [, setForm] = useState({
     employee_id: "",
     period_start: "",
@@ -163,13 +165,13 @@ export default function PayrollPage() {
   const [periodEnd, setPeriodEnd] = useState<Date | undefined>(undefined)
   const [editRecord, setEditRecord] = useState<PayrollRecord | null>(null)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
-  
+
   const [employeeAdjustments, setEmployeeAdjustments] = useState<EmployeeAdjustment[]>([])
 
   useEffect(() => {
     fetchPayrollPeriods()
     fetchEmployees()
-  }, [])
+  }, [activeOrganization])
 
   useEffect(() => {
     if (open && periodStart && periodEnd) {
@@ -211,7 +213,7 @@ export default function PayrollPage() {
 
   function autoFillApprovedRequests() {
     const approvedRequests = employeeRequests.filter(req => req.status === "Approved")
-    
+
     if (approvedRequests.length === 0) return
 
     const adjustmentsMap = new Map<string, EmployeeAdjustment>()
@@ -253,7 +255,7 @@ export default function PayrollPage() {
 
     const { error } = await supabase
       .from("employee_requests")
-      .update({ 
+      .update({
         status: "Approved",
         updated_at: new Date().toISOString()
       })
@@ -272,7 +274,7 @@ export default function PayrollPage() {
 
     const { error } = await supabase
       .from("employee_requests")
-      .update({ 
+      .update({
         status: "Rejected",
         admin_remarks: remarks || "Request rejected",
         updated_at: new Date().toISOString()
@@ -288,7 +290,7 @@ export default function PayrollPage() {
   }
 
   function addApprovedRequestsToAdjustments() {
-    const approvedRequests = employeeRequests.filter(req => 
+    const approvedRequests = employeeRequests.filter(req =>
       selectedRequests.includes(req.id) && req.status === "Approved"
     )
 
@@ -350,17 +352,17 @@ export default function PayrollPage() {
 
   async function handleDeleteSelected() {
     if (selectedIds.length === 0) return toast.warning("No records selected.")
-  
+
     const confirm = window.confirm("Are you sure you want to delete selected payroll records?")
     if (!confirm) return
-  
+
     const toastId = toast.loading("Deleting selected records...")
-  
+
     const { error } = await supabase
       .from("payroll_records")
       .delete()
       .in("id", selectedIds)
-  
+
     if (error) {
       toast.error("Failed to delete records", { id: toastId })
     } else {
@@ -394,6 +396,49 @@ export default function PayrollPage() {
   }
 
   async function fetchPayrollPeriods() {
+    if (activeOrganization === "palawan") {
+      const stored = localStorage.getItem("palawan_payroll_records")
+      const palawanRecords = stored ? JSON.parse(stored) : []
+
+      // Group by period
+      const periodMap = new Map<string, PayrollPeriod>()
+
+      palawanRecords.forEach((rec: any) => {
+        const periodKey = `${rec.period_start}_${rec.period_end}`
+
+        if (!periodMap.has(periodKey)) {
+          const periodEndDate = new Date(rec.period_end)
+          const displayName = `${periodEndDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${periodEndDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+
+          periodMap.set(periodKey, {
+            period_key: periodKey,
+            period_start: rec.period_start,
+            period_end: rec.period_end,
+            display_name: displayName,
+            total_employees: 0,
+            total_basic_salary: 0,
+            total_overtime: 0,
+            total_holiday_pay: 0,
+            total_deductions: 0,
+            total_net_after_deductions: 0,
+            records: []
+          })
+        }
+
+        const period = periodMap.get(periodKey)!
+        period.records.push(rec)
+        period.total_employees = period.records.length
+        period.total_basic_salary += rec.basic_salary || 0
+        period.total_overtime += rec.overtime_pay || 0
+        period.total_holiday_pay = (period.total_holiday_pay || 0) + (rec.holiday_pay || 0)
+        period.total_deductions += rec.total_deductions || 0
+        period.total_net_after_deductions += rec.total_net || 0
+      })
+
+      setPeriods(Array.from(periodMap.values()))
+      return
+    }
+
     const { data: payroll, error } = await supabase
       .from("payroll_records")
       .select(`
@@ -433,11 +478,11 @@ export default function PayrollPage() {
         ?.filter(d => d.employee_id === rec.employee_id)
         .reduce((sum, d) => sum + d.amount, 0) || 0
 
-        const totalDeductions = otherDeductions + (rec.absences || 0) + (rec.cash_advance || 0)
-        const grossPay = (rec.basic_salary || 0) + (rec.overtime_pay || 0) + (rec.holiday_pay || 0)
-        const netAfterDeductions = grossPay - totalDeductions
-        
-        
+      const totalDeductions = otherDeductions + (rec.absences || 0) + (rec.cash_advance || 0)
+      const grossPay = (rec.basic_salary || 0) + (rec.overtime_pay || 0) + (rec.holiday_pay || 0)
+      const netAfterDeductions = grossPay - totalDeductions
+
+
 
       return {
         id: rec.id,
@@ -456,14 +501,14 @@ export default function PayrollPage() {
         total_deductions: totalDeductions,
         net_after_deductions: netAfterDeductions,
         total_net: netAfterDeductions + (rec.allowances || 0),
-      }   
+      }
     })
 
     const periodMap = new Map<string, PayrollPeriod>()
 
     processedRecords.forEach((record) => {
       const periodKey = `${record.period_start}_${record.period_end}`
-      
+
       if (!periodMap.has(periodKey)) {
         const startDate = new Date(record.period_start)
         const endDate = new Date(record.period_end)
@@ -489,20 +534,26 @@ export default function PayrollPage() {
 
       period.records.push(record)
       period.total_employees = period.records.length
-      
+
       // ✅ Add each field once
       period.total_basic_salary += record.basic_salary || 0
       period.total_overtime += record.overtime_pay || 0
       period.total_holiday_pay = (period.total_holiday_pay || 0) + (record.holiday_pay || 0)
       period.total_deductions += record.total_deductions || 0
       period.total_net_after_deductions += record.total_net || 0
-      
+
     })
 
     setPeriods(Array.from(periodMap.values()))
   }
 
   async function fetchEmployees() {
+    if (activeOrganization === "palawan") {
+      const stored = localStorage.getItem("palawan_employees")
+      setEmployees(stored ? JSON.parse(stored) : [])
+      return
+    }
+
     const { data, error } = await supabase.from("employees").select("id, full_name, pay_type")
     if (error) {
       console.error(error)
@@ -522,7 +573,7 @@ export default function PayrollPage() {
         holidayPay: 0,
         overtimeEntries: [],
         cashAdvance: 0,
-      otherDeductions: 0, // ✅ add this
+        otherDeductions: 0, // ✅ add this
       },
     ])
   }
@@ -565,7 +616,7 @@ export default function PayrollPage() {
           toast.dismiss(toastId)
           return
         }
-        
+
         await supabase
           .from("payroll_records")
           .delete()
@@ -601,7 +652,7 @@ export default function PayrollPage() {
         }
 
         const employeeDeductions = allDeductions.filter(d => d.employee_id === employee_id)
-        
+
         let sss = 0, philhealth = 0, pagibig = 0, loans = 0
 
         employeeDeductions.forEach(d => {
@@ -612,7 +663,7 @@ export default function PayrollPage() {
         })
 
         const adjustment = employeeAdjustments.find(a => a.employee_id === employee_id)
-        
+
         let absenceDeduction = 0
         let overtimePay = 0
 
@@ -626,7 +677,7 @@ export default function PayrollPage() {
           if (adjustment.absenceDays > 0 && adjustment.absenceAmountPerDay > 0) {
             absenceDeduction = adjustment.absenceDays * adjustment.absenceAmountPerDay
           }
-          
+
           if (adjustment?.overtimeEntries?.length > 0) {
             overtimePay = adjustment.overtimeEntries.reduce((sum, ot) => {
               return sum + (ot.hours * ot.ratePerHour)
@@ -643,10 +694,10 @@ export default function PayrollPage() {
         if (adjustment?.holidayPay && adjustment.holidayPay > 0) {
           holidayPay = adjustment.holidayPay
         }
-    
+
         const grossPay = basicSalary + overtimePay + holidayPay
         const netPay = grossPay - totalDeductions
-        
+
         recordsToInsert.push({
           employee_id,
           period_start: format(periodStart, "yyyy-MM-dd"),
@@ -672,23 +723,23 @@ export default function PayrollPage() {
         const { error: insertError } = await supabase
           .from("payroll_records")
           .insert(recordsToInsert)
-      
+
         if (insertError) {
           throw new Error("Bulk insert failed: " + insertError.message)
         }
-      
+
         const { data: insertedRecords } = await supabase
           .from("payroll_records")
           .select("id, employee_id")
           .eq("period_start", format(periodStart, "yyyy-MM-dd"))
           .eq("period_end", format(periodEnd, "yyyy-MM-dd"))
-      
+
         const overtimeInserts: any[] = []
-      
+
         for (const rec of insertedRecords || []) {
           const adj = employeeAdjustments.find(a => a.employee_id === rec.employee_id)
           if (!adj || !adj.overtimeEntries?.length) continue
-      
+
           for (const ot of adj.overtimeEntries) {
             overtimeInserts.push({
               payroll_record_id: rec.id,
@@ -700,14 +751,14 @@ export default function PayrollPage() {
             })
           }
         }
-      
+
         if (overtimeInserts.length > 0) {
           await supabase.from("payroll_overtimes").insert(overtimeInserts)
         }
-      
+
         toast.success(`Payroll generated for ${recordsToInsert.length} employees!`, { id: toastId })
         fetchPayrollPeriods()
-      
+
         setEmployeeAdjustments([])
         setPeriodStart(undefined)
         setPeriodEnd(undefined)
@@ -742,7 +793,7 @@ export default function PayrollPage() {
     totalHoliday: periods.reduce((sum, p) => sum + (p.total_holiday_pay || 0), 0), // ✅ new
     totalNet: periods.reduce((sum, p) => sum + p.total_net_after_deductions, 0)
   }
-  
+
   const pendingRequests = employeeRequests.filter(r => r.status === "Pending")
   const approvedRequests = employeeRequests.filter(r => r.status === "Approved")
 
@@ -752,72 +803,72 @@ export default function PayrollPage() {
 
 
   function handleSelectAll() {
-  if (selectedIds.length === selectedPeriodRecords.length) {
+    if (selectedIds.length === selectedPeriodRecords.length) {
+      setSelectedIds([])
+    } else {
+      setSelectedIds(selectedPeriodRecords.map(r => r.id))
+    }
+  }
+
+  async function handleMarkSelectedAsPaid() {
+    if (selectedIds.length === 0) {
+      toast.warning("No records selected.")
+      return
+    }
+
+    const confirm = window.confirm(`Mark ${selectedIds.length} record(s) as paid?`)
+    if (!confirm) return
+
+    const toastId = toast.loading("Updating payment status...")
+
+    const { error } = await supabase
+      .from("payroll_records")
+      .update({ status: "Paid" })
+      .in("id", selectedIds)
+
+    if (error) {
+      toast.error("Failed to update status", { id: toastId })
+      return
+    }
+
+    toast.success("Records marked as paid!", { id: toastId })
+
     setSelectedIds([])
-  } else {
-    setSelectedIds(selectedPeriodRecords.map(r => r.id))
-  }
-}
+    fetchPayrollPeriods()
 
-async function handleMarkSelectedAsPaid() {
-  if (selectedIds.length === 0) {
-    toast.warning("No records selected.")
-    return
-  }
-
-  const confirm = window.confirm(`Mark ${selectedIds.length} record(s) as paid?`)
-  if (!confirm) return
-
-  const toastId = toast.loading("Updating payment status...")
-
-  const { error } = await supabase
-    .from("payroll_records")
-    .update({ status: "Paid" })
-    .in("id", selectedIds)
-
-  if (error) {
-    toast.error("Failed to update status", { id: toastId })
-    return
-  }
-
-  toast.success("Records marked as paid!", { id: toastId })
-
-  setSelectedIds([])
-  fetchPayrollPeriods()
-
-  if (periodDialogOpen) {
-    setSelectedPeriodRecords(prev =>
-      prev.map(r =>
-        selectedIds.includes(r.id) ? { ...r, status: "Paid" } : r
+    if (periodDialogOpen) {
+      setSelectedPeriodRecords(prev =>
+        prev.map(r =>
+          selectedIds.includes(r.id) ? { ...r, status: "Paid" } : r
+        )
       )
-    )
-  }
-}
-
-async function handleMarkAsPaid(recordId: string) {
-  const toastId = toast.loading("Marking as paid...")
-
-  const { error } = await supabase
-    .from("payroll_records")
-    .update({ status: "Paid" })
-    .eq("id", recordId)
-
-  if (error) {
-    toast.error("Failed to update status", { id: toastId })
-    return
+    }
   }
 
-  toast.success("Marked as paid!", { id: toastId })
-  fetchPayrollPeriods()
+  async function handleMarkAsPaid(recordId: string) {
+    const toastId = toast.loading("Marking as paid...")
 
-  if (periodDialogOpen) {
-    setSelectedPeriodRecords(prev =>
-      prev.map(r =>
-        r.id === recordId ? { ...r, status: "Paid" } : r
+    const { error } = await supabase
+      .from("payroll_records")
+      .update({ status: "Paid" })
+      .eq("id", recordId)
+
+    if (error) {
+      toast.error("Failed to update status", { id: toastId })
+      return
+    }
+
+    toast.success("Marked as paid!", { id: toastId })
+    fetchPayrollPeriods()
+
+    if (periodDialogOpen) {
+      setSelectedPeriodRecords(prev =>
+        prev.map(r =>
+          r.id === recordId ? { ...r, status: "Paid" } : r
+        )
       )
-    )
+    }
   }
-}
 
 
 
@@ -901,7 +952,7 @@ async function handleMarkAsPaid(recordId: string) {
             <DialogHeader>
               <DialogTitle className="text-xl font-semibold text-slate-900">Generate Payroll for All Employees</DialogTitle>
             </DialogHeader>
-            
+
             <Tabs defaultValue="period" className="w-full">
               <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="period">Period Selection</TabsTrigger>
@@ -1055,8 +1106,8 @@ async function handleMarkAsPaid(recordId: string) {
                                     req.status === "Approved"
                                       ? "default"
                                       : req.status === "Pending"
-                                      ? "outline"
-                                      : "destructive"
+                                        ? "outline"
+                                        : "destructive"
                                   }
                                 >
                                   {req.status}
@@ -1358,37 +1409,37 @@ async function handleMarkAsPaid(recordId: string) {
                           </div>
                         </div>
 
-                        {((adjustment.absenceDays > 0 && adjustment.absenceAmountPerDay > 0) || 
+                        {((adjustment.absenceDays > 0 && adjustment.absenceAmountPerDay > 0) ||
                           (adjustment.overtimeEntries?.length > 0) ||
                           (adjustment.holidayPay && adjustment.holidayPay > 0)) && (
-                          <div className="border-t border-slate-200 pt-4 bg-slate-50 p-4 rounded">
-                            <Label className="text-sm font-medium text-slate-900 mb-2 block">Net Adjustment Summary</Label>
-                            <div className="space-y-1 text-sm">
-                              {adjustment.overtimeEntries.length > 0 && (
-                                <div className="text-slate-700">
-                                  Overtime: +₱
-                                  {adjustment.overtimeEntries.reduce(
-                                    (sum, ot) => sum + (ot.hours * ot.ratePerHour),
-                                    0
-                                  ).toLocaleString()}
-                                </div>
-                              )}
+                            <div className="border-t border-slate-200 pt-4 bg-slate-50 p-4 rounded">
+                              <Label className="text-sm font-medium text-slate-900 mb-2 block">Net Adjustment Summary</Label>
+                              <div className="space-y-1 text-sm">
+                                {adjustment.overtimeEntries.length > 0 && (
+                                  <div className="text-slate-700">
+                                    Overtime: +₱
+                                    {adjustment.overtimeEntries.reduce(
+                                      (sum, ot) => sum + (ot.hours * ot.ratePerHour),
+                                      0
+                                    ).toLocaleString()}
+                                  </div>
+                                )}
 
-                              {adjustment.holidayPay && adjustment.holidayPay > 0 && (
-                                <div className="text-slate-700">
-                                  Holiday Pay: +₱{adjustment.holidayPay.toLocaleString()}
-                                </div>
-                              )}
+                                {adjustment.holidayPay && adjustment.holidayPay > 0 && (
+                                  <div className="text-slate-700">
+                                    Holiday Pay: +₱{adjustment.holidayPay.toLocaleString()}
+                                  </div>
+                                )}
 
-                              {adjustment.absenceDays > 0 && adjustment.absenceAmountPerDay > 0 && (
-                                <div className="text-slate-700">
-                                  Absence: -₱
-                                  {(adjustment.absenceDays * adjustment.absenceAmountPerDay).toLocaleString()}
-                                </div>
-                              )}
+                                {adjustment.absenceDays > 0 && adjustment.absenceAmountPerDay > 0 && (
+                                  <div className="text-slate-700">
+                                    Absence: -₱
+                                    {(adjustment.absenceDays * adjustment.absenceAmountPerDay).toLocaleString()}
+                                  </div>
+                                )}
 
-                              <div className="font-medium text-slate-900 border-t border-slate-200 pt-2 mt-2">
-                              {adjustment.cashAdvance && adjustment.cashAdvance > 0 && (
+                                <div className="font-medium text-slate-900 border-t border-slate-200 pt-2 mt-2">
+                                  {adjustment.cashAdvance && adjustment.cashAdvance > 0 && (
                                     <div className="text-slate-700">
                                       Cash Advance: -₱{adjustment.cashAdvance.toLocaleString()}
                                     </div>
@@ -1399,23 +1450,23 @@ async function handleMarkAsPaid(recordId: string) {
                                       Other Deductions: -₱{adjustment.otherDeductions.toLocaleString()}
                                     </div>
                                   )}
-                                Net Effect: {(() => {
-                                  const overtime = adjustment.overtimeEntries.reduce(
-                                    (sum, ot) => sum + (ot.hours * ot.ratePerHour),
-                                    0
-                                  )
-                                  const holiday = adjustment.holidayPay || 0
-                                  const absence = (adjustment.absenceDays || 0) * (adjustment.absenceAmountPerDay || 0)
-                                  const otherDeductions = adjustment.otherDeductions || 0
-                                  const cashAdvance = adjustment.cashAdvance || 0
-                                  const net = overtime + holiday - absence - cashAdvance - otherDeductions
+                                  Net Effect: {(() => {
+                                    const overtime = adjustment.overtimeEntries.reduce(
+                                      (sum, ot) => sum + (ot.hours * ot.ratePerHour),
+                                      0
+                                    )
+                                    const holiday = adjustment.holidayPay || 0
+                                    const absence = (adjustment.absenceDays || 0) * (adjustment.absenceAmountPerDay || 0)
+                                    const otherDeductions = adjustment.otherDeductions || 0
+                                    const cashAdvance = adjustment.cashAdvance || 0
+                                    const net = overtime + holiday - absence - cashAdvance - otherDeductions
 
-                                  return net >= 0 ? `+₱${net.toLocaleString()}` : `-₱${Math.abs(net).toLocaleString()}`
-                                })()}
+                                    return net >= 0 ? `+₱${net.toLocaleString()}` : `-₱${Math.abs(net).toLocaleString()}`
+                                  })()}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        )}
+                          )}
                       </div>
                     </CardContent>
                   </Card>
@@ -1476,7 +1527,7 @@ async function handleMarkAsPaid(recordId: string) {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center gap-2 ml-4">
                     <Button
                       variant="outline"
@@ -1505,7 +1556,7 @@ async function handleMarkAsPaid(recordId: string) {
 
       <Dialog open={periodDialogOpen} onOpenChange={setPeriodDialogOpen}>
         <DialogContent
-  className="
+          className="
     max-w-[95vw]
     w-full
     h-[90vh]
@@ -1513,7 +1564,7 @@ async function handleMarkAsPaid(recordId: string) {
     flex
     flex-col
   "
->
+        >
 
           <DialogHeader className="pb-4 border-b border-slate-200">
             <DialogTitle className="text-xl font-semibold text-slate-900">
@@ -1522,34 +1573,34 @@ async function handleMarkAsPaid(recordId: string) {
           </DialogHeader>
 
           <div className="flex-1 overflow-y-auto space-y-4">
-         
+
 
             {selectedIds.length > 0 && (
-  <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg border">
-    <span className="text-sm text-slate-600">
-      {selectedIds.length} records selected
-    </span>
+              <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg border">
+                <span className="text-sm text-slate-600">
+                  {selectedIds.length} records selected
+                </span>
 
-    <Button
-      variant="outline"
-      size="sm"
-      onClick={handleMarkSelectedAsPaid}
-      className="text-green-700 border-green-300 hover:bg-green-50"
-    >
-      <CheckCircle className="h-4 w-4 mr-1" />
-      Mark as Paid
-    </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleMarkSelectedAsPaid}
+                  className="text-green-700 border-green-300 hover:bg-green-50"
+                >
+                  <CheckCircle className="h-4 w-4 mr-1" />
+                  Mark as Paid
+                </Button>
 
-    <Button
-      variant="outline"
-      size="sm"
-      onClick={handleDeleteSelected}
-    >
-      <Trash2 className="h-4 w-4 mr-1" />
-      Delete
-    </Button>
-  </div>
-)}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDeleteSelected}
+                >
+                  <Trash2 className="h-4 w-4 mr-1" />
+                  Delete
+                </Button>
+              </div>
+            )}
 
 
             <div className="border border-slate-200 rounded-lg overflow-hidden">
@@ -1557,17 +1608,17 @@ async function handleMarkAsPaid(recordId: string) {
                 <TableHeader>
                   <TableRow className="border-b border-slate-200">
                     <TableHead className="w-12">
-  <input
-    type="checkbox"
-    checked={
-      selectedIds.length === selectedPeriodRecords.length &&
-      selectedPeriodRecords.length > 0
-    }
-    onChange={handleSelectAll}
-    className="rounded"
-    title="Select all"
-  />
-</TableHead>
+                      <input
+                        type="checkbox"
+                        checked={
+                          selectedIds.length === selectedPeriodRecords.length &&
+                          selectedPeriodRecords.length > 0
+                        }
+                        onChange={handleSelectAll}
+                        className="rounded"
+                        title="Select all"
+                      />
+                    </TableHead>
 
                     <TableHead className="font-medium text-slate-900">Employee</TableHead>
                     <TableHead className="font-medium text-slate-900">Pay Type</TableHead>
@@ -1667,7 +1718,7 @@ async function handleMarkAsPaid(recordId: string) {
                   (editRecord.cash_advance || 0)
                 const netAfterDeductions = grossPay - totalDeductions
                 const totalNet = netAfterDeductions + (editRecord.allowances || 0)
-                
+
 
                 const { error } = await supabase
                   .from("payroll_records")
@@ -1693,8 +1744,8 @@ async function handleMarkAsPaid(recordId: string) {
                   fetchPayrollPeriods()
                   if (periodDialogOpen) {
                     const updatedRecords = selectedPeriodRecords.map(rec =>
-                      rec.id === editRecord.id ? { 
-                        ...rec, 
+                      rec.id === editRecord.id ? {
+                        ...rec,
                         ...editRecord,
                         total_net: totalNet,
                         net_after_deductions: netAfterDeductions
@@ -1724,11 +1775,11 @@ async function handleMarkAsPaid(recordId: string) {
                       className="bg-slate-50 border-slate-200"
                     />
                   </div>
-                  
+
                   <div>
                     <Label className="text-sm font-medium text-slate-700">Period</Label>
                     <Input
-                      value={editRecord.period_start && editRecord.period_end ? 
+                      value={editRecord.period_start && editRecord.period_end ?
                         `${format(new Date(editRecord.period_start), "MMM d")} - ${format(new Date(editRecord.period_end), "MMM d, yyyy")}` : ""}
                       disabled
                       className="bg-slate-50 border-slate-200"
@@ -1819,20 +1870,20 @@ async function handleMarkAsPaid(recordId: string) {
                     />
                   </div>
                   <div>
-                  <Label className="text-sm font-medium text-slate-700">Cash Advance Deduction</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="0.00"
-                    value={editRecord.cash_advance || ""}
-                    onChange={(e) =>
-                      setEditRecord((prev) =>
-                        prev ? { ...prev, cash_advance: parseFloat(e.target.value) || 0 } : prev
-                      )
-                    }
-                  />
-                </div>
+                    <Label className="text-sm font-medium text-slate-700">Cash Advance Deduction</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0.00"
+                      value={editRecord.cash_advance || ""}
+                      onChange={(e) =>
+                        setEditRecord((prev) =>
+                          prev ? { ...prev, cash_advance: parseFloat(e.target.value) || 0 } : prev
+                        )
+                      }
+                    />
+                  </div>
 
                 </div>
 
@@ -1876,7 +1927,7 @@ async function handleMarkAsPaid(recordId: string) {
 
               <div className="space-y-3 p-4 bg-slate-50 rounded-lg border border-slate-200">
                 <h3 className="text-sm font-medium text-slate-900">Calculated Values</h3>
-                
+
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="text-slate-600">Gross Pay (Basic + Overtime):</span>
@@ -1897,7 +1948,7 @@ async function handleMarkAsPaid(recordId: string) {
                   <div>
                     <span className="text-slate-600">Net After Deductions:</span>
                     <div className="font-medium text-slate-900">
-                    ₱{(
+                      ₱{(
                         ((editRecord.basic_salary || 0) + (editRecord.overtime_pay || 0)) -
                         ((editRecord.total_deductions || 0) + (editRecord.cash_advance || 0))
                       ).toLocaleString()}
@@ -1908,7 +1959,7 @@ async function handleMarkAsPaid(recordId: string) {
                   <div>
                     <span className="text-slate-600">Total Net (with Allowances):</span>
                     <div className="font-bold text-slate-900">
-                    ₱{(
+                      ₱{(
                         ((editRecord.basic_salary || 0) + (editRecord.overtime_pay || 0)) -
                         ((editRecord.total_deductions || 0) + (editRecord.cash_advance || 0)) +
                         (editRecord.allowances || 0)
@@ -1922,9 +1973,9 @@ async function handleMarkAsPaid(recordId: string) {
                 <Button type="submit" className="flex-1 bg-slate-900 hover:bg-slate-800 text-white">
                   Save Changes
                 </Button>
-                <Button 
-                  type="button" 
-                  variant="outline" 
+                <Button
+                  type="button"
+                  variant="outline"
                   className="flex-1"
                   onClick={() => setEditDialogOpen(false)}
                 >

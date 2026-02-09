@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabaseClient"
+import { useOrganization } from "@/contexts/OrganizationContext"
 import { DataTable } from "./data-table"
 import { columns, Employee } from "./columns"
 import { Button } from "@/components/ui/button"
@@ -24,11 +25,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage } from "@/components/ui/breadcrumb"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { 
-  MoreHorizontal, 
-  Plus, 
-  Users, 
-  UserCheck, 
+import {
+  MoreHorizontal,
+  Plus,
+  Users,
+  UserCheck,
   Clock,
   Search
 } from "lucide-react"
@@ -36,6 +37,7 @@ import { useProtectedPage } from "../hooks/useProtectedPage"
 
 export default function EmployeesPage() {
   useProtectedPage(["admin", "hr"])
+  const { activeOrganization } = useOrganization()
   const [data, setData] = useState<Employee[]>([])
   const [loading, setLoading] = useState(true)
   const [isEditing, setIsEditing] = useState(false)
@@ -56,7 +58,7 @@ export default function EmployeesPage() {
     philhealth: "",
     pagibig: "",
     base_salary: "",
-    allowance: "", 
+    allowance: "",
     pay_type: "monthly",
     shift: "Regular Day",
     hours_per_week: "",
@@ -67,20 +69,32 @@ export default function EmployeesPage() {
   useEffect(() => {
     fetchEmployees()
     fetchEmailSuggestions()
-  }, [])
+  }, [activeOrganization])
 
   async function fetchEmployees() {
     setLoading(true)
-    const { data, error } = await supabase.from("employees").select("*")
-    if (error) {
-      console.error("Error fetching employees:", error)
+    if (activeOrganization === "palawan") {
+      const stored = localStorage.getItem("palawan_employees")
+      setData(stored ? JSON.parse(stored) : [])
     } else {
-      setData(data as Employee[])
+      const { data, error } = await supabase.from("employees").select("*")
+      if (error) {
+        console.error("Error fetching employees:", error)
+      } else {
+        setData(data as Employee[])
+      }
     }
     setLoading(false)
   }
 
   async function fetchEmailSuggestions() {
+    if (activeOrganization === "palawan") {
+      // For Palawan, don't show any email suggestions from Petrosphere
+      // Palawan employees are managed separately in localStorage
+      setEmailSuggestions([])
+      return
+    }
+
     const { data, error } = await supabase.from("emp_email").select("full_name, corp_email")
     if (error) {
       console.error("Error fetching email suggestions:", error.message)
@@ -107,20 +121,27 @@ export default function EmployeesPage() {
     hours_per_week: "",
     leave_credits: "0",
   }
-  
+
   async function handleDelete(id: string) {
     const confirmDelete = window.confirm("Are you sure you want to delete this employee?")
     if (!confirmDelete) return
 
-    const { error } = await supabase.from("employees").delete().eq("id", id)
-
-    if (error) {
-      console.error("Error deleting employee:", error.message)
-    } else {
+    if (activeOrganization === "palawan") {
+      const stored = localStorage.getItem("palawan_employees")
+      const employees = stored ? JSON.parse(stored) : []
+      const updated = employees.filter((emp: Employee) => emp.id !== id)
+      localStorage.setItem("palawan_employees", JSON.stringify(updated))
       fetchEmployees()
+    } else {
+      const { error } = await supabase.from("employees").delete().eq("id", id)
+      if (error) {
+        console.error("Error deleting employee:", error.message)
+      } else {
+        fetchEmployees()
+      }
     }
   }
-  
+
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
 
@@ -145,25 +166,47 @@ export default function EmployeesPage() {
 
     let error
 
-    if (isEditing && editingId) {
-      const res = await supabase
-        .from("employees")
-        .update(payload)
-        .eq("id", editingId)
-      error = res.error
-    } else {
-      const res = await supabase.from("employees").insert([payload])
-      error = res.error
-    }
+    if (activeOrganization === "palawan") {
+      const stored = localStorage.getItem("palawan_employees")
+      const employees = stored ? JSON.parse(stored) : []
 
-    if (error) {
-      console.error("Error saving employee:", error.message)
-    } else {
+      if (isEditing && editingId) {
+        const updated = employees.map((emp: Employee) =>
+          emp.id === editingId ? { ...emp, ...payload } : emp
+        )
+        localStorage.setItem("palawan_employees", JSON.stringify(updated))
+      } else {
+        const newEmployee = { ...payload, id: `emp_${Date.now()}`, created_at: new Date().toISOString() }
+        employees.push(newEmployee)
+        localStorage.setItem("palawan_employees", JSON.stringify(employees))
+      }
+
       setOpen(false)
       setForm(initialForm)
       setIsEditing(false)
       setEditingId(null)
       fetchEmployees()
+    } else {
+      if (isEditing && editingId) {
+        const res = await supabase
+          .from("employees")
+          .update(payload)
+          .eq("id", editingId)
+        error = res.error
+      } else {
+        const res = await supabase.from("employees").insert([payload])
+        error = res.error
+      }
+
+      if (error) {
+        console.error("Error saving employee:", error.message)
+      } else {
+        setOpen(false)
+        setForm(initialForm)
+        setIsEditing(false)
+        setEditingId(null)
+        fetchEmployees()
+      }
     }
   }
 
@@ -171,7 +214,7 @@ export default function EmployeesPage() {
     setForm({
       employee_code: emp.employee_code || "",
       full_name: emp.full_name || "",
-      email: emp.email || "", 
+      email: emp.email || "",
       position: emp.position || "",
       department: emp.department || "",
       employment_status: emp.employment_status || "Regular",
@@ -196,7 +239,7 @@ export default function EmployeesPage() {
     setIsEditing(false)
     setEditingId(null)
   }
-  
+
   const actionColumn = {
     id: "actions",
     cell: ({ row }: { row: any }) => {
@@ -215,7 +258,7 @@ export default function EmployeesPage() {
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => handleRowClick(emp)}>Edit Employee</DropdownMenuItem>
-            <DropdownMenuItem 
+            <DropdownMenuItem
               className="text-red-600 focus:text-red-600"
               onClick={() => handleDelete(emp.id)}
             >
@@ -226,7 +269,7 @@ export default function EmployeesPage() {
       )
     },
   }
-  
+
   let adjustedSalary = parseFloat(form.base_salary)
   if (!isEditing && form.pay_type === "semi-monthly") {
     adjustedSalary = adjustedSalary / 2
@@ -238,7 +281,7 @@ export default function EmployeesPage() {
   const probationaryEmployees = data.filter(emp => emp.employment_status === "Probationary").length
 
   // Filter data based on search
-  const filteredData = data.filter(emp => 
+  const filteredData = data.filter(emp =>
     emp.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     emp.employee_code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     emp.position?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -255,7 +298,7 @@ export default function EmployeesPage() {
       </div>
     )
   }
-  
+
   return (
     <div className="space-y-8 p-6 min-h-screen" style={{ backgroundColor: '#f8fafc' }}>
       {/* Header */}
@@ -371,7 +414,7 @@ export default function EmployeesPage() {
                   {/* Basic Information */}
                   <div className="space-y-4">
                     <h3 className="text-lg font-medium text-slate-900">Basic Information</h3>
-                    
+
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="employee_code">Employee Code</Label>
@@ -451,7 +494,7 @@ export default function EmployeesPage() {
                   {/* Government IDs */}
                   <div className="space-y-4">
                     <h3 className="text-lg font-medium text-slate-900">Government IDs</h3>
-                    
+
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="tin">TIN</Label>
@@ -500,7 +543,7 @@ export default function EmployeesPage() {
                   {/* Compensation */}
                   <div className="space-y-4">
                     <h3 className="text-lg font-medium text-slate-900">Compensation & Schedule</h3>
-                    
+
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="base_salary">Base Salary</Label>
@@ -614,7 +657,7 @@ export default function EmployeesPage() {
               </div>
               <h3 className="text-lg font-medium text-slate-900 mb-1">No employees found</h3>
               <p className="text-slate-500">
-                {searchTerm 
+                {searchTerm
                   ? "Try adjusting your search criteria"
                   : "Get started by adding your first employee"
                 }

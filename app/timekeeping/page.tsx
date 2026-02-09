@@ -2,49 +2,50 @@
 
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabaseClient"
+import { useOrganization } from "@/contexts/OrganizationContext"
 import { Button } from "@/components/ui/button"
-import { 
-  Card, 
-  CardContent, 
-  CardHeader, 
-  CardTitle 
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle
 } from "@/components/ui/card"
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
 } from "@/components/ui/table"
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogTrigger 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { 
-  Breadcrumb, 
-  BreadcrumbItem, 
-  BreadcrumbList, 
-  BreadcrumbPage 
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbList,
+  BreadcrumbPage
 } from "@/components/ui/breadcrumb"
 import { toast } from "sonner"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { 
+import {
   CalendarIcon,
   Clock,
   Users,
@@ -90,10 +91,10 @@ function statusBadge(status: string) {
   }
 
   const className = variants[status] || "bg-slate-100 text-slate-600 border-slate-200"
-  
+
   return (
-    <Badge 
-      variant="outline" 
+    <Badge
+      variant="outline"
       className={`${className} font-medium`}
     >
       {status}
@@ -103,6 +104,7 @@ function statusBadge(status: string) {
 
 export default function TimekeepingPage() {
   useProtectedPage(["admin", "hr"])
+  const { activeOrganization } = useOrganization()
   const [logs, setLogs] = useState<TimeLog[]>([])
   const [open, setOpen] = useState(false)
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
@@ -127,9 +129,16 @@ export default function TimekeepingPage() {
       setLoading(false)
     }
     loadData()
-  }, [selectedDate])
+  }, [selectedDate, activeOrganization])
 
   async function fetchLogs(date: Date = new Date()) {
+    if (activeOrganization === "palawan") {
+      const stored = localStorage.getItem("palawan_time_logs")
+      const palawanLogs = stored ? JSON.parse(stored) : []
+      setLogs(palawanLogs)
+      return
+    }
+
     // Use the same logic as WeeklyTimesheet for date range
     const selectedDate = format(date, "yyyy-MM-dd")
     const weekStartUTC = new Date(`${selectedDate}T00:00:00+08:00`).toISOString()
@@ -191,12 +200,19 @@ export default function TimekeepingPage() {
   }
 
   async function fetchEmployees() {
+    if (activeOrganization === "palawan") {
+      const stored = localStorage.getItem("palawan_employees")
+      const palawanEmployees = stored ? JSON.parse(stored) : []
+      setEmployees(palawanEmployees)
+      return
+    }
+
     const { data, error } = await supabase.from("employees").select("id, full_name")
     if (error) {
       console.error(error)
       return
     }
-    setEmployees(data)
+    setEmployees(data || [])
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -222,12 +238,12 @@ export default function TimekeepingPage() {
   }
 
   function resetForm() {
-    setForm({ 
-      employee_id: "", 
-      date: "", 
-      time_in: "", 
-      time_out: "", 
-      status: "Present" 
+    setForm({
+      employee_id: "",
+      date: "",
+      time_in: "",
+      time_out: "",
+      status: "Present"
     })
   }
 
@@ -503,7 +519,7 @@ export default function TimekeepingPage() {
               </div>
               <h3 className="text-lg font-medium text-slate-900 mb-1">No time logs found</h3>
               <p className="text-slate-500">
-                {selectedDate 
+                {selectedDate
                   ? `No attendance records for ${format(selectedDate, "PPP")}`
                   : "Select a date to view attendance records"
                 }

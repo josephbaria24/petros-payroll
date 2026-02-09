@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabaseClient"
+import { useOrganization } from "@/contexts/OrganizationContext"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
@@ -56,6 +57,7 @@ interface Request {
 }
 
 export default function AdminRequestsPage() {
+  const { activeOrganization } = useOrganization()
   const [requests, setRequests] = useState<Request[]>([])
   const [filteredRequests, setFilteredRequests] = useState<Request[]>([])
   const [searchTerm, setSearchTerm] = useState("")
@@ -66,28 +68,37 @@ export default function AdminRequestsPage() {
   const [isProcessing, setIsProcessing] = useState(false)
 
   const fetchRequests = async () => {
-    const { data, error } = await supabase
-      .from("employee_requests")
-      .select(`
-        *,
-        employee:employees(
-          full_name,
-          employee_code,
-          department,
-          position
-        )
-      `)
-      .order("created_at", { ascending: false })
+    if (activeOrganization === "palawan") {
+      // Load Palawan data from localStorage
+      const stored = localStorage.getItem("palawan_requests")
+      const palawanRequests = stored ? JSON.parse(stored) : []
+      setRequests(palawanRequests)
+      setFilteredRequests(palawanRequests)
+    } else {
+      // Load Petrosphere data from Supabase
+      const { data, error } = await supabase
+        .from("employee_requests")
+        .select(`
+          *,
+          employee:employees(
+            full_name,
+            employee_code,
+            department,
+            position
+          )
+        `)
+        .order("created_at", { ascending: false })
 
-    if (!error && data) {
-      setRequests(data as Request[])
-      setFilteredRequests(data as Request[])
+      if (!error && data) {
+        setRequests(data as Request[])
+        setFilteredRequests(data as Request[])
+      }
     }
   }
 
   useEffect(() => {
     fetchRequests()
-  }, [])
+  }, [activeOrganization])
 
   useEffect(() => {
     let filtered = requests
@@ -120,22 +131,36 @@ export default function AdminRequestsPage() {
 
     setIsProcessing(true)
 
-    const { error } = await supabase
-      .from("employee_requests")
-      .update({
-        status,
-        admin_remarks: adminRemarks || null,
-        updated_at: new Date().toISOString()
-      })
-      .eq("id", selectedRequest.id)
-
-    if (!error) {
+    if (activeOrganization === "palawan") {
+      // Update Palawan data in localStorage
+      const stored = localStorage.getItem("palawan_requests")
+      const palawanRequests = stored ? JSON.parse(stored) : []
+      const updatedRequests = palawanRequests.map((req: Request) =>
+        req.id === selectedRequest.id
+          ? { ...req, status, admin_remarks: adminRemarks || null, updated_at: new Date().toISOString() }
+          : req
+      )
+      localStorage.setItem("palawan_requests", JSON.stringify(updatedRequests))
       await fetchRequests()
-      setIsDialogOpen(false)
-      setSelectedRequest(null)
-      setAdminRemarks("")
+    } else {
+      // Update Petrosphere data in Supabase
+      const { error } = await supabase
+        .from("employee_requests")
+        .update({
+          status,
+          admin_remarks: adminRemarks || null,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", selectedRequest.id)
+
+      if (!error) {
+        await fetchRequests()
+      }
     }
 
+    setIsDialogOpen(false)
+    setSelectedRequest(null)
+    setAdminRemarks("")
     setIsProcessing(false)
   }
 

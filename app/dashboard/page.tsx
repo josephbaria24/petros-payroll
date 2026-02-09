@@ -23,16 +23,17 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { 
-  MoreHorizontal, 
-  Users, 
-  DollarSign, 
-  TrendingUp, 
+import {
+  MoreHorizontal,
+  Users,
+  DollarSign,
+  TrendingUp,
   Plus,
   Search
 } from "lucide-react"
 
 import { supabase } from "@/lib/supabaseClient"
+import { useOrganization } from "@/contexts/OrganizationContext"
 import {
   Card,
   CardContent,
@@ -87,10 +88,10 @@ function statusBadge(status: string) {
   }
 
   const className = variants[status] || "bg-slate-100 text-slate-600 border-slate-200"
-  
+
   return (
-    <Badge 
-      variant="outline" 
+    <Badge
+      variant="outline"
       className={`${className} font-medium`}
     >
       {status}
@@ -110,9 +111,10 @@ type PayrollRecord = {
 
 export default function DashboardPage() {
   const { isChecking } = useProtectedPage(["admin", "hr"])
+  const { activeOrganization } = useOrganization()
   const router = useRouter()
   const [role, setRole] = useState<string | null>(null)
-  
+
   const [editRecord, setEditRecord] = useState<PayrollRecord | null>(null)
   const [deleteRecordId, setDeleteRecordId] = useState<string | null>(null)
   const [records, setRecords] = useState<PayrollRecord[]>([])
@@ -121,7 +123,7 @@ export default function DashboardPage() {
   const [payday, setPayday] = useState<Date | undefined>(undefined)
   const [dataLoading, setDataLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
-  
+
   const [form, setForm] = useState({
     employee_id: "",
     period_start: "",
@@ -130,7 +132,7 @@ export default function DashboardPage() {
     status: "Pending Payment",
   })
 
-  const [employees, setEmployees] = useState<{id: string, full_name: string, employee_code: string, base_salary: number}[]>([])
+  const [employees, setEmployees] = useState<{ id: string, full_name: string, employee_code: string, base_salary: number }[]>([])
   const [employeePopoverOpen, setEmployeePopoverOpen] = useState(false)
   const [periodStart, setPeriodStart] = useState<Date | undefined>(undefined)
   const [periodEnd, setPeriodEnd] = useState<Date | undefined>(undefined)
@@ -146,7 +148,7 @@ export default function DashboardPage() {
       setDataLoading(false)
     }
     loadData()
-  }, [])
+  }, [activeOrganization])
 
   useEffect(() => {
     const getRole = async () => {
@@ -175,6 +177,13 @@ export default function DashboardPage() {
   }, [periodStart, periodEnd])
 
   async function fetchPayroll() {
+    if (activeOrganization === "palawan") {
+      const stored = localStorage.getItem("palawan_payroll_records")
+      const palawanRecords = stored ? JSON.parse(stored) : []
+      setRecords(palawanRecords)
+      return
+    }
+
     const { data, error } = await supabase
       .from("payroll_records")
       .select(`
@@ -205,10 +214,17 @@ export default function DashboardPage() {
   }
 
   async function fetchEmployees() {
+    if (activeOrganization === "palawan") {
+      const stored = localStorage.getItem("palawan_employees")
+      const palawanEmployees = stored ? JSON.parse(stored) : []
+      setEmployees(palawanEmployees)
+      return
+    }
+
     const { data, error } = await supabase
       .from("employees")
       .select("id, full_name, employee_code, base_salary")
-    
+
     if (error) {
       console.error("Error fetching employees:", error)
       return
@@ -301,10 +317,10 @@ export default function DashboardPage() {
 
   async function handleDeleteConfirm() {
     if (!deleteRecordId) return
-    
+
     const toastId = toast.loading("Deleting payment...")
     const { error } = await supabase.from("payroll_records").delete().eq("id", deleteRecordId)
-    
+
     if (error) toast.error("Failed to delete", { id: toastId })
     else {
       toast.success("Deleted successfully", { id: toastId })
@@ -332,7 +348,7 @@ export default function DashboardPage() {
   const filteredRecords = records.filter(record => {
     const matchesFilter = filter === "all" || record.pay_type === filter
     const matchesSearch = record.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         record.employee_code.toLowerCase().includes(searchTerm.toLowerCase())
+      record.employee_code.toLowerCase().includes(searchTerm.toLowerCase())
     return matchesFilter && matchesSearch
   })
 
@@ -752,7 +768,7 @@ export default function DashboardPage() {
               </div>
               <h3 className="text-lg font-medium text-slate-900 mb-1">No payments found</h3>
               <p className="text-slate-500">
-                {searchTerm || filter !== "all" 
+                {searchTerm || filter !== "all"
                   ? "Try adjusting your search or filter criteria"
                   : "Get started by adding your first payment record"
                 }

@@ -34,30 +34,39 @@ import {
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 import { createPagesBrowserClient } from "@supabase/auth-helpers-nextjs"
+import { useOrganization } from "@/contexts/OrganizationContext"
 
 export function SidebarLeft({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
   const router = useRouter()
+  const { activeOrganization } = useOrganization()
   const [role, setRole] = React.useState<string | null>(null)
   const [pendingCount, setPendingCount] = React.useState<number>(0)
 
   const supabase = createPagesBrowserClient()
   const fetchPendingRequests = async () => {
-    const { count, error } = await supabase
-      .from("employee_requests")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "Pending")
-  
-    if (!error && count !== null) {
-      setPendingCount(count)
+    if (activeOrganization === "palawan") {
+      const stored = localStorage.getItem("palawan_requests")
+      const requests = stored ? JSON.parse(stored) : []
+      const pending = requests.filter((req: any) => req.status === "Pending").length
+      setPendingCount(pending)
+    } else {
+      const { count, error } = await supabase
+        .from("employee_requests")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "Pending")
+
+      if (!error && count !== null) {
+        setPendingCount(count)
+      }
     }
   }
   React.useEffect(() => {
     fetchPendingRequests()
-    const interval = setInterval(fetchPendingRequests, 60000) // refresh every 60s
+    const interval = setInterval(fetchPendingRequests, 60000)
     return () => clearInterval(interval)
-  }, [])
-  
+  }, [activeOrganization])
+
   // Fetch user role on mount
   React.useEffect(() => {
     const fetchRole = async () => {
@@ -90,53 +99,53 @@ export function SidebarLeft({ ...props }: React.ComponentProps<typeof Sidebar>) 
   const navMain = [
     ...(role === "admin" || role === "hr"
       ? [
-          {
-            title: "Dashboard",
-            url: "/dashboard",
-            icon: Home,
-          },
-          {
-            title: "Employees",
-            url: "/employees",
-            icon: Users,
-          },
-          {
-            title: "Timekeeping",
-            url: "/timekeeping",
-            icon: Clock,
-          },
-          {
-            title: "Payroll",
-            url: "/payroll",
-            icon: Calculator,
-          },
-          {
-            title: "Deductions",
-            url: "/deductions",
-            icon: Receipt,
-          },
-          {
-            title: "Reports",
-            url: "/reports",
-            icon: FileText,
-          },
-          {
-            title: "Requests",
-            url: "/admin-requests",
-            icon: (
-              <div className="relative">
-                <MessageCircleReplyIcon className="h-5 w-5" />
-                {pendingCount > 0 && (
-                  <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-red-500 animate-pulse" />
-                )}
-              </div>
-            )
-            
-          },
-          
-        ]
+        {
+          title: "Dashboard",
+          url: "/dashboard",
+          icon: Home,
+        },
+        {
+          title: "Employees",
+          url: "/employees",
+          icon: Users,
+        },
+        {
+          title: "Timekeeping",
+          url: "/timekeeping",
+          icon: Clock,
+        },
+        {
+          title: "Payroll",
+          url: "/payroll",
+          icon: Calculator,
+        },
+        {
+          title: "Deductions",
+          url: "/deductions",
+          icon: Receipt,
+        },
+        {
+          title: "Reports",
+          url: "/reports",
+          icon: FileText,
+        },
+        {
+          title: "Requests",
+          url: "/admin-requests",
+          icon: (
+            <div className="relative">
+              <MessageCircleReplyIcon className="h-5 w-5" />
+              {pendingCount > 0 && (
+                <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+              )}
+            </div>
+          )
+
+        },
+
+      ]
       : role === "employee"
-      ? [
+        ? [
           {
             title: "My Payroll",
             url: "/my-payroll",
@@ -158,7 +167,7 @@ export function SidebarLeft({ ...props }: React.ComponentProps<typeof Sidebar>) 
             icon: MessageCircleReply, // already imported in your sidebar
           }
         ]
-      : [])
+        : [])
   ].map((item) => ({
     ...item,
     isActive: pathname.startsWith(item.url),

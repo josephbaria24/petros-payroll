@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabaseClient"
+import { useOrganization } from "@/contexts/OrganizationContext"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -87,7 +88,8 @@ const statusVariants: Record<string, string> = {
 
 export default function ReportsPage() {
   useProtectedPage(["admin", "hr"])
-  
+  const { activeOrganization } = useOrganization()
+
   const [payrollSummary, setPayrollSummary] = useState<PayrollSummary>({
     totalGross: 0,
     totalDeductions: 0,
@@ -103,7 +105,7 @@ export default function ReportsPage() {
   useEffect(() => {
     fetchReports()
     loadXLSXLibrary()
-  }, [])
+  }, [activeOrganization])
 
   const loadXLSXLibrary = () => {
     if (typeof window !== 'undefined' && !window.XLSX) {
@@ -169,6 +171,33 @@ export default function ReportsPage() {
 
   async function fetchReports() {
     try {
+      if (activeOrganization === "palawan") {
+        // Load Palawan data from localStorage
+        const storedPayroll = localStorage.getItem("palawan_payroll_records")
+        const storedDeductions = localStorage.getItem("palawan_deductions")
+
+        const palawanPayroll = storedPayroll ? JSON.parse(storedPayroll) : []
+        const palawanDeductions = storedDeductions ? JSON.parse(storedDeductions) : []
+
+        setEmployeePayrollDetails(palawanPayroll)
+        setDeductions(palawanDeductions)
+
+        // Calculate summary from localStorage data
+        const totalGross = palawanPayroll.reduce((sum: number, r: any) => sum + (r.gross_pay || 0), 0)
+        const totalDeductions = palawanPayroll.reduce((sum: number, r: any) => sum + (r.total_deductions || 0), 0)
+        const totalNetPay = palawanPayroll.reduce((sum: number, r: any) => sum + (r.net_pay || 0), 0)
+
+        setPayrollSummary({
+          totalGross,
+          totalDeductions,
+          netAfterDeductions: totalNetPay,
+          totalAllowances: palawanPayroll.reduce((sum: number, r: any) => sum + (r.allowances || 0), 0),
+          totalNetPay
+        })
+
+        return
+      }
+
       const { data: payrollRecords, error: payrollError } = await supabase
         .from("payroll_records")
         .select(`
@@ -310,12 +339,12 @@ export default function ReportsPage() {
         (sum, record) => sum + (record.net_pay - (record.cash_advance || 0)),
         0
       )
-      
+
       const netAfterDeductions = totalGross - totalDeductions
 
-      setPayrollSummary({ 
-        totalGross, 
-        totalDeductions, 
+      setPayrollSummary({
+        totalGross,
+        totalDeductions,
         netAfterDeductions,
         totalAllowances,
         totalNetPay
@@ -503,9 +532,9 @@ export default function ReportsPage() {
                   <h3 className="text-lg font-medium text-slate-900">Employee Payroll Details</h3>
                   <p className="text-slate-600">Detailed breakdown of employee payroll records</p>
                 </div>
-                <Button 
-                  onClick={exportToExcel} 
-                  variant="outline" 
+                <Button
+                  onClick={exportToExcel}
+                  variant="outline"
                   className="flex items-center gap-2"
                 >
                   <Download className="h-4 w-4" />
@@ -561,9 +590,8 @@ export default function ReportsPage() {
                             <TableCell className="text-slate-900">₱{emp.total_deductions.toLocaleString()}</TableCell>
                             <TableCell className="font-bold text-slate-900">₱{(emp.net_pay + emp.allowances).toLocaleString()}</TableCell>
                             <TableCell>
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium border ${
-                                statusVariants[emp.status] || "bg-slate-100 text-slate-600 border-slate-200"
-                              }`}>
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium border ${statusVariants[emp.status] || "bg-slate-100 text-slate-600 border-slate-200"
+                                }`}>
                                 {emp.status}
                               </span>
                             </TableCell>

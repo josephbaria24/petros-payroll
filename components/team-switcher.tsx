@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { ChevronDown, Plus } from "lucide-react"
+import { useOrganization } from "@/contexts/OrganizationContext"
 
 import {
   DropdownMenu,
@@ -27,7 +28,20 @@ export function TeamSwitcher({
     plan: string
   }[]
 }) {
-  const [activeTeam, setActiveTeam] = React.useState(teams[0])
+  const { activeOrganization, setActiveOrganization } = useOrganization()
+
+  // Determine active team based on organization context
+  const activeTeam = React.useMemo(() => {
+    return teams.find(team =>
+      team.name.toLowerCase().includes(activeOrganization)
+    ) || teams[0]
+  }, [activeOrganization, teams])
+
+  const handleTeamChange = (team: typeof teams[0]) => {
+    // Map team name to organization ID
+    const orgId = team.name.toLowerCase().includes("palawan") ? "palawan" : "petrosphere"
+    setActiveOrganization(orgId)
+  }
 
   if (!activeTeam) {
     return null
@@ -58,7 +72,7 @@ export function TeamSwitcher({
             {teams.map((team, index) => (
               <DropdownMenuItem
                 key={team.name}
-                onClick={() => setActiveTeam(team)}
+                onClick={() => handleTeamChange(team)}
                 className="gap-2 p-2"
               >
                 <div className="flex size-6 items-center justify-center rounded-xs border">

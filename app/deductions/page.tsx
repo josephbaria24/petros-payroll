@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabaseClient"
+import { useOrganization } from "@/contexts/OrganizationContext"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -55,7 +56,8 @@ const deductionTypeVariants: Record<string, string> = {
 
 export default function DeductionsPage() {
   useProtectedPage(["admin", "hr"])
-  
+  const { activeOrganization } = useOrganization()
+
   const [deductions, setDeductions] = useState<Deduction[]>([])
   const [employees, setEmployees] = useState<{ id: string; full_name: string }[]>([])
   const [open, setOpen] = useState(false)
@@ -105,9 +107,15 @@ export default function DeductionsPage() {
   useEffect(() => {
     fetchDeductions()
     fetchEmployees()
-  }, [])
+  }, [activeOrganization])
 
   async function fetchDeductions() {
+    if (activeOrganization === "palawan") {
+      const stored = localStorage.getItem("palawan_deductions")
+      setDeductions(stored ? JSON.parse(stored) : [])
+      return
+    }
+
     const { data, error } = await supabase
       .from("deductions")
       .select("id, employee_id, type, amount, notes, employees(full_name)")
@@ -131,6 +139,12 @@ export default function DeductionsPage() {
   }
 
   async function fetchEmployees() {
+    if (activeOrganization === "palawan") {
+      const stored = localStorage.getItem("palawan_employees")
+      setEmployees(stored ? JSON.parse(stored) : [])
+      return
+    }
+
     const { data, error } = await supabase.from("employees").select("id, full_name")
     if (error) {
       console.error(error)
@@ -166,7 +180,7 @@ export default function DeductionsPage() {
 
       const currentDeduction = latestPayroll[column] || 0
       const newDeduction = currentDeduction + amount
-      
+
       const basicSalary = latestPayroll.basic_salary || 0
       const overtimePay = latestPayroll.overtime_pay || 0
       const absences = latestPayroll.absences || 0
@@ -174,7 +188,7 @@ export default function DeductionsPage() {
       const philhealth = column === 'philhealth' ? newDeduction : (latestPayroll.philhealth || 0)
       const pagibig = column === 'pagibig' ? newDeduction : (latestPayroll.pagibig || 0)
       const loans = column === 'loans' ? newDeduction : (latestPayroll.loans || 0)
-      
+
       const grossPay = basicSalary + overtimePay
       const totalDeductions = sss + philhealth + pagibig + loans + absences
       const netPay = grossPay - totalDeductions
@@ -201,14 +215,14 @@ export default function DeductionsPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     const toastId = toast.loading(editDeduction ? "Updating deduction..." : "Adding deduction...")
-  
+
     const payload = {
       employee_id: form.employee_id,
       type: form.type,
       amount: parseFloat(form.amount),
       notes: form.notes,
     }
-  
+
     let error
     if (editDeduction) {
       const res = await supabase.from("deductions").update(payload).eq("id", editDeduction.id)
@@ -216,12 +230,12 @@ export default function DeductionsPage() {
     } else {
       const res = await supabase.from("deductions").insert(payload).select().single()
       error = res.error
-  
+
       if (!error && res.data) {
         await applyDeductionsToExistingPayroll(res.data.employee_id, res.data.type, res.data.amount)
       }
     }
-  
+
     if (error) {
       toast.error("Error saving deduction", { id: toastId })
     } else {
@@ -295,7 +309,7 @@ export default function DeductionsPage() {
         }
 
         const updates: Record<string, number> = {}
-        
+
         data.forEach((deduction) => {
           const column = columnMap[deduction.type]
           if (column) {
@@ -711,9 +725,8 @@ export default function DeductionsPage() {
                     <TableRow key={d.id} className="border-b border-slate-100 hover:bg-slate-50 transition">
                       <TableCell className="font-medium text-slate-900">{d.employee_name}</TableCell>
                       <TableCell>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium border capitalize ${
-                          deductionTypeVariants[d.type] || "bg-slate-100 text-slate-600 border-slate-200"
-                        }`}>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium border capitalize ${deductionTypeVariants[d.type] || "bg-slate-100 text-slate-600 border-slate-200"
+                          }`}>
                           {d.type}
                         </span>
                       </TableCell>
@@ -728,7 +741,7 @@ export default function DeductionsPage() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             {/* Edit */}
-                            <DropdownMenuItem 
+                            <DropdownMenuItem
                               onClick={() => {
                                 setEditDeduction(d)
                                 setForm({
@@ -748,8 +761,8 @@ export default function DeductionsPage() {
                             {/* Delete */}
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
-                                <DropdownMenuItem 
-                                  onSelect={(e) => { e.preventDefault(); setDeleteId(d.id) }} 
+                                <DropdownMenuItem
+                                  onSelect={(e) => { e.preventDefault(); setDeleteId(d.id) }}
                                   className="text-slate-600 hover:text-slate-700 flex items-center gap-2"
                                 >
                                   <Trash2 className="h-4 w-4" />
@@ -765,7 +778,7 @@ export default function DeductionsPage() {
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                   <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction 
+                                  <AlertDialogAction
                                     onClick={handleDelete}
                                     className="bg-slate-900 hover:bg-slate-800 text-white"
                                   >
