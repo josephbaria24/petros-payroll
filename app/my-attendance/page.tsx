@@ -4,6 +4,7 @@
 
 import { useEffect, useState } from "react";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { useOrganization } from "@/contexts/OrganizationContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
@@ -11,6 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { Clock, LogIn, LogOut, CheckCircle2, Calendar, User, Timer, ChevronRight } from "lucide-react";
 
 export default function MyTimeLogsPage() {
+  const { activeOrganization } = useOrganization()
   const [loading, setLoading] = useState(false);
   const [hasMounted, setHasMounted] = useState(false);
 
@@ -42,6 +44,24 @@ export default function MyTimeLogsPage() {
         return;
       }
 
+      if (activeOrganization === "palawan") {
+        // Fetch Palawan employee from localStorage
+        const storedEmployees = localStorage.getItem("palawan_employees")
+        const palawanEmployees = storedEmployees ? JSON.parse(storedEmployees) : []
+
+        const employee = palawanEmployees.find((emp: any) => emp.email === user.email)
+
+        if (!employee?.id) {
+          toast.error("Employee record not found for Palawan Daily News.");
+          return;
+        }
+
+        setEmployeeId(employee.id);
+        setAttendanceLogUserId(employee.attendance_log_userid || null);
+        fetchTodayLog(employee.id);
+        return
+      }
+
       const { data: employee, error: empErr } = await supabase
         .from("employees")
         .select("id, attendance_log_userid")
@@ -59,29 +79,47 @@ export default function MyTimeLogsPage() {
     };
 
     init();
-  }, []);
+  }, [activeOrganization]);
 
   const fetchTodayLog = async (empId: string) => {
     const now = new Date();
     const philippinesNow = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Manila" }));
     const todayPhilippines = philippinesNow.toISOString().split('T')[0];
-    
-    const startOfDayUTC = new Date(`${todayPhilippines}T00:00:00+08:00`).toISOString();
-    const endOfDayUTC = new Date(`${todayPhilippines}T23:59:59+08:00`).toISOString();
-  
+
+    if (activeOrganization === "palawan") {
+      // Fetch from localStorage for Palawan
+      const storedLogs = localStorage.getItem("palawan_time_logs")
+      const palawanLogs = storedLogs ? JSON.parse(storedLogs) : []
+
+      const todayLog = palawanLogs.find((log: any) =>
+        log.employee_id === empId && log.date === todayPhilippines
+      )
+
+      setTodayLog({
+        id: todayLog?.id || null,
+        attendance_log_id: null,
+        time_in: todayLog?.time_in || null,
+        time_out: todayLog?.time_out || null,
+      });
+      return
+    }
+
+    const startOfDayUTC = new Date(`${todayPhilippines} T00:00:00 +08:00`).toISOString();
+    const endOfDayUTC = new Date(`${todayPhilippines} T23: 59: 59 +08:00`).toISOString();
+
     const { data: employee, error: empError } = await supabase
       .from("employees")
       .select("attendance_log_userid")
       .eq("id", empId)
       .single();
-  
+
     if (empError || !employee?.attendance_log_userid) {
       console.error("Employee attendance_log_userid not found", empError);
       return;
     }
-  
+
     const logUserId = employee.attendance_log_userid;
-  
+
     const { data: attendanceLog, error: attErr } = await supabase
       .from("attendance_logs")
       .select("id, timestamp")
@@ -91,22 +129,22 @@ export default function MyTimeLogsPage() {
       .order("timestamp", { ascending: true })
       .limit(1)
       .single();
-  
+
     if (attErr && attErr.code !== "PGRST116") {
       console.error("Error fetching attendance log:", attErr);
     }
-  
+
     const { data: timeLog, error: timeLogErr } = await supabase
       .from("time_logs")
       .select("id, time_out")
       .eq("employee_id", empId)
       .eq("date", todayPhilippines)
       .single();
-  
+
     if (timeLogErr && timeLogErr.code !== "PGRST116") {
       console.error("Error fetching time log:", timeLogErr);
     }
-  
+
     setTodayLog({
       id: timeLog?.id,
       attendance_log_id: attendanceLog?.id || null,
@@ -142,44 +180,44 @@ export default function MyTimeLogsPage() {
 
     const meridiem = h >= 12 ? "PM" : "AM";
     const hour12 = (h % 12) || 12;
-    return `${hour12.toString().padStart(2, "0")}:${mm}:${ss} ${meridiem}`;
+    return `${hour12.toString().padStart(2, "0")}:${mm}:${ss} ${meridiem} `;
   };
 
   const getWorkDuration = () => {
     if (!todayLog?.time_in) return null;
-    
+
     const timeIn = todayLog.time_in;
     const timeOut = todayLog.time_out || nowHms24();
-    
+
     const parseTime = (timeStr: string) => {
       const [hours, minutes, seconds] = timeStr.split(':').map(Number);
       return hours * 60 + minutes + (seconds || 0) / 60;
     };
-    
+
     const timeInMinutes = parseTime(timeIn);
     const timeOutMinutes = parseTime(timeOut);
-    
+
     if (timeOutMinutes <= timeInMinutes) return null;
-    
+
     const lunchStart = 12 * 60;
     const lunchEnd = 13 * 60;
-    
+
     let totalWorkMinutes = timeOutMinutes - timeInMinutes;
-    
+
     if (timeInMinutes < lunchEnd && timeOutMinutes > lunchStart) {
       const overlapStart = Math.max(timeInMinutes, lunchStart);
       const overlapEnd = Math.min(timeOutMinutes, lunchEnd);
       const lunchOverlap = overlapEnd - overlapStart;
-      
+
       totalWorkMinutes -= lunchOverlap;
     }
-    
+
     if (totalWorkMinutes < 0) return null;
-    
+
     const hours = Math.floor(totalWorkMinutes / 60);
     const minutes = Math.floor(totalWorkMinutes % 60);
-    
-    return `${hours}h ${minutes}m`;
+
+    return `${hours}h ${minutes} m`;
   };
 
   const handleTimeIn = async () => {
@@ -187,16 +225,16 @@ export default function MyTimeLogsPage() {
       toast.error("Employee information not found. Please refresh the page.");
       return;
     }
-    
+
     setLoading(true);
 
     try {
       const now = new Date();
       const philippineTime = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Manila" }));
-      
+
       const timestamp = new Date(philippineTime.getTime() - philippineTime.getTimezoneOffset() * 60000).toISOString();
       const workDate = philippineTime.toISOString().split('T')[0];
-      
+
       const timeString = philippineTime.toLocaleTimeString("en-PH", {
         hour12: false,
         hour: "2-digit",
@@ -217,7 +255,7 @@ export default function MyTimeLogsPage() {
 
       if (attendanceError) {
         console.error("Attendance log insertion error:", attendanceError);
-        toast.error(`Failed to record attendance: ${attendanceError.message}`);
+        toast.error(`Failed to record attendance: ${attendanceError.message} `);
         setLoading(false);
         return;
       }
@@ -261,7 +299,7 @@ export default function MyTimeLogsPage() {
 
       if (error) {
         console.error("Time out error:", error);
-        toast.error(`Failed to time out: ${error.message}`);
+        toast.error(`Failed to time out: ${error.message} `);
       } else {
         toast.success("Time out recorded.");
         await fetchTodayLog(employeeId);
@@ -303,24 +341,24 @@ export default function MyTimeLogsPage() {
               <div className="text-4xl md:text-4xl font-mono font-bold text-slate-900 tracking-wider">
                 {hasMounted
                   ? new Date().toLocaleTimeString("en-PH", {
-                      timeZone: "Asia/Manila",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      second: "2-digit",
-                      hour12: true,
-                    })
+                    timeZone: "Asia/Manila",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    second: "2-digit",
+                    hour12: true,
+                  })
                   : "Loading..."}
               </div>
               <div className="mt-3 flex items-center justify-center gap-2 text-lg text-slate-600">
                 <Calendar className="h-5 w-5" />
                 {hasMounted
                   ? new Date().toLocaleDateString("en-PH", {
-                      timeZone: "Asia/Manila",
-                      weekday: "long",
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    })
+                    timeZone: "Asia/Manila",
+                    weekday: "long",
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })
                   : ""}
               </div>
             </div>
@@ -360,9 +398,8 @@ export default function MyTimeLogsPage() {
                   </div>
                   <span className="font-medium text-slate-900">Time In</span>
                 </div>
-                <div className={`text-2xl font-mono font-bold ${
-                  todayLog?.time_in ? "text-slate-900" : "text-slate-400"
-                }`}>
+                <div className={`text - 2xl font - mono font - bold ${todayLog?.time_in ? "text-slate-900" : "text-slate-400"
+                  } `}>
                   {format12h(todayLog?.time_in)}
                 </div>
               </div>
@@ -375,9 +412,8 @@ export default function MyTimeLogsPage() {
                   </div>
                   <span className="font-medium text-slate-900">Time Out</span>
                 </div>
-                <div className={`text-2xl font-mono font-bold ${
-                  todayLog?.time_out ? "text-slate-900" : "text-slate-400"
-                }`}>
+                <div className={`text - 2xl font - mono font - bold ${todayLog?.time_out ? "text-slate-900" : "text-slate-400"
+                  } `}>
                   {format12h(todayLog?.time_out)}
                 </div>
               </div>
@@ -386,9 +422,9 @@ export default function MyTimeLogsPage() {
             {/* Action Button */}
             <div className="flex justify-center pt-2">
               {!todayLog?.time_in ? (
-                <Button 
-                  onClick={handleTimeIn} 
-                  disabled={loading} 
+                <Button
+                  onClick={handleTimeIn}
+                  disabled={loading}
                   className="px-8 py-6 text-base font-medium bg-slate-900 hover:bg-slate-800"
                 >
                   {loading ? (
@@ -404,9 +440,9 @@ export default function MyTimeLogsPage() {
                   )}
                 </Button>
               ) : !todayLog?.time_out ? (
-                <Button 
-                  onClick={handleTimeOut} 
-                  disabled={loading} 
+                <Button
+                  onClick={handleTimeOut}
+                  disabled={loading}
                   variant="outline"
                   className="px-8 py-6 text-base font-medium border-slate-900 text-slate-900 hover:bg-slate-50"
                 >

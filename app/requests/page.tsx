@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabaseClient"
+import { useOrganization } from "@/contexts/OrganizationContext"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
@@ -19,9 +20,9 @@ const formatDate = (dateString: string) => {
 
 const formatDateTime = (dateString: string) => {
   const date = new Date(dateString)
-  return date.toLocaleDateString('en-US', { 
-    year: 'numeric', 
-    month: 'long', 
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
     day: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
@@ -53,6 +54,7 @@ interface Request {
 }
 
 export default function MyRequestsPage() {
+  const { activeOrganization } = useOrganization()
   const [type, setType] = useState("Overtime")
   const [date, setDate] = useState("")
   const [timeStart, setTimeStart] = useState("")
@@ -60,7 +62,7 @@ export default function MyRequestsPage() {
   const [reason, setReason] = useState("")
   const [requests, setRequests] = useState<Request[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
-  
+
   // Dialog states
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false)
   const [isFollowUpDialogOpen, setIsFollowUpDialogOpen] = useState(false)
@@ -72,30 +74,54 @@ export default function MyRequestsPage() {
     const {
       data: { user },
     } = await supabase.auth.getUser()
-  
+
     if (!user) {
       console.error("User is not authenticated.")
       return
     }
-  
+
+    if (activeOrganization === "palawan") {
+      // Fetch Palawan employee from localStorage
+      const storedEmployees = localStorage.getItem("palawan_employees")
+      const palawanEmployees = storedEmployees ? JSON.parse(storedEmployees) : []
+
+      const employee = palawanEmployees.find((emp: any) => emp.email === user.email)
+
+      if (!employee) {
+        console.error("Employee record not found for Palawan user:", user.email)
+        return
+      }
+
+      // Fetch requests from localStorage
+      const storedRequests = localStorage.getItem("palawan_requests")
+      const palawanRequests = storedRequests ? JSON.parse(storedRequests) : []
+
+      const employeeRequests = palawanRequests
+        .filter((req: any) => req.employee_id === employee.id)
+        .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+
+      setRequests(employeeRequests)
+      return
+    }
+
     // Get employee record using email
     const { data: employeeData, error: empErr } = await supabase
       .from("employees")
       .select("id")
       .eq("email", user.email)
       .single()
-    
+
     if (empErr || !employeeData) {
       console.error("Employee record not found for user:", user.email)
       return
     }
-  
+
     const { data, error } = await supabase
       .from("employee_requests")
       .select("*")
       .eq("employee_id", employeeData.id)
       .order("created_at", { ascending: false })
-  
+
     if (!error) setRequests(data || [])
   }
 
@@ -106,7 +132,7 @@ export default function MyRequestsPage() {
 
   const confirmCancel = async () => {
     if (!selectedRequest) return
-    
+
     setIsProcessing(true)
 
     const { error } = await supabase
@@ -134,7 +160,7 @@ export default function MyRequestsPage() {
 
   const submitFollowUp = async () => {
     if (!selectedRequest || !followUpNote.trim()) return
-    
+
     setIsProcessing(true)
 
     const { error } = await supabase
@@ -162,25 +188,72 @@ export default function MyRequestsPage() {
     const {
       data: { user }
     } = await supabase.auth.getUser()
-    
+
     if (!user) {
       setIsSubmitting(false)
       return
     }
-    
+
+    if (activeOrganization === "palawan") {
+      // Get Palawan employee from localStorage
+      const storedEmployees = localStorage.getItem("palawan_employees")
+      const palawanEmployees = storedEmployees ? JSON.parse(storedEmployees) : []
+
+      const employee = palawanEmployees.find((emp: any) => emp.email === user.email)
+
+      if (!employee) {
+        console.error("Employee record not found for Palawan user:", user.email)
+        setIsSubmitting(false)
+        return
+      }
+
+      // Create new request for localStorage
+      const newRequest = {
+        id: `palawan_req_${Date.now()}`,
+        employee_id: employee.id,
+        request_type: type,
+        date,
+        time_start: timeStart,
+        time_end: timeEnd,
+        reason,
+        status: "Pending",
+        admin_remarks: null,
+        created_at: new Date().toISOString(),
+        follow_up_note: null
+      }
+
+      // Save to localStorage
+      const storedRequests = localStorage.getItem("palawan_requests")
+      const palawanRequests = storedRequests ? JSON.parse(storedRequests) : []
+      palawanRequests.push(newRequest)
+      localStorage.setItem("palawan_requests", JSON.stringify(palawanRequests))
+
+      // Reset form
+      setType("Overtime")
+      setDate("")
+      setTimeStart("")
+      setTimeEnd("")
+      setReason("")
+
+      // Refresh requests list
+      fetchRequests()
+      setIsSubmitting(false)
+      return
+    }
+
     // Get employee record using email
     const { data: employeeData, error: empErr } = await supabase
       .from("employees")
       .select("id")
       .eq("email", user.email)
       .single()
-    
+
     if (empErr || !employeeData) {
       console.error("Employee record not found for user:", user.email)
       setIsSubmitting(false)
       return
     }
-    
+
     const { error } = await supabase.from("employee_requests").insert([
       {
         employee_id: employeeData.id,
@@ -192,7 +265,7 @@ export default function MyRequestsPage() {
         status: "Pending",
       }
     ])
-    
+
     if (!error) {
       // Reset form
       setType("Overtime")
@@ -200,17 +273,17 @@ export default function MyRequestsPage() {
       setTimeStart("")
       setTimeEnd("")
       setReason("")
-      
+
       // Refresh requests list
       fetchRequests()
     }
-    
+
     setIsSubmitting(false)
   }
 
   useEffect(() => {
     fetchRequests()
-  }, [])
+  }, [activeOrganization])
 
   return (
     <div className="space-y-8 p-6 min-h-screen" style={{ backgroundColor: '#f8fafc' }}>

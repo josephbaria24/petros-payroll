@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { createPagesBrowserClient } from "@supabase/auth-helpers-nextjs"
+import { useOrganization } from "@/contexts/OrganizationContext"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -18,6 +19,7 @@ import { Download, DollarSign, FileText, TrendingUp, Calendar, ChevronRight } fr
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
 export default function MyPayrollPage() {
+  const { activeOrganization } = useOrganization()
   const [records, setRecords] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
@@ -32,25 +34,59 @@ export default function MyPayrollPage() {
         data: { user },
         error: sessionError,
       } = await supabase.auth.getUser()
-  
+
       if (sessionError || !user) {
         router.push("/login")
         return
       }
-  
+
+      if (activeOrganization === "palawan") {
+        // Fetch Palawan employee data from localStorage
+        const storedEmployees = localStorage.getItem("palawan_employees")
+        const palawanEmployees = storedEmployees ? JSON.parse(storedEmployees) : []
+
+        const employee = palawanEmployees.find((emp: any) => emp.email === user.email)
+
+        if (!employee) {
+          setError("No employee record found for Palawan Daily News.")
+          setLoading(false)
+          return
+        }
+
+        setEmployeeDetails(employee)
+
+        // Fetch payroll records from localStorage
+        const storedPayroll = localStorage.getItem("palawan_payroll_records")
+        const palawanPayroll = storedPayroll ? JSON.parse(storedPayroll) : []
+
+        const employeePayroll = palawanPayroll.filter((rec: any) => rec.employee_id === employee.id)
+
+        const merged = employeePayroll.map((rec: any) => ({
+          ...rec,
+          additional_deductions: 0,
+          calculated_total_deductions: rec.total_deductions || 0,
+          gross_pay: rec.gross_pay || 0,
+          calculated_net_pay: rec.net_pay || 0,
+        }))
+
+        setRecords(merged || [])
+        setLoading(false)
+        return
+      }
+
       const { data: employee } = await supabase
         .from("employees")
         .select("id, employee_code, full_name, department, position")
         .eq("email", user.email)
         .single()
-    
+
       if (!employee) {
         setError("No employee record found.")
         setLoading(false)
         return
       }
       setEmployeeDetails(employee)
-  
+
       const { data: payroll, error: payrollError } = await supabase
         .from("payroll_records")
         .select(`
@@ -79,22 +115,22 @@ export default function MyPayrollPage() {
         `)
         .eq("employee_id", employee.id)
         .order("period_end", { ascending: false })
-  
+
       if (payrollError) {
         setError("Error fetching payroll records.")
         setLoading(false)
         return
       }
-  
+
       const { data: deductions, error: dedError } = await supabase
         .from("deductions")
         .select("employee_id, amount, created_at")
         .eq("employee_id", employee.id)
-  
+
       if (dedError) {
         console.error(dedError)
       }
-  
+
       const merged = payroll.map((rec: any) => {
         const additionalDeductions =
           deductions
@@ -104,7 +140,7 @@ export default function MyPayrollPage() {
                 d.created_at <= rec.period_end
             )
             .reduce((sum, d) => sum + d.amount, 0) || 0
-      
+
         const totalEarnings =
           (rec.basic_salary || 0) +
           (rec.overtime_pay || 0) +
@@ -113,7 +149,7 @@ export default function MyPayrollPage() {
           (rec.allowances || 0) +
           (rec.bonuses || 0) +
           (rec.commission || 0)
-      
+
         const allDeductions =
           (rec.sss || 0) +
           (rec.philhealth || 0) +
@@ -124,7 +160,7 @@ export default function MyPayrollPage() {
           (rec.loans || 0) +
           (rec.uniform || 0) +
           additionalDeductions
-      
+
         return {
           ...rec,
           additional_deductions: additionalDeductions,
@@ -133,20 +169,20 @@ export default function MyPayrollPage() {
           calculated_net_pay: totalEarnings - allDeductions,
         }
       })
-  
+
       setRecords(merged || [])
       setLoading(false)
     }
-  
+
     fetchData()
-  }, [])
+  }, [activeOrganization])
 
   const downloadPaySlip = async () => {
     if (!selectedRecord) return
 
     try {
       const html2canvas = (await import('html2canvas')).default
-      
+
       const element = document.getElementById('payslip-content')
       if (!element) return
 
@@ -157,7 +193,7 @@ export default function MyPayrollPage() {
         useCORS: true,
         allowTaint: true
       })
-      
+
       const link = document.createElement('a')
       link.download = `payslip_${selectedRecord.period_start}_to_${selectedRecord.period_end}.jpg`
       link.href = canvas.toDataURL('image/jpeg', 0.9)
@@ -175,7 +211,7 @@ export default function MyPayrollPage() {
       "Pending Payment": "bg-white text-slate-900 border-slate-300",
       "Cancelled": "bg-slate-100 text-slate-600 border-slate-200",
     }
-    
+
     return (
       <Badge className={variants[status] || "bg-slate-100 text-slate-600 border-slate-200"}>
         {status}
@@ -350,7 +386,7 @@ export default function MyPayrollPage() {
                                     Download
                                   </Button>
                                 </DialogHeader>
-                                
+
                                 {selectedRecord && (
                                   <div id="payslip-content" style={{ backgroundColor: '#ffffff', padding: '32px', display: 'flex', flexDirection: 'column', gap: '24px', color: '#000000', fontFamily: 'Arial, sans-serif' }}>
                                     {/* Header */}
@@ -380,7 +416,7 @@ export default function MyPayrollPage() {
                                           </p>
                                         </div>
                                       </div>
-                                      
+
                                       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                         <h3 style={{ fontWeight: '600', color: '#1f2937', borderBottom: '1px solid #d1d5db', paddingBottom: '4px' }}>PAY PERIOD</h3>
                                         <div style={{ fontSize: '14px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
