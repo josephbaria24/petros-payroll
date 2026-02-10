@@ -60,17 +60,19 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
             if (allowed.length === 0) allowed.push("petrosphere")
 
             setAllowedOrganizations(allowed)
-
-            // If current active organization is NOT allowed, switch to the first allowed one
-            if (!allowed.includes(activeOrganization)) {
-                const fallback = allowed[0]
-                setActiveOrganizationState(fallback)
-                localStorage.setItem("activeOrganization", fallback)
-            }
         }
 
         checkAccess()
-    }, [role, loading, activeOrganization])
+    }, [role, loading])
+
+    // Validate active organization whenever allowed list changes
+    useEffect(() => {
+        if (allowedOrganizations.length > 0 && !allowedOrganizations.includes(activeOrganization)) {
+            const fallback = allowedOrganizations[0]
+            setActiveOrganizationState(fallback)
+            localStorage.setItem("activeOrganization", fallback)
+        }
+    }, [activeOrganization, allowedOrganizations])
 
     // Save to localStorage when changed
     const setActiveOrganization = (org: Organization) => {

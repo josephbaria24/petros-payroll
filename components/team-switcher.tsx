@@ -4,6 +4,7 @@ import * as React from "react"
 import { ChevronDown, Plus } from "lucide-react"
 import { useOrganization } from "@/contexts/OrganizationContext"
 import { useUserRole } from "@/lib/useUseRole"
+import { cn } from "@/lib/utils"
 
 import {
   DropdownMenu,
@@ -77,7 +78,10 @@ export function TeamSwitcher({
       <SidebarMenuItem>
         <DropdownMenu>
           <DropdownMenuTrigger asChild disabled={!showSwitcher}>
-            <SidebarMenuButton className="w-fit px-1.5">
+            <SidebarMenuButton
+              size="lg"
+              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground w-full justify-start px-2"
+            >
               <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-5 items-center justify-center rounded-md">
                 <activeTeam.logo className="size-3" />
               </div>
@@ -99,7 +103,10 @@ export function TeamSwitcher({
                 <DropdownMenuItem
                   key={team.name}
                   onClick={() => handleTeamChange(team)}
-                  className="gap-2 p-2"
+                  className={cn(
+                    "gap-2 p-2",
+                    activeTeam.name === team.name && "bg-muted font-medium"
+                  )}
                 >
                   <div className="flex size-6 items-center justify-center rounded-xs border">
                     <team.logo className="size-4 shrink-0" />
