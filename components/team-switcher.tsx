@@ -29,22 +29,19 @@ export function TeamSwitcher({
     plan: string
   }[]
 }) {
-  const { activeOrganization, setActiveOrganization } = useOrganization()
-  const { role, loading } = useUserRole()
+  const { activeOrganization, setActiveOrganization, allowedOrganizations } = useOrganization()
+  // const { role, loading } = useUserRole() // Removed as role-based filtering is replaced
 
-  // Filter teams based on role
+  // Filter teams based on allowedOrganizations from context
   const filteredTeams = React.useMemo(() => {
-    if (loading) return []
+    // if (loading) return [] // No longer needed as filtering is based on allowedOrganizations
 
-    // Admins see all teams
-    if (role === 'admin' || role === 'super_admin') {
-      return teams
-    }
-
-    // Regular employees only see Petrosphere for now
-    // TODO: In the future, check if they are specifically assigned to Palawan
-    return teams.filter(team => !team.name.toLowerCase().includes("palawan"))
-  }, [teams, role, loading])
+    // For each team in the list, check if its "orgId" (derived from name) is in the allowed list
+    return teams.filter(team => {
+      const orgId = team.name.toLowerCase().includes("palawan") ? "palawan" : "petrosphere"
+      return allowedOrganizations.includes(orgId as any)
+    })
+  }, [teams, allowedOrganizations]) // Removed 'loading' and 'role' from dependencies
 
   // Determine active team based on organization context
   const activeTeam = React.useMemo(() => {
@@ -54,19 +51,22 @@ export function TeamSwitcher({
 
     // If active org is restricted (not in filtered list), fallback to first available
     if (!found && filteredTeams.length > 0) {
-      // We don't auto-switch here to avoid side-effects during render, 
+      // We don't auto-switch here to avoid side-effects during render,
       // but the OrganizationContext should handle the enforcement.
       return filteredTeams[0]
     }
 
-    return found || teams[0]
+    return found || filteredTeams[0] || teams[0]
   }, [activeOrganization, filteredTeams, teams])
 
   const handleTeamChange = (team: typeof teams[0]) => {
     // Map team name to organization ID
     const orgId = team.name.toLowerCase().includes("palawan") ? "palawan" : "petrosphere"
-    setActiveOrganization(orgId)
+    setActiveOrganization(orgId as any)
   }
+
+  // If there's only one team visible, don't show the dropdown arrow (optional, but cleaner)
+  const showSwitcher = filteredTeams.length > 1
 
   if (!activeTeam) {
     return null
@@ -76,38 +76,39 @@ export function TeamSwitcher({
     <SidebarMenu>
       <SidebarMenuItem>
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
+          <DropdownMenuTrigger asChild disabled={!showSwitcher}>
             <SidebarMenuButton className="w-fit px-1.5">
               <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-5 items-center justify-center rounded-md">
                 <activeTeam.logo className="size-3" />
               </div>
               <span className="truncate font-medium">{activeTeam.name}</span>
-              <ChevronDown className="opacity-50" />
+              {showSwitcher && <ChevronDown className="opacity-50" />}
             </SidebarMenuButton>
           </DropdownMenuTrigger>
-          <DropdownMenuContent
-            className="w-64 rounded-lg"
-            align="start"
-            side="bottom"
-            sideOffset={4}
-          >
-            <DropdownMenuLabel className="text-muted-foreground text-xs">
-              Teams
-            </DropdownMenuLabel>
-            {filteredTeams.map((team, index) => (
-              <DropdownMenuItem
-                key={team.name}
-                onClick={() => handleTeamChange(team)}
-                className="gap-2 p-2"
-              >
-                <div className="flex size-6 items-center justify-center rounded-xs border">
-                  <team.logo className="size-4 shrink-0" />
-                </div>
-                {team.name}
-                <DropdownMenuShortcut>⌘{index + 1}</DropdownMenuShortcut>
-              </DropdownMenuItem>
-            ))}
-            {/* 
+          {showSwitcher && (
+            <DropdownMenuContent
+              className="w-64 rounded-lg"
+              align="start"
+              side="bottom"
+              sideOffset={4}
+            >
+              <DropdownMenuLabel className="text-muted-foreground text-xs">
+                Teams
+              </DropdownMenuLabel>
+              {filteredTeams.map((team, index) => (
+                <DropdownMenuItem
+                  key={team.name}
+                  onClick={() => handleTeamChange(team)}
+                  className="gap-2 p-2"
+                >
+                  <div className="flex size-6 items-center justify-center rounded-xs border">
+                    <team.logo className="size-4 shrink-0" />
+                  </div>
+                  {team.name}
+                  <DropdownMenuShortcut>⌘{index + 1}</DropdownMenuShortcut>
+                </DropdownMenuItem>
+              ))}
+              {/*
             <DropdownMenuSeparator />
             <DropdownMenuItem className="gap-2 p-2">
               <div className="bg-background flex size-6 items-center justify-center rounded-md border">
@@ -116,7 +117,8 @@ export function TeamSwitcher({
               <div className="text-muted-foreground font-medium">Add team</div>
             </DropdownMenuItem>
             */}
-          </DropdownMenuContent>
+            </DropdownMenuContent>
+          )}
         </DropdownMenu>
       </SidebarMenuItem>
     </SidebarMenu>
