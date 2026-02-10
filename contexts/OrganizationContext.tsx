@@ -33,8 +33,9 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
             const { data: { user } } = await supabase.auth.getUser()
             if (!user || loading) return
 
-            // Admins see everything
-            if (role === 'admin' || role === 'super_admin') {
+            // Admins and HR see everything
+            const normalizedRole = role?.toLowerCase()
+            if (normalizedRole === 'admin' || normalizedRole === 'super_admin' || normalizedRole === 'hr') {
                 setAllowedOrganizations(["petrosphere", "palawan"])
                 return
             }
