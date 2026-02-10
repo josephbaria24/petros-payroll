@@ -32,12 +32,17 @@ export default function AuthCallback() {
         router.push("/login?error=role")
         return
       }
+
+      // Refresh the router to update middleware session
+      router.refresh()
+
       if (profile.role === "employee") {
         router.push("/my-payroll")
-      }
-      if (profile.role === "admin" || profile.role === "hr") {
+      } else if (profile.role === "admin" || profile.role === "hr") {
         router.push("/dashboard")
-      } 
+      } else {
+        router.push("/dashboard")
+      }
     }
 
     getSession()

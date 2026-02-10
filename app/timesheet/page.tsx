@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from "react"
 import { startOfWeek, endOfWeek, addDays, format } from "date-fns"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+import { supabase } from "@/lib/supabaseClient"
 import { CheckCircle, XCircle, Clock, Plane, CalendarClock } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -95,7 +95,6 @@ export default function WeeklyTimesheet() {
   const [userId, setUserId] = useState("")
   const [attendanceLogUserId, setAttendanceLogUserId] = useState("")
   const [editLog, setEditLog] = useState<TimeLog | null>(null)
-  const supabase = createClientComponentClient()
 
   // Helper function to create timestamp with validation (stores Philippine time as UTC like ZKT)
   const createTimestamp = (date: string, time: string): string | null => {
@@ -117,7 +116,7 @@ export default function WeeklyTimesheet() {
 
       // Create Philippine time and store as UTC (same as ZKT format)
       const philippineDateTime = new Date(`${date}T${timeWithSeconds}`)
-      
+
       // Test if the date is valid
       if (isNaN(philippineDateTime.getTime())) {
         console.error("Invalid datetime:", `${date}T${timeWithSeconds}`)
@@ -177,14 +176,14 @@ export default function WeeklyTimesheet() {
       if (attendanceLogs && timeLogs) {
         // Group attendance logs by date and get first entry (time in) for each day
         const groupedLogs: { [key: string]: TimeLog } = {}
-        
+
         // Process attendance logs (time in) - ZKT stores Philippine time as UTC
         attendanceLogs.forEach((log) => {
           const logDate = log.work_date || format(new Date(log.timestamp), "yyyy-MM-dd")
-          
+
           // Extract time directly from ZKT timestamp (it's Philippine time stored as UTC)
           const timeIn = log.timestamp.split('T')[1].split('+')[0].substring(0, 8) // Extract HH:MM:SS
-          
+
           if (!groupedLogs[logDate]) {
             groupedLogs[logDate] = {
               id: `attendance_${logDate}`,
@@ -232,7 +231,7 @@ export default function WeeklyTimesheet() {
     if (!editLog) return
 
     const { time_in, time_out, status, date, attendance_log_id } = editLog
-    
+
     try {
       // Handle time_in update (update attendance_logs)
       if (time_in && attendance_log_id) {
@@ -242,10 +241,10 @@ export default function WeeklyTimesheet() {
           alert("Invalid time format. Please enter a valid time.")
           return
         }
-        
+
         const { error: attendanceError } = await supabase
           .from("attendance_logs")
-          .update({ 
+          .update({
             timestamp: timeInTimestamp,
             work_date: date
           })
@@ -263,7 +262,7 @@ export default function WeeklyTimesheet() {
           alert("Invalid time format. Please enter a valid time.")
           return
         }
-        
+
         const { data: newAttendanceLog, error: attendanceError } = await supabase
           .from("attendance_logs")
           .insert([{
@@ -311,12 +310,12 @@ export default function WeeklyTimesheet() {
         // Refresh the logs by updating state
         const updatedLog = { ...editLog, time_in, time_out, status }
         const updatedLogs = logs.map((log) => (log.date === date ? updatedLog : log))
-        
+
         // If this is a new log, add it to the list
         if (!logs.find((log) => log.date === date)) {
           updatedLogs.push(updatedLog)
         }
-        
+
         setLogs(updatedLogs)
         setEditLog(null)
       } else {
@@ -330,11 +329,11 @@ export default function WeeklyTimesheet() {
   // Format time for display (convert to 12-hour format)
   const formatTime = (time: string | null) => {
     if (!time) return "-"
-    
+
     const [hours, minutes] = time.split(":").map(Number)
     const meridiem = hours >= 12 ? "PM" : "AM"
     const hour12 = hours % 12 || 12
-    
+
     return `${hour12.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")} ${meridiem}`
   }
 

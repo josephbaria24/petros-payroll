@@ -33,7 +33,7 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
-import { createPagesBrowserClient } from "@supabase/auth-helpers-nextjs"
+import { supabase } from "@/lib/supabaseClient"
 import { useOrganization } from "@/contexts/OrganizationContext"
 
 export function SidebarLeft({ ...props }: React.ComponentProps<typeof Sidebar>) {
@@ -43,7 +43,7 @@ export function SidebarLeft({ ...props }: React.ComponentProps<typeof Sidebar>) 
   const [role, setRole] = React.useState<string | null>(null)
   const [pendingCount, setPendingCount] = React.useState<number>(0)
 
-  const supabase = createPagesBrowserClient()
+
   const fetchPendingRequests = async () => {
     if (activeOrganization === "palawan") {
       const stored = localStorage.getItem("palawan_requests")

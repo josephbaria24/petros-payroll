@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { EyeIcon, EyeOffIcon } from "lucide-react"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+import { supabase } from "@/lib/supabaseClient"
 
 export function LoginForm({ className, ...props }: React.ComponentProps<"div">) {
   const [email, setEmail] = useState("")
@@ -19,39 +19,38 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const router = useRouter()
-  const supabase = createClientComponentClient()
 
   useEffect(() => {
     const checkSessionAndRole = async () => {
       const {
         data: { session },
       } = await supabase.auth.getSession()
-  
+
       if (!session) return
-  
+
       const { data: profile, error } = await supabase
         .from("profiles")
         .select("role")
         .eq("id", session.user.id)
         .single()
-  
+
       if (error || !profile) {
         console.error("Error fetching profile:", error)
         return
       }
-  
+
       const role = profile.role
       if (role === "employee") {
         router.push("/my-payroll")
       }
       if (role === "admin" || role === "hr") {
         router.push("/dashboard")
-      } 
+      }
     }
-  
+
     checkSessionAndRole()
   }, [router, supabase])
-  
+
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -77,12 +76,15 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
       .eq("id", data.user.id)
       .single()
 
+    // Refresh the router to update middleware session
+    router.refresh()
 
-      if (profile?.role === "employee") {
-        router.push("/my-payroll")
-      }
-  
-    if (profile?.role === "admin" || profile?.role === "hr") {
+    if (profile?.role === "employee") {
+      router.push("/my-payroll")
+    } else if (profile?.role === "admin" || profile?.role === "hr") {
+      router.push("/dashboard")
+    } else {
+      // Default redirect if no role found
       router.push("/dashboard")
     }
 
@@ -96,8 +98,8 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "azure",
       options: {
-         // or simply:
-      redirectTo: `${window.location.origin}/dashboard` 
+        // or simply:
+        redirectTo: `${window.location.origin}/dashboard`
         // redirectTo:
         //   process.env.NODE_ENV === "development"
         //     ? "http://localhost:3000/"
@@ -105,7 +107,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
         // scopes: "openid profile email offline_access User.Read",
       },
     })
-     
+
     if (error) {
       setError(error.message)
       setLoading(false)

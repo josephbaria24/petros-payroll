@@ -3,13 +3,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+
 import { useOrganization } from "@/contexts/OrganizationContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Separator } from "@/components/ui/separator";
 import { Clock, LogIn, LogOut, CheckCircle2, Calendar, User, Timer, ChevronRight } from "lucide-react";
+import { supabase } from "@/lib/supabaseClient";
 
 export default function MyTimeLogsPage() {
   const { activeOrganization } = useOrganization()
@@ -24,8 +25,6 @@ export default function MyTimeLogsPage() {
   const [employeeId, setEmployeeId] = useState<string | null>(null);
   const [attendanceLogUserId, setAttendanceLogUserId] = useState<number | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
-
-  const supabase = createClientComponentClient();
 
   // Update current time every second
   useEffect(() => {
@@ -104,8 +103,8 @@ export default function MyTimeLogsPage() {
       return
     }
 
-    const startOfDayUTC = new Date(`${todayPhilippines} T00:00:00 +08:00`).toISOString();
-    const endOfDayUTC = new Date(`${todayPhilippines} T23: 59: 59 +08:00`).toISOString();
+    const startOfDayUTC = new Date(`${todayPhilippines}T00:00:00+08:00`).toISOString();
+    const endOfDayUTC = new Date(`${todayPhilippines}T23:59:59+08:00`).toISOString();
 
     const { data: employee, error: empError } = await supabase
       .from("employees")

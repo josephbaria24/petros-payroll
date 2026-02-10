@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { createPagesBrowserClient } from "@supabase/auth-helpers-nextjs"
+import { supabase } from "@/lib/supabaseClient" // Changed: Imported supabase client
 import { useOrganization } from "@/contexts/OrganizationContext"
 import { Button } from "@/components/ui/button"
 import {
@@ -23,7 +23,6 @@ export default function MyPayrollPage() {
   const [records, setRecords] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
-  const supabase = createPagesBrowserClient()
   const router = useRouter()
   const [selectedRecord, setSelectedRecord] = useState<any | null>(null)
   const [employeeDetails, setEmployeeDetails] = useState<any | null>(null)
