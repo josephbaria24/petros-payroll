@@ -104,8 +104,8 @@ export default function MyTimeLogsPage() {
       return
     }
 
-    const startOfDayUTC = new Date(`${todayPhilippines} T00:00:00 +08:00`).toISOString();
-    const endOfDayUTC = new Date(`${todayPhilippines} T23: 59: 59 +08:00`).toISOString();
+    const startOfDayUTC = new Date(`${todayPhilippines}T00:00:00+08:00`).toISOString();
+    const endOfDayUTC = new Date(`${todayPhilippines}T23:59:59+08:00`).toISOString();
 
     const { data: employee, error: empError } = await supabase
       .from("employees")
