@@ -3,6 +3,7 @@
 import * as React from "react"
 import { ChevronDown, Plus } from "lucide-react"
 import { useOrganization } from "@/contexts/OrganizationContext"
+import { useUserRole } from "@/lib/useUseRole"
 
 import {
   DropdownMenu,
@@ -29,13 +30,37 @@ export function TeamSwitcher({
   }[]
 }) {
   const { activeOrganization, setActiveOrganization } = useOrganization()
+  const { role, loading } = useUserRole()
+
+  // Filter teams based on role
+  const filteredTeams = React.useMemo(() => {
+    if (loading) return []
+
+    // Admins see all teams
+    if (role === 'admin' || role === 'super_admin') {
+      return teams
+    }
+
+    // Regular employees only see Petrosphere for now
+    // TODO: In the future, check if they are specifically assigned to Palawan
+    return teams.filter(team => !team.name.toLowerCase().includes("palawan"))
+  }, [teams, role, loading])
 
   // Determine active team based on organization context
   const activeTeam = React.useMemo(() => {
-    return teams.find(team =>
+    const found = filteredTeams.find(team =>
       team.name.toLowerCase().includes(activeOrganization)
-    ) || teams[0]
-  }, [activeOrganization, teams])
+    )
+
+    // If active org is restricted (not in filtered list), fallback to first available
+    if (!found && filteredTeams.length > 0) {
+      // We don't auto-switch here to avoid side-effects during render, 
+      // but the OrganizationContext should handle the enforcement.
+      return filteredTeams[0]
+    }
+
+    return found || teams[0]
+  }, [activeOrganization, filteredTeams, teams])
 
   const handleTeamChange = (team: typeof teams[0]) => {
     // Map team name to organization ID
@@ -69,7 +94,7 @@ export function TeamSwitcher({
             <DropdownMenuLabel className="text-muted-foreground text-xs">
               Teams
             </DropdownMenuLabel>
-            {teams.map((team, index) => (
+            {filteredTeams.map((team, index) => (
               <DropdownMenuItem
                 key={team.name}
                 onClick={() => handleTeamChange(team)}
@@ -82,6 +107,7 @@ export function TeamSwitcher({
                 <DropdownMenuShortcut>⌘{index + 1}</DropdownMenuShortcut>
               </DropdownMenuItem>
             ))}
+            {/* 
             <DropdownMenuSeparator />
             <DropdownMenuItem className="gap-2 p-2">
               <div className="bg-background flex size-6 items-center justify-center rounded-md border">
@@ -89,6 +115,7 @@ export function TeamSwitcher({
               </div>
               <div className="text-muted-foreground font-medium">Add team</div>
             </DropdownMenuItem>
+            */}
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>

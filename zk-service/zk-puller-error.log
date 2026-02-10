@@ -2865,3 +2865,31 @@ Traceback (most recent call last):
     result = _winapi.WaitForSingleObject(self._handle,
                                          timeout_millis)
 KeyboardInterrupt
+Traceback (most recent call last):
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 204, in <module>
+    fetch_logs()
+    ~~~~~~~~~~^^
+  File "D:\PETROSPHERE_PROJECT\petrosphere-utility-web-app\payroll\zk-service\zk-puller.py", line 139, in fetch_logs
+    conn = zk.connect()
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 366, in connect
+    if not self.ommit_ping and not self.helper.test_ping():
+                                   ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\zk\base.py", line 85, in test_ping
+    return subprocess.call(args,
+           ~~~~~~~~~~~~~~~^^^^^^
+                        stdout=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        stderr=subprocess.PIPE,
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+                        shell=need_sh) == 0
+                        ^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 397, in call
+    return p.wait(timeout=timeout)
+           ~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1277, in wait
+    return self._wait(timeout=timeout)
+           ~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1603, in _wait
+    result = _winapi.WaitForSingleObject(self._handle,
+                                         timeout_millis)
+KeyboardInterrupt

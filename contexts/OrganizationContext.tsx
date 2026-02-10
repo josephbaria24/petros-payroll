@@ -1,6 +1,7 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react"
+import { useUserRole } from "@/lib/useUseRole"
 
 type Organization = "petrosphere" | "palawan"
 
@@ -13,6 +14,7 @@ const OrganizationContext = createContext<OrganizationContextType | undefined>(u
 
 export function OrganizationProvider({ children }: { children: ReactNode }) {
     const [activeOrganization, setActiveOrganizationState] = useState<Organization>("petrosphere")
+    const { role, loading } = useUserRole()
 
     // Load from localStorage on mount
     useEffect(() => {
@@ -22,8 +24,25 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
         }
     }, [])
 
+    // Enforce access control
+    useEffect(() => {
+        if (loading) return
+
+        // If user is basic employee (not admin) and tries to access Palawan
+        if (role === 'employee' && activeOrganization === 'palawan') {
+            console.log("Unauthorized access to Palawan detected, redirecting to Petrosphere")
+            setActiveOrganizationState("petrosphere")
+            localStorage.setItem("activeOrganization", "petrosphere")
+        }
+    }, [activeOrganization, role, loading])
+
     // Save to localStorage when changed
     const setActiveOrganization = (org: Organization) => {
+        // Double check before setting
+        if (role === 'employee' && org === 'palawan') {
+            return // Ignore the attempt
+        }
+
         setActiveOrganizationState(org)
         localStorage.setItem("activeOrganization", org)
     }
