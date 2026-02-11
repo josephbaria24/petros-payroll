@@ -13,7 +13,21 @@ import {
   AlertDialogAction,
 } from "@/components/ui/alert-dialog"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  BarChart,
+  Bar,
+  Cell,
+  PieChart,
+  Pie,
+} from "recharts"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,7 +43,12 @@ import {
   DollarSign,
   TrendingUp,
   Plus,
-  Search
+  Search,
+  Calendar as CalendarIcon,
+  Check,
+  ChevronsUpDown,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react"
 
 import { supabase } from "@/lib/supabaseClient"
@@ -58,7 +77,6 @@ import {
   BreadcrumbPage,
 } from "@/components/ui/breadcrumb"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { CalendarIcon, Check, ChevronsUpDown } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -123,6 +141,7 @@ export default function DashboardPage() {
   const [payday, setPayday] = useState<Date | undefined>(undefined)
   const [dataLoading, setDataLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
+  const [currentPeriodIndex, setCurrentPeriodIndex] = useState(0)
 
   const [form, setForm] = useState({
     employee_id: "",
@@ -388,12 +407,52 @@ export default function DashboardPage() {
     }
   }
 
+  const periods = useMemo(() => {
+    const unique = Array.from(new Set(records.map(r => r.period_end)))
+      .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
+    return unique
+  }, [records])
+
+  const selectedPeriod = periods[currentPeriodIndex]
+
   const filteredRecords = records.filter(record => {
+    const matchesPeriod = !selectedPeriod || record.period_end === selectedPeriod
     const matchesFilter = filter === "all" || record.pay_type === filter
     const matchesSearch = record.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       record.employee_code.toLowerCase().includes(searchTerm.toLowerCase())
-    return matchesFilter && matchesSearch
+    return matchesPeriod && matchesFilter && matchesSearch
   })
+
+  // --- CHART DATA TRANSFORMATIONS ---
+
+  const trendData = useMemo(() => {
+    const monthlyMap = new Map()
+    records.forEach(r => {
+      const month = new Date(r.period_end).toLocaleString('default', { month: 'short', year: '2-digit' })
+      monthlyMap.set(month, (monthlyMap.get(month) || 0) + r.net_pay)
+    })
+    return Array.from(monthlyMap).map(([name, total]) => ({ name, total: total as number })).reverse().slice(-6)
+  }, [records])
+
+  const categoryData = useMemo(() => {
+    const catMap = new Map()
+    records.forEach(r => {
+      catMap.set(r.pay_type, (catMap.get(r.pay_type) || 0) + r.net_pay)
+    })
+    return Array.from(catMap).map(([name, value]) => ({ name, value: value as number }))
+  }, [records])
+
+  const statusData = useMemo(() => {
+    const statMap = new Map()
+    records.forEach(r => {
+      statMap.set(r.status, (statMap.get(r.status) || 0) + 1)
+    })
+    return Array.from(statMap).map(([name, value]) => ({ name, value: value as number }))
+  }, [records])
+
+  const COLORS = ['#0f172a', '#334155', '#64748b', '#94a3b8', '#cbd5e1']
+
+  // --- END CHART DATA TRANSFORMATIONS ---
 
   // Calculate metrics
   const totalPayroll = records.reduce((sum, r) => sum + r.net_pay, 0)
@@ -436,56 +495,162 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      {/* Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="border-0 shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-slate-600">
-              Total Payroll
-            </CardTitle>
-            <DollarSign className="h-4 w-4 text-slate-400" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-slate-900">
-              ₱{totalPayroll.toLocaleString()}
+      {/* Insights Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main Trend Chart */}
+        <Card className="lg:col-span-2 border-0 shadow-sm overflow-hidden flex flex-col">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-7">
+            <div>
+              <CardTitle className="text-base font-semibold text-slate-900">Payroll Trends</CardTitle>
+              <p className="text-xs text-slate-500 mt-1">Total payout distribution over time</p>
             </div>
-            <p className="text-xs text-slate-500 mt-1">
-              Current period total
-            </p>
+            <div className="flex items-center gap-1.5 px-2 py-1 bg-slate-50 rounded-md border border-slate-100">
+              <div className="h-2 w-2 rounded-full bg-slate-900" />
+              <span className="text-[10px] font-medium text-slate-600">Net Pay</span>
+            </div>
+          </CardHeader>
+          <CardContent className="px-2 pb-4 flex-1">
+            <div className="h-[260px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={trendData}>
+                  <defs>
+                    <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#0f172a" stopOpacity={0.1} />
+                      <stop offset="95%" stopColor="#0f172a" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis
+                    dataKey="name"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: '#64748b', fontSize: 10 }}
+                    dy={10}
+                  />
+                  <YAxis hide />
+                  <Tooltip
+                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontSize: '11px' }}
+                    formatter={(value: any) => [`₱${value.toLocaleString()}`, 'Total Payout']}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="total"
+                    stroke="#0f172a"
+                    strokeWidth={2}
+                    fillOpacity={1}
+                    fill="url(#colorTotal)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
           </CardContent>
         </Card>
 
-        <Card className="border-0 shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-slate-600">
-              Completed Payments
-            </CardTitle>
-            <TrendingUp className="h-4 w-4 text-slate-400" />
+        {/* Status Distribution (Donut) */}
+        <Card className="border-0 shadow-sm flex flex-col">
+          <CardHeader className="pb-0">
+            <CardTitle className="text-base font-semibold text-slate-900">Payment Status</CardTitle>
+            <p className="text-xs text-slate-500 mt-1">Current processing status</p>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-slate-900">
-              {completedPayments}
+          <CardContent className="flex-1 flex flex-col pt-0">
+            <div className="h-[210px] w-full mt-4">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={statusData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={85}
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {statusData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontSize: '11px' }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
             </div>
-            <p className="text-xs text-slate-500 mt-1">
-              Successfully processed
-            </p>
+            {/* Custom Legend */}
+            <div className="mt-auto space-y-2 pb-2 px-2">
+              {statusData.slice(0, 3).map((item, i) => (
+                <div key={item.name} className="flex items-center justify-between text-[10px]">
+                  <div className="flex items-center gap-1.5">
+                    <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                    <span className="text-slate-600 truncate max-w-[120px]">{item.name}</span>
+                  </div>
+                  <span className="font-bold text-slate-900">{item.value}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Secondary Chart Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <Card className="lg:col-span-1 border-0 shadow-sm flex flex-col h-full">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold text-slate-900 uppercase tracking-tight">Financial Overview</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 pt-2 flex-1">
+            <div className="p-3 bg-slate-50/50 rounded-lg border border-slate-100 flex items-center justify-between">
+              <div className="space-y-0.5">
+                <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Total Payroll</p>
+                <p className="text-lg font-bold text-slate-900">₱{totalPayroll.toLocaleString()}</p>
+              </div>
+              <div className="h-8 w-8 rounded-full bg-white border border-slate-100 flex items-center justify-center shadow-sm">
+                <DollarSign className="h-4 w-4 text-slate-400" />
+              </div>
+            </div>
+            <div className="p-3 bg-slate-50/50 rounded-lg border border-slate-100 flex items-center justify-between">
+              <div className="space-y-0.5">
+                <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Processed</p>
+                <p className="text-lg font-bold text-slate-900">{completedPayments}</p>
+              </div>
+              <div className="h-8 w-8 rounded-full bg-white border border-slate-100 flex items-center justify-center shadow-sm">
+                <TrendingUp className="h-4 w-4 text-emerald-500" />
+              </div>
+            </div>
           </CardContent>
         </Card>
 
-        <Card className="border-0 shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-slate-600">
-              Pending Payments
-            </CardTitle>
-            <Users className="h-4 w-4 text-slate-400" />
+        {/* Category Bar Chart */}
+        <Card className="lg:col-span-3 border-0 shadow-sm overflow-hidden">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base font-semibold text-slate-900">Payroll by Employment Type</CardTitle>
+            <p className="text-xs text-slate-500 mt-1">Comparison of net pay distribution</p>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-slate-900">
-              {pendingPayments}
+            <div className="h-[130px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={categoryData} layout="vertical">
+                  <XAxis type="number" hide />
+                  <YAxis
+                    dataKey="name"
+                    type="category"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: '#64748b', fontSize: 10 }}
+                    width={80}
+                  />
+                  <Tooltip
+                    cursor={{ fill: '#f8fafc' }}
+                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontSize: '11px' }}
+                    formatter={(value: any) => [`₱${value.toLocaleString()}`, 'Amount']}
+                  />
+                  <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={16}>
+                    {categoryData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
             </div>
-            <p className="text-xs text-slate-500 mt-1">
-              Awaiting processing
-            </p>
           </CardContent>
         </Card>
       </div>
@@ -515,6 +680,34 @@ export default function DashboardPage() {
                   className="pl-10 w-full sm:w-64"
                 />
               </div>
+            </div>
+
+            {/* Period Navigation (Cuts) */}
+            <div className="flex items-center gap-4 bg-white p-1 rounded-lg border border-slate-200">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setCurrentPeriodIndex(prev => Math.min(periods.length - 1, prev + 1))}
+                disabled={currentPeriodIndex >= periods.length - 1}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <div className="flex flex-col items-center min-w-[140px]">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Current Cut</span>
+                <span className="text-xs font-semibold text-slate-900">
+                  {selectedPeriod ? new Date(selectedPeriod).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "No Periods"}
+                </span>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setCurrentPeriodIndex(prev => Math.max(0, prev - 1))}
+                disabled={currentPeriodIndex <= 0}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
             </div>
 
             {/* Action Buttons */}

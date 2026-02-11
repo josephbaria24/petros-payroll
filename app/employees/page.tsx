@@ -31,7 +31,9 @@ import {
   Users,
   UserCheck,
   Clock,
-  Search
+  Search,
+  Building2,
+  Briefcase
 } from "lucide-react"
 import { useProtectedPage } from "../hooks/useProtectedPage"
 
@@ -240,35 +242,6 @@ export default function EmployeesPage() {
     setEditingId(null)
   }
 
-  const actionColumn = {
-    id: "actions",
-    cell: ({ row }: { row: any }) => {
-      const emp = row.original
-      return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem onClick={() => navigator.clipboard.writeText(emp.id)}>
-              Copy ID
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => handleRowClick(emp)}>Edit Employee</DropdownMenuItem>
-            <DropdownMenuItem
-              className="text-red-600 focus:text-red-600"
-              onClick={() => handleDelete(emp.id)}
-            >
-              Delete Employee
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )
-    },
-  }
 
   let adjustedSalary = parseFloat(form.base_salary)
   if (!isEditing && form.pay_type === "semi-monthly") {
@@ -280,6 +253,9 @@ export default function EmployeesPage() {
   const regularEmployees = data.filter(emp => emp.employment_status === "Regular").length
   const probationaryEmployees = data.filter(emp => emp.employment_status === "Probationary").length
 
+  // Calculate unique departments
+  const uniqueDepartments = new Set(data.map(emp => emp.department).filter(Boolean)).size
+
   // Filter data based on search
   const filteredData = data.filter(emp =>
     emp.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -290,32 +266,17 @@ export default function EmployeesPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex items-center justify-center h-screen bg-slate-50">
         <div className="flex items-center space-x-2">
           <div className="w-4 h-4 bg-slate-400 rounded-full animate-pulse"></div>
-          <span className="text-slate-600">Loading employees...</span>
+          <span className="text-slate-600 font-medium">Loading employees...</span>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-8 p-6 min-h-screen" style={{ backgroundColor: '#f8fafc' }}>
-      {/* Header */}
-      {/* <div className="bg-white border-b">
-        <div className="px-6 py-4">
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbPage className="text-slate-600">
-                  Employee Management
-                </BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-        </div>
-      </div> */}
-
+    <div className="space-y-8 p-6 min-h-screen bg-slate-50/50">
       {/* Page Title */}
       <div className="space-y-2">
         <h1 className="text-3xl font-semibold text-slate-900">Employees</h1>
@@ -324,64 +285,53 @@ export default function EmployeesPage() {
         </p>
       </div>
 
-      {/* Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="border-0 shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-slate-600">
-              Total Employees
-            </CardTitle>
-            <Users className="h-4 w-4 text-slate-400" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-slate-900">
-              {totalEmployees}
-            </div>
-            <p className="text-xs text-slate-500 mt-1">
-              Active workforce
-            </p>
-          </CardContent>
-        </Card>
+      {/* Ultra-Compact Metrics Bar */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="bg-white p-3 rounded-lg border border-slate-100 shadow-sm flex items-center gap-3">
+          <div className="p-2 bg-slate-50 rounded-md">
+            <Users className="h-4 w-4 text-slate-500" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider leading-none mb-1">Total Employees</p>
+            <p className="text-base font-bold text-slate-900 truncate leading-none">{totalEmployees}</p>
+          </div>
+        </div>
 
-        <Card className="border-0 shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-slate-600">
-              Regular Employees
-            </CardTitle>
-            <UserCheck className="h-4 w-4 text-slate-400" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-slate-900">
-              {regularEmployees}
-            </div>
-            <p className="text-xs text-slate-500 mt-1">
-              Permanent positions
-            </p>
-          </CardContent>
-        </Card>
+        <div className="bg-white p-3 rounded-lg border border-slate-100 shadow-sm flex items-center gap-3">
+          <div className="p-2 bg-slate-50 rounded-md">
+            <UserCheck className="h-4 w-4 text-slate-500" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider leading-none mb-1">Regular</p>
+            <p className="text-base font-bold text-slate-900 truncate leading-none">{regularEmployees}</p>
+          </div>
+        </div>
 
-        <Card className="border-0 shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-slate-600">
-              Probationary
-            </CardTitle>
-            <Clock className="h-4 w-4 text-slate-400" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-slate-900">
-              {probationaryEmployees}
-            </div>
-            <p className="text-xs text-slate-500 mt-1">
-              Under evaluation
-            </p>
-          </CardContent>
-        </Card>
+        <div className="bg-white p-3 rounded-lg border border-slate-100 shadow-sm flex items-center gap-3">
+          <div className="p-2 bg-slate-50 rounded-md">
+            <Clock className="h-4 w-4 text-slate-500" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider leading-none mb-1">Probationary</p>
+            <p className="text-base font-bold text-slate-900 truncate leading-none">{probationaryEmployees}</p>
+          </div>
+        </div>
+
+        <div className="bg-white p-3 rounded-lg border border-slate-100 shadow-sm flex items-center gap-3">
+          <div className="p-2 bg-slate-50 rounded-md">
+            <Building2 className="h-4 w-4 text-slate-500" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider leading-none mb-1">Departments</p>
+            <p className="text-base font-bold text-slate-900 truncate leading-none">{uniqueDepartments}</p>
+          </div>
+        </div>
       </div>
 
-      {/* Controls */}
-      <Card className="border-0 shadow-sm">
-        <CardContent className="p-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* Controls & Table Container */}
+      <Card className="border-0 shadow-sm overflow-hidden">
+        <CardContent className="p-0">
+          <div className="p-4 bg-white border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             {/* Search */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -389,7 +339,7 @@ export default function EmployeesPage() {
                 placeholder="Search employees..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 w-full sm:w-64"
+                className="pl-9 h-9 w-full sm:w-64 bg-slate-50/50 border-slate-200 focus:bg-white transition-all"
               />
             </div>
 
@@ -399,8 +349,8 @@ export default function EmployeesPage() {
               if (!v) resetForm()
             }}>
               <DialogTrigger asChild>
-                <Button className="bg-slate-900 hover:bg-slate-800">
-                  <Plus className="w-4 h-4 mr-2" />
+                <Button className="h-9 bg-slate-900 hover:bg-slate-800 text-white shadow-sm gap-2">
+                  <Plus className="w-4 h-4" />
                   Add Employee
                 </Button>
               </DialogTrigger>
@@ -641,10 +591,7 @@ export default function EmployeesPage() {
           <div className="overflow-x-auto">
             <DataTable
               data={filteredData}
-              columns={[
-                actionColumn,
-                ...columns.filter(col => col.id !== "actions")
-              ]}
+              columns={columns}
               onEdit={handleRowClick}
               onDelete={handleDelete}
             />

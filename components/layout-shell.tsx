@@ -46,7 +46,7 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
           {children}
         </SidebarInset>
 
-        <SidebarRight />
+        {/* <SidebarRight /> */}
       </div>
     </SidebarProvider>
   )

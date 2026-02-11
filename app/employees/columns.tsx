@@ -3,7 +3,9 @@
 import { toast } from "sonner"
 import { ColumnDef } from "@tanstack/react-table"
 import { Button } from "@/components/ui/button"
-import { ArrowUpDown, MoreHorizontal } from "lucide-react"
+import { ArrowUpDown, MoreHorizontal, User } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { cn } from "@/lib/utils"
 import React from "react"
 import {
   DropdownMenu,
@@ -30,7 +32,7 @@ export type Employee = {
   id: string
   employee_code: string
   full_name: string
-  email: string  
+  email: string
   position: string | null
   department: string | null
   employment_status: "Regular" | "Probationary" | "Project-based" | "Contractual"
@@ -39,7 +41,7 @@ export type Employee = {
   philhealth: string | null
   pagibig: string | null
   base_salary: number
-  allowance: number // <-- NEW
+  allowance: number
   pay_type: "monthly" | "daily" | "hourly"
   shift: string | null
   hours_per_week: number | null
@@ -47,38 +49,49 @@ export type Employee = {
   created_at: string
 }
 
-
 declare module '@tanstack/react-table' {
   interface ColumnMeta<TData extends unknown, TValue> {
     onEdit?: (emp: Employee) => void;
-    onDelete?: (id: string) => void; 
+    onDelete?: (id: string) => void;
   }
 }
+
 // Define columns for employee table
 export const columns: ColumnDef<Employee>[] = [
-  { accessorKey: "employee_code", header: "ID" },
+  {
+    accessorKey: "employee_code",
+    header: "ID",
+    cell: ({ row }) => <span className="text-xs font-mono text-slate-500">{row.getValue("employee_code")}</span>
+  },
   {
     accessorKey: "full_name",
     header: ({ column }) => (
       <Button
         variant="ghost"
+        className="p-0 hover:bg-transparent text-slate-900 font-semibold"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
       >
-        Name <ArrowUpDown />
+        Name <ArrowUpDown className="ml-2 h-3 w-3" />
       </Button>
     ),
-    
+    cell: ({ row }) => {
+      const name = row.getValue("full_name") as string
+      return (
+        <div className="flex items-center gap-2.5">
+          <div className="h-7 w-7 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-600 border border-slate-200">
+            {name?.charAt(0) || "E"}
+          </div>
+          <span className="font-medium text-slate-900">{name}</span>
+        </div>
+      )
+    }
   },
   {
-    accessorKey: "email",                   // <-- new column
-    header: ({ column }) => (
-      <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-        Email <ArrowUpDown />
-      </Button>
-    ),
+    accessorKey: "email",
+    header: "Email",
     cell: ({ row }) => (
-      <span className="max-w-[220px] truncate inline-block">
-        {row.getValue("email") as string}
+      <span className="text-xs text-slate-600 truncate max-w-[180px] block">
+        {row.getValue("email")}
       </span>
     ),
   },
@@ -86,69 +99,59 @@ export const columns: ColumnDef<Employee>[] = [
     accessorKey: "position",
     header: "Position",
     cell: ({ row }) => (
-      <div className="max-w-[100px] truncate whitespace-nowrap overflow-hidden">
-        {row.getValue("position")}
-      </div>
+      <span className="text-xs text-slate-600">{row.getValue("position") || "—"}</span>
     ),
   },
-  
-  { accessorKey: "department", header: "Department" },
-  { accessorKey: "employment_status", header: "Status" },
-  { accessorKey: "tin", header: "TIN" },
-  { accessorKey: "sss", header: "SSS" },
-  { accessorKey: "philhealth", header: "PhilHealth",
-  cell: ({ row }) => (
-    <div className="max-w-[50px] truncate whitespace-nowrap overflow-hidden">
-      {row.getValue("philhealth")}
-    </div>
-  ),
-   },
-  { accessorKey: "pagibig", header: "Pag-IBIG" },
+  {
+    accessorKey: "department",
+    header: "Department",
+    cell: ({ row }) => <span className="text-xs text-slate-600">{row.getValue("department") || "—"}</span>
+  },
+  {
+    accessorKey: "employment_status",
+    header: "Status",
+    cell: ({ row }) => {
+      const status = row.getValue("employment_status") as string
+      const variants: Record<string, string> = {
+        "Regular": "bg-emerald-50 text-emerald-700 border-emerald-100/50 hover:bg-emerald-50",
+        "Probationary": "bg-blue-50 text-blue-700 border-blue-100/50 hover:bg-blue-50",
+        "Contractual": "bg-amber-50 text-amber-700 border-amber-100/50 hover:bg-amber-50",
+        "Project-based": "bg-slate-50 text-slate-700 border-slate-100/50 hover:bg-slate-50",
+      }
+      return (
+        <Badge variant="outline" className={cn("font-medium px-2 py-0.5 rounded-full text-[10px]", variants[status] || "bg-slate-50 text-slate-600")}>
+          {status}
+        </Badge>
+      )
+    }
+  },
   {
     accessorKey: "base_salary",
-    header: "Salary",
+    header: "Base Salary",
     cell: ({ row }) => {
-      const amount = parseFloat(row.getValue("base_salary"))
-      return <div>₱ {amount.toLocaleString()}</div>
+      const amount = parseFloat(row.getValue("base_salary") || "0")
+      return <div className="text-xs font-semibold text-slate-900">₱{amount.toLocaleString()}</div>
     },
   },
   {
     accessorKey: "allowance",
     header: "Allowance",
     cell: ({ row }) => {
-      const amount = parseFloat(row.getValue("allowance"))
-      return <div>₱ {amount.toLocaleString()}</div>
+      const amount = parseFloat(row.getValue("allowance") || "0")
+      return <div className="text-xs text-slate-600">₱{amount.toLocaleString()}</div>
     },
   },
-  {
-    header: "Total Compensation",
-    cell: ({ row }) => {
-      const salary = parseFloat(row.getValue("base_salary")?.toString() || "0")
-
-      const allowance = parseFloat(row.getValue("allowance")?.toString() || "0")
-
-      return <div>₱ {(salary + allowance).toLocaleString()}</div>
-    },
-  },
-  
-  { accessorKey: "pay_type", header: "Pay Type" },
-  { accessorKey: "shift", header: "Shift" },
-  { accessorKey: "hours_per_week", header: "Hours/Week" },
-  { accessorKey: "leave_credits", header: "Leave Credits" },
-
   {
     id: "actions",
     cell: ({ row, column }) => {
       const emp = row.original
       const onEdit = column.columnDef.meta?.onEdit
       const onDelete = column.columnDef.meta?.onDelete
-  
       return <EmployeeActions emp={emp} onEdit={onEdit} onDelete={onDelete} />
     },
   }
-  
-  
 ]
+
 function EmployeeActions({
   emp,
   onEdit,
@@ -165,10 +168,10 @@ function EmployeeActions({
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" className="h-8 w-8 p-0">
-            <MoreHorizontal />
+            <MoreHorizontal className="h-4 w-4 text-slate-400" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
+        <DropdownMenuContent align="end" className="w-40">
           <DropdownMenuLabel>Actions</DropdownMenuLabel>
           <DropdownMenuItem onClick={() => navigator.clipboard.writeText(emp.id)}>
             Copy ID
@@ -180,13 +183,13 @@ function EmployeeActions({
               onEdit?.(emp)
             }}
           >
-            Edit
+            Edit Profile
           </DropdownMenuItem>
           <DropdownMenuItem
-            className="text-red-600"
+            className="text-red-600 focus:text-red-600 focus:bg-red-50"
             onClick={() => setOpen(true)}
           >
-            Delete
+            Delete Employee
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -197,19 +200,20 @@ function EmployeeActions({
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
               This action cannot be undone. This will permanently delete{" "}
-              <span className="font-semibold">{emp.full_name}</span>'s record.
+              <span className="font-semibold text-slate-900">{emp.full_name}</span>'s record from the system.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700 text-white"
               onClick={() => {
                 onDelete?.(emp.id)
                 toast.success(`${emp.full_name} has been deleted`)
                 setOpen(false)
               }}
             >
-              Yes, Delete
+              Delete Employee
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

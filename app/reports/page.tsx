@@ -7,7 +7,8 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
-import { Download, DollarSign, Users, TrendingUp, Calculator, FileText, Calendar, Building2, PieChart, BarChart3 } from "lucide-react"
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Download, DollarSign, Users, TrendingUp, Calculator, FileText, Calendar, Building2, PieChart, BarChart3, Settings2 } from "lucide-react"
 import { useProtectedPage } from "../hooks/useProtectedPage"
 
 declare global {
@@ -403,6 +404,47 @@ export default function ReportsPage() {
     }
   }
 
+  const [visibleColumns, setVisibleColumns] = useState<Record<string, boolean>>({
+    employee_id: false,
+    full_name: true,
+    pay_type: false,
+    period: true,
+    basic_salary: true,
+    allowances: true,
+    overtime: true,
+    holiday_pay: true,
+    gross_pay: true,
+    absences: true,
+    cash_advance: true,
+    total_deductions: true,
+    net_pay: true,
+    status: true,
+  })
+
+  const toggleColumn = (column: string) => {
+    setVisibleColumns(prev => ({
+      ...prev,
+      [column]: !prev[column]
+    }))
+  }
+
+  const columnLabels: Record<string, string> = {
+    employee_id: "Employee ID",
+    full_name: "Full Name",
+    pay_type: "Pay Type",
+    period: "Period",
+    basic_salary: "Basic Salary",
+    allowances: "Allowances",
+    overtime: "Overtime",
+    holiday_pay: "Holiday Pay",
+    gross_pay: "Gross Pay",
+    absences: "Absences",
+    cash_advance: "Cash Advance",
+    total_deductions: "Total Deductions",
+    net_pay: "Net Pay",
+    status: "Status",
+  }
+
   // Calculate additional metrics
   const additionalMetrics = {
     totalEmployees: new Set(employeePayrollDetails.map(emp => emp.employee_id)).size,
@@ -551,14 +593,39 @@ export default function ReportsPage() {
                   <h3 className="text-lg font-medium text-slate-900">Employee Payroll Details</h3>
                   <p className="text-slate-600">Detailed breakdown of employee payroll records</p>
                 </div>
-                <Button
-                  onClick={exportToExcel}
-                  variant="outline"
-                  className="flex items-center gap-2"
-                >
-                  <Download className="h-4 w-4" />
-                  Export to Excel
-                </Button>
+                <div className="flex items-center gap-2">
+                  {/* Column Visibility Toggle */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" className="flex items-center gap-2">
+                        <TrendingUp className="h-4 w-4 transition-transform group-hover:rotate-12" />
+                        Columns
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                      <DropdownMenuLabel>Toggle Columns</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      {Object.keys(visibleColumns).map((col) => (
+                        <DropdownMenuCheckboxItem
+                          key={col}
+                          checked={visibleColumns[col]}
+                          onCheckedChange={() => toggleColumn(col)}
+                        >
+                          {columnLabels[col]}
+                        </DropdownMenuCheckboxItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+
+                  <Button
+                    onClick={exportToExcel}
+                    variant="outline"
+                    className="flex items-center gap-2"
+                  >
+                    <Download className="h-4 w-4" />
+                    Export to Excel
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
@@ -574,46 +641,50 @@ export default function ReportsPage() {
                     <Table>
                       <TableHeader>
                         <TableRow className="border-b border-slate-200">
-                          <TableHead className="font-medium text-slate-900">Employee ID</TableHead>
-                          <TableHead className="font-medium text-slate-900">Full Name</TableHead>
-                          <TableHead className="font-medium text-slate-900">Pay Type</TableHead>
-                          <TableHead className="font-medium text-slate-900">Period</TableHead>
-                          <TableHead className="font-medium text-slate-900">Basic Salary</TableHead>
-                          <TableHead className="font-medium text-slate-900">Allowances</TableHead>
-                          <TableHead className="font-medium text-slate-900">Overtime</TableHead>
-                          <TableHead className="font-medium text-slate-900">Holiday Pay</TableHead>
-                          <TableHead className="font-medium text-slate-900">Gross Pay</TableHead>
-                          <TableHead className="font-medium text-slate-900">Absences</TableHead>
-                          <TableHead className="font-medium text-slate-900">Cash Advance</TableHead>
-                          <TableHead className="font-medium text-slate-900">Total Deductions</TableHead>
-                          <TableHead className="font-medium text-slate-900">Net Pay</TableHead>
-                          <TableHead className="font-medium text-slate-900">Status</TableHead>
+                          {visibleColumns.employee_id && <TableHead className="font-medium text-slate-900">Employee ID</TableHead>}
+                          {visibleColumns.full_name && <TableHead className="font-medium text-slate-900">Full Name</TableHead>}
+                          {visibleColumns.pay_type && <TableHead className="font-medium text-slate-900">Pay Type</TableHead>}
+                          {visibleColumns.period && <TableHead className="font-medium text-slate-900">Period</TableHead>}
+                          {visibleColumns.basic_salary && <TableHead className="font-medium text-slate-900">Basic Salary</TableHead>}
+                          {visibleColumns.allowances && <TableHead className="font-medium text-slate-900">Allowances</TableHead>}
+                          {visibleColumns.overtime && <TableHead className="font-medium text-slate-900">Overtime</TableHead>}
+                          {visibleColumns.holiday_pay && <TableHead className="font-medium text-slate-900">Holiday Pay</TableHead>}
+                          {visibleColumns.gross_pay && <TableHead className="font-medium text-slate-900">Gross Pay</TableHead>}
+                          {visibleColumns.absences && <TableHead className="font-medium text-slate-900">Absences</TableHead>}
+                          {visibleColumns.cash_advance && <TableHead className="font-medium text-slate-900">Cash Advance</TableHead>}
+                          {visibleColumns.total_deductions && <TableHead className="font-medium text-slate-900">Total Deductions</TableHead>}
+                          {visibleColumns.net_pay && <TableHead className="font-medium text-slate-900">Net Pay</TableHead>}
+                          {visibleColumns.status && <TableHead className="font-medium text-slate-900">Status</TableHead>}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {employeePayrollDetails.map((emp) => (
                           <TableRow key={emp.id} className="border-b border-slate-100 hover:bg-slate-50 transition">
-                            <TableCell className="font-medium text-slate-900">{emp.employee_code}</TableCell>
-                            <TableCell className="font-medium text-slate-900">{emp.full_name}</TableCell>
-                            <TableCell className="text-slate-600">{emp.pay_type}</TableCell>
-                            <TableCell className="text-sm text-slate-600">
-                              {new Date(emp.period_start).toLocaleDateString()} - {new Date(emp.period_end).toLocaleDateString()}
-                            </TableCell>
-                            <TableCell className="text-slate-900">₱{emp.basic_salary.toLocaleString()}</TableCell>
-                            <TableCell className="text-slate-900">₱{emp.allowances.toLocaleString()}</TableCell>
-                            <TableCell className="text-slate-900">₱{emp.overtime_pay.toLocaleString()}</TableCell>
-                            <TableCell className="text-slate-900">₱{emp.holiday_pay.toLocaleString()}</TableCell>
-                            <TableCell className="text-slate-900">₱{(emp.gross_pay || emp.basic_salary).toLocaleString()}</TableCell>
-                            <TableCell className="text-slate-900">₱{emp.absences.toLocaleString()}</TableCell>
-                            <TableCell className="text-slate-900">₱{emp.cash_advance.toLocaleString()}</TableCell>
-                            <TableCell className="text-slate-900">₱{emp.total_deductions.toLocaleString()}</TableCell>
-                            <TableCell className="font-bold text-slate-900">₱{(emp.net_pay + emp.allowances).toLocaleString()}</TableCell>
-                            <TableCell>
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium border ${statusVariants[emp.status] || "bg-slate-100 text-slate-600 border-slate-200"
-                                }`}>
-                                {emp.status}
-                              </span>
-                            </TableCell>
+                            {visibleColumns.employee_id && <TableCell className="font-medium text-slate-900">{emp.employee_code}</TableCell>}
+                            {visibleColumns.full_name && <TableCell className="font-medium text-slate-900">{emp.full_name}</TableCell>}
+                            {visibleColumns.pay_type && <TableCell className="text-slate-600">{emp.pay_type}</TableCell>}
+                            {visibleColumns.period && (
+                              <TableCell className="text-sm text-slate-600">
+                                {new Date(emp.period_start).toLocaleDateString()} - {new Date(emp.period_end).toLocaleDateString()}
+                              </TableCell>
+                            )}
+                            {visibleColumns.basic_salary && <TableCell className="text-slate-900">₱{emp.basic_salary.toLocaleString()}</TableCell>}
+                            {visibleColumns.allowances && <TableCell className="text-slate-900">₱{emp.allowances.toLocaleString()}</TableCell>}
+                            {visibleColumns.overtime && <TableCell className="text-slate-900">₱{emp.overtime_pay.toLocaleString()}</TableCell>}
+                            {visibleColumns.holiday_pay && <TableCell className="text-slate-900">₱{emp.holiday_pay.toLocaleString()}</TableCell>}
+                            {visibleColumns.gross_pay && <TableCell className="text-slate-900">₱{(emp.gross_pay || emp.basic_salary).toLocaleString()}</TableCell>}
+                            {visibleColumns.absences && <TableCell className="text-slate-900">₱{emp.absences.toLocaleString()}</TableCell>}
+                            {visibleColumns.cash_advance && <TableCell className="text-slate-900">₱{emp.cash_advance.toLocaleString()}</TableCell>}
+                            {visibleColumns.total_deductions && <TableCell className="text-slate-900">₱{emp.total_deductions.toLocaleString()}</TableCell>}
+                            {visibleColumns.net_pay && <TableCell className="font-bold text-slate-900">₱{(emp.net_pay + emp.allowances).toLocaleString()}</TableCell>}
+                            {visibleColumns.status && (
+                              <TableCell>
+                                <span className={`px-2 py-1 rounded-full text-xs font-medium border ${statusVariants[emp.status] || "bg-slate-100 text-slate-600 border-slate-200"
+                                  }`}>
+                                  {emp.status}
+                                </span>
+                              </TableCell>
+                            )}
                           </TableRow>
                         ))}
                       </TableBody>

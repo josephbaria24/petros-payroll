@@ -80,13 +80,20 @@ export function TeamSwitcher({
           <DropdownMenuTrigger asChild disabled={!showSwitcher}>
             <SidebarMenuButton
               size="lg"
-              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground w-full justify-start px-2"
+              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground w-full justify-start px-3 py-6 rounded-xl transition-all duration-200 hover:bg-sidebar-accent/50 group"
             >
-              <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-5 items-center justify-center rounded-md">
-                <activeTeam.logo className="size-3" />
+              <div className="flex aspect-square size-10 items-center justify-center rounded-lg bg-primary/10 text-primary shadow-sm transition-transform group-hover:scale-105 group-hover:rotate-3">
+                <activeTeam.logo className="size-6 font-bold" />
               </div>
-              <span className="truncate font-medium">{activeTeam.name}</span>
-              {showSwitcher && <ChevronDown className="opacity-50" />}
+              <div className="grid flex-1 text-left text-sm leading-tight ml-3">
+                <span className="truncate font-semibold text-foreground">
+                  {activeTeam.name}
+                </span>
+                <span className="truncate text-xs text-muted-foreground">
+                  {activeTeam.plan}
+                </span>
+              </div>
+              {showSwitcher && <ChevronDown className="ml-auto size-4 opacity-50 transition-transform group-data-[state=open]:rotate-180" />}
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           {showSwitcher && (

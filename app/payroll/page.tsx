@@ -12,9 +12,17 @@ import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { CalendarIcon, Eye, Trash2, Plus, X, Calculator, Users, DollarSign, TrendingUp, FileText, Check, XCircle, Clock, CheckCircle } from "lucide-react"
+import { CalendarIcon, Eye, Trash2, Plus, X, Calculator, Users, DollarSign, TrendingUp, FileText, Check, XCircle, Clock, CheckCircle, ChevronDown, CheckCircle2, AlertCircle } from "lucide-react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
   Select,
   SelectContent,
@@ -74,6 +82,10 @@ type PayrollPeriod = {
   total_deductions: number
   total_net_after_deductions: number
   records: PayrollRecord[]
+  status: string
+  created_at: string
+  updated_at?: string
+  creator: string
 }
 
 type OvertimeEntry = {
@@ -97,8 +109,11 @@ type EmployeeAdjustment = {
 
 const statusVariants: Record<string, string> = {
   "Paid": "bg-slate-900 text-white border-slate-200",
-  "Pending Payment": "bg-white text-slate-900 border-slate-300",
+  "Pending Payment": "bg-amber-100 text-amber-700 border-amber-200",
   "Cancelled": "bg-slate-100 text-slate-600 border-slate-200",
+  "Released": "bg-emerald-100 text-emerald-700 border-emerald-200",
+  "Partially Released": "bg-blue-100 text-blue-700 border-blue-200",
+  "Pending": "bg-slate-100 text-slate-600 border-slate-200",
 }
 
 export default function PayrollPage() {
@@ -106,6 +121,8 @@ export default function PayrollPage() {
   useProtectedPage(["admin", "hr"])
   const { activeOrganization } = useOrganization()
   const [periods, setPeriods] = useState<PayrollPeriod[]>([])
+  const [currentPeriodPage, setCurrentPeriodPage] = useState(1)
+  const itemsPerPage = 10
   const [open, setOpen] = useState(false)
   const [selectedPeriodRecords, setSelectedPeriodRecords] = useState<PayrollRecord[]>([])
   const [selectedPeriodName, setSelectedPeriodName] = useState("")
@@ -421,7 +438,11 @@ export default function PayrollPage() {
             total_holiday_pay: 0,
             total_deductions: 0,
             total_net_after_deductions: 0,
-            records: []
+            records: [],
+            status: rec.status || "Pending",
+            created_at: rec.created_at || new Date().toISOString(),
+            updated_at: rec.updated_at || rec.created_at || new Date().toISOString(),
+            creator: "System Admin"
           })
         }
 
@@ -455,7 +476,11 @@ export default function PayrollPage() {
         total_deductions,
         net_pay,
         status,
-        employees(full_name, pay_type)
+        created_at,
+        updated_at,
+        creator_id,
+        employees(full_name, pay_type),
+        profiles(fullname)
       `)
       .order("period_end", { ascending: false })
 
@@ -501,6 +526,10 @@ export default function PayrollPage() {
         total_deductions: totalDeductions,
         net_after_deductions: netAfterDeductions,
         total_net: netAfterDeductions + (rec.allowances || 0),
+        created_at: rec.created_at,
+        updated_at: rec.updated_at || rec.created_at,
+        creator_name: (rec as any).profiles?.[0]?.fullname || (rec as any).profiles?.fullname ||
+          (rec.creator_id === "7229a103-7f3e-464c-8032-970b9df6220b" || !rec.creator_id ? "Joseph Baria" : "User " + rec.creator_id.substring(0, 5))
       }
     })
 
@@ -526,7 +555,11 @@ export default function PayrollPage() {
           total_overtime: 0,
           total_deductions: 0,
           total_net_after_deductions: 0,
-          records: []
+          records: [],
+          status: record.status || "Pending",
+          created_at: record.created_at,
+          updated_at: record.updated_at || record.created_at,
+          creator: (record as any).creator_name || "Joseph Baria"
         })
       }
 
@@ -599,6 +632,9 @@ export default function PayrollPage() {
     }
 
     const toastId = toast.loading("Generating payroll...")
+
+    const { data: { user } } = await supabase.auth.getUser()
+    const creatorId = user?.id || "7229a103-7f3e-464c-8032-970b9df6220b"
 
     try {
       const { data: existingPayroll } = await supabase
@@ -684,7 +720,8 @@ export default function PayrollPage() {
             total_deductions: totalDeductions,
             net_pay: netPay,
             status: "Pending Payment",
-            created_at: new Date().toISOString()
+            created_at: new Date().toISOString(),
+            creator_id: creatorId
           })
         }
 
@@ -799,6 +836,7 @@ export default function PayrollPage() {
           total_deductions: totalDeductions,
           net_pay: netPay,
           status: "Pending Payment",
+          creator_id: creatorId
         })
       }
 
@@ -906,7 +944,10 @@ export default function PayrollPage() {
 
     const { error } = await supabase
       .from("payroll_records")
-      .update({ status: "Paid" })
+      .update({
+        status: "Paid",
+        updated_at: new Date().toISOString()
+      })
       .in("id", selectedIds)
 
     if (error) {
@@ -933,7 +974,10 @@ export default function PayrollPage() {
 
     const { error } = await supabase
       .from("payroll_records")
-      .update({ status: "Paid" })
+      .update({
+        status: "Paid",
+        updated_at: new Date().toISOString()
+      })
       .eq("id", recordId)
 
     if (error) {
@@ -953,8 +997,57 @@ export default function PayrollPage() {
     }
   }
 
+  async function handleUpdatePeriodStatus(period: PayrollPeriod, newStatus: string) {
+    const toastId = toast.loading(`Updating status to ${newStatus}...`)
+
+    const { error } = await supabase
+      .from("payroll_records")
+      .update({
+        status: newStatus,
+        updated_at: new Date().toISOString()
+      })
+      .eq("period_start", period.period_start)
+      .eq("period_end", period.period_end)
+
+    if (error) {
+      toast.error(`Failed to update period status`, { id: toastId })
+    } else {
+      toast.success(`Period status updated to ${newStatus}!`, { id: toastId })
+      fetchPayrollPeriods()
+    }
+  }
 
 
+
+
+  const totalPages = Math.ceil(periods.length / itemsPerPage)
+  const paginatedPeriods = periods.slice(
+    (currentPeriodPage - 1) * itemsPerPage,
+    currentPeriodPage * itemsPerPage
+  )
+
+  const formatPH = (dateString: string | undefined | null) => {
+    if (!dateString) return "N/A"
+    try {
+      // Ensure the date string is treated as UTC if no timezone is provided
+      let normalizedDate = dateString
+      if (!dateString.includes('Z') && !dateString.includes('+')) {
+        normalizedDate = dateString.includes('T') ? `${dateString}Z` : `${dateString.replace(' ', 'T')}Z`
+      }
+
+      return new Intl.DateTimeFormat('en-PH', {
+        timeZone: 'Asia/Manila',
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: 'numeric',
+        hour12: true
+      }).format(new Date(normalizedDate))
+    } catch (e) {
+      console.error("Format error:", e)
+      return "N/A"
+    }
+  }
 
   return (
     <div className="space-y-8 p-6 min-h-screen bg-slate-50">
@@ -964,56 +1057,46 @@ export default function PayrollPage() {
       </div>
 
       {periods.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="border-0 shadow-sm">
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-slate-600">Basic Salary</p>
-                <DollarSign className="h-4 w-4 text-slate-500" />
-              </div>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <div className="text-2xl font-bold text-slate-900">₱{summaryMetrics.totalBasicSalary.toLocaleString()}</div>
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="bg-white p-3 rounded-lg border border-slate-100 shadow-sm flex items-center gap-3">
+            <div className="p-2 bg-slate-50 rounded-md">
+              <DollarSign className="h-4 w-4 text-slate-500" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider leading-none mb-1">Basic Salary</p>
+              <p className="text-base font-bold text-slate-900 truncate leading-none">₱{summaryMetrics.totalBasicSalary.toLocaleString()}</p>
+            </div>
+          </div>
 
-          <Card className="border-0 shadow-sm">
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-slate-600">Overtime Pay</p>
-                <TrendingUp className="h-4 w-4 text-slate-500" />
-              </div>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <div className="text-2xl font-bold text-slate-900">₱{summaryMetrics.totalOvertime.toLocaleString()}</div>
-            </CardContent>
-          </Card>
-          <Card className="border-0 shadow-sm">
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-slate-600">Holiday Pay</p>
-                <TrendingUp className="h-4 w-4 text-slate-500" />
-              </div>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <div className="text-2xl font-bold text-slate-900">
-                ₱{summaryMetrics.totalHoliday.toLocaleString()}
-              </div>
-            </CardContent>
-          </Card>
+          <div className="bg-white p-3 rounded-lg border border-slate-100 shadow-sm flex items-center gap-3">
+            <div className="p-2 bg-slate-50 rounded-md">
+              <TrendingUp className="h-4 w-4 text-slate-500" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider leading-none mb-1">Overtime Pay</p>
+              <p className="text-base font-bold text-slate-900 truncate leading-none">₱{summaryMetrics.totalOvertime.toLocaleString()}</p>
+            </div>
+          </div>
 
+          <div className="bg-white p-3 rounded-lg border border-slate-100 shadow-sm flex items-center gap-3">
+            <div className="p-2 bg-slate-50 rounded-md">
+              <TrendingUp className="h-4 w-4 text-slate-500" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider leading-none mb-1">Holiday Pay</p>
+              <p className="text-base font-bold text-slate-900 truncate leading-none">₱{summaryMetrics.totalHoliday.toLocaleString()}</p>
+            </div>
+          </div>
 
-          <Card className="border-0 shadow-sm">
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-slate-600">Total Net Pay</p>
-                <Calculator className="h-4 w-4 text-slate-500" />
-              </div>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <div className="text-2xl font-bold text-slate-900">₱{summaryMetrics.totalNet.toLocaleString()}</div>
-            </CardContent>
-          </Card>
+          <div className="bg-white p-3 rounded-lg border border-slate-900/5 shadow-sm ring-1 ring-slate-900/5 flex items-center gap-3">
+            <div className="p-2 bg-slate-900/5 rounded-md">
+              <Calculator className="h-4 w-4 text-slate-900" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold text-slate-900 uppercase tracking-wider leading-none mb-1">Total Net Pay</p>
+              <p className="text-base font-bold text-slate-900 truncate leading-none">₱{summaryMetrics.totalNet.toLocaleString()}</p>
+            </div>
+          </div>
         </div>
       )}
 
@@ -1570,8 +1653,8 @@ export default function PayrollPage() {
         </Dialog>
       </div>
 
-      <Card className="border-0 shadow-sm">
-        <CardContent className="p-6">
+      <Card className="border-0 shadow-sm overflow-hidden">
+        <CardContent className="p-0">
           {periods.length === 0 ? (
             <div className="text-center py-12">
               <FileText className="h-12 w-12 mx-auto mb-4 text-slate-400" />
@@ -1579,62 +1662,156 @@ export default function PayrollPage() {
               <p className="text-slate-600 mb-4">Generate your first payroll to get started</p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {periods.map((period) => (
-                <div
-                  key={period.period_key}
-                  className="flex items-center justify-between p-4 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
-                >
-                  <div className="flex-1">
-                    <h3 className="text-lg font-medium text-slate-900">{period.display_name}</h3>
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-3 text-sm">
-                      <div>
-                        <span className="text-slate-600">Employees:</span>
-                        <span className="font-medium text-slate-900 ml-1">{period.total_employees}</span>
-                      </div>
-                      <div>
-                        <span className="text-slate-600">Basic Pay:</span>
-                        <span className="font-medium text-slate-900 ml-1">₱{period.total_basic_salary.toLocaleString()}</span>
-                      </div>
-                      <div>
-                        <span className="text-slate-600">Overtime:</span>
-                        <span className="font-medium text-slate-900 ml-1">₱{period.total_overtime.toLocaleString()}</span>
-                      </div>
-                      <div>
-                        <span className="text-slate-600">Deductions:</span>
-                        <span className="font-medium text-slate-900 ml-1">₱{period.total_deductions.toLocaleString()}</span>
-                      </div>
-                      <div>
-                        <span className="text-slate-600">Total Net:</span>
-                        <span className="font-bold text-slate-900 ml-1">₱{period.total_net_after_deductions.toLocaleString()}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 ml-4">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleViewPeriodRecords(period)}
-                      className="flex items-center gap-1"
-                    >
-                      <Eye className="h-4 w-4" />
-                      View Details
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDeletePeriod(period.period_key)}
-                      className="text-slate-500 hover:text-slate-700 border-slate-200"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-slate-50/50">
+                    <TableHead className="font-semibold text-slate-900 w-[250px]">Payroll Period</TableHead>
+                    <TableHead className="font-semibold text-slate-900">Metrics</TableHead>
+                    <TableHead className="font-semibold text-slate-900">Generated On</TableHead>
+                    <TableHead className="font-semibold text-slate-900">Updated On</TableHead>
+                    <TableHead className="font-semibold text-slate-900">Creator</TableHead>
+                    <TableHead className="font-semibold text-slate-900">Status</TableHead>
+                    <TableHead className="text-right font-semibold text-slate-900">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginatedPeriods.map((period) => (
+                    <TableRow key={period.period_key} className="hover:bg-slate-50/50 border-b border-slate-100 last:border-0 transition-colors">
+                      <TableCell className="py-4">
+                        <div className="flex flex-col">
+                          <span className="font-medium text-slate-900 truncate">{period.display_name}</span>
+                          <span className="text-xs text-slate-500 font-mono mt-0.5">
+                            {period.period_start} to {period.period_end}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-1.5 text-xs">
+                            <Users className="h-3 w-3 text-slate-400" />
+                            <span className="text-slate-600">{period.total_employees} Employees</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-xs">
+                            <Calculator className="h-3 w-3 text-slate-400" />
+                            <span className="font-medium text-slate-900">₱{period.total_net_after_deductions.toLocaleString()}</span>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1.5 text-xs text-slate-600">
+                          <Clock className="h-3.5 w-3.5 text-slate-400" />
+                          <span>{formatPH(period.created_at)}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1.5 text-xs text-slate-600">
+                          <Clock className="h-3.5 w-3.5 text-slate-400" />
+                          <span>{formatPH(period.updated_at)}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1.5 text-xs">
+                          <div className="h-5 w-5 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-600">
+                            {period.creator?.charAt(0) || "S"}
+                          </div>
+                          <span className="text-slate-600 truncate max-w-[100px]">{period.creator || "System"}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-fit px-2 gap-2 hover:bg-transparent p-0">
+                              <Badge className={cn("cursor-pointer border-transparent shadow-none", statusVariants[period.status] || statusVariants["Pending"])}>
+                                {period.status}
+                                <ChevronDown className="h-3 w-3 ml-1 opacity-50" />
+                              </Badge>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start" className="w-48">
+                            <DropdownMenuLabel>Update Status</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => handleUpdatePeriodStatus(period, "Pending")}>
+                              <Clock className="h-4 w-4 mr-2 text-slate-500" /> Pending
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleUpdatePeriodStatus(period, "Released")}>
+                              <CheckCircle2 className="h-4 w-4 mr-2 text-emerald-500" /> Released
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleUpdatePeriodStatus(period, "Partially Released")}>
+                              <AlertCircle className="h-4 w-4 mr-2 text-blue-500" /> Partially Released
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-slate-400 hover:text-slate-900"
+                            onClick={() => handleViewPeriodRecords(period)}
+                            title="View Details"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-slate-400 hover:text-red-600"
+                            onClick={() => handleDeletePeriod(period.period_key)}
+                            title="Delete"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
           )}
         </CardContent>
+        {periods.length > itemsPerPage && (
+          <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/50">
+            <div className="text-sm text-slate-500">
+              Showing <span className="font-medium text-slate-900">{(currentPeriodPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium text-slate-900">{Math.min(currentPeriodPage * itemsPerPage, periods.length)}</span> of <span className="font-medium text-slate-900">{periods.length}</span> periods
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPeriodPage(p => Math.max(1, p - 1))}
+                disabled={currentPeriodPage === 1}
+                className="h-8 px-3"
+              >
+                Previous
+              </Button>
+              <div className="flex items-center gap-1.5">
+                {[...Array(totalPages)].map((_, i) => (
+                  <Button
+                    key={i + 1}
+                    variant={currentPeriodPage === i + 1 ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setCurrentPeriodPage(i + 1)}
+                    className={cn("h-8 w-8 p-0", currentPeriodPage === i + 1 ? "bg-slate-900 text-white" : "")}
+                  >
+                    {i + 1}
+                  </Button>
+                ))}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPeriodPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPeriodPage === totalPages}
+                className="h-8 px-3"
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
       </Card>
 
       <Dialog open={periodDialogOpen} onOpenChange={setPeriodDialogOpen}>
