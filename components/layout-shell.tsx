@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/sidebar"
 import { SidebarRight } from "@/components/sidebar-right"
 import { SidebarLeft } from "@/components/sidebar-left"
+import { ModeToggle } from "@/components/mode-toggle"
 
 export function LayoutShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -21,10 +22,10 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
   const backgroundClass = pathname === "/my-payroll"
     ? "bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50"
     : pathname === "/my-attendance"
-    ? "bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50"
-    : pathname === "/timesheet"
-    ? "bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50"
-    : "bg-white" // fallback for other pages
+      ? "bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50"
+      : pathname === "/timesheet"
+        ? "bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50"
+        : "bg-white" // fallback for other pages
 
   if (isAuthPage) {
     return (
@@ -38,15 +39,21 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
     <SidebarProvider>
       <div className="flex min-h-screen w-full">
         <SidebarLeft />
-        
-        {/* ✅ Apply dynamic background class */}
-          <SidebarTrigger className="sticky top-0 flex h-14 shrink-0 items-center gap-2" />
 
         <SidebarInset>
-          {children}
-        </SidebarInset>
+          {/* Header with SidebarTrigger and ModeToggle */}
+          <header className="sticky top-0 z-10 flex h-14 items-center justify-between gap-4 border-b bg-background/95 px-4 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/60">
+            <SidebarTrigger className="h-9 w-9" />
 
-        {/* <SidebarRight /> */}
+            <div className="flex items-center gap-2">
+              <ModeToggle />
+            </div>
+          </header>
+
+          <div className="flex-1">
+            {children}
+          </div>
+        </SidebarInset>
       </div>
     </SidebarProvider>
   )

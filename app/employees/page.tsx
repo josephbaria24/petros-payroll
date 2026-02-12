@@ -266,64 +266,64 @@ export default function EmployeesPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-slate-50">
+      <div className="flex items-center justify-center h-screen bg-background">
         <div className="flex items-center space-x-2">
-          <div className="w-4 h-4 bg-slate-400 rounded-full animate-pulse"></div>
-          <span className="text-slate-600 font-medium">Loading employees...</span>
+          <div className="w-4 h-4 bg-muted-foreground/20 rounded-full animate-pulse"></div>
+          <span className="text-muted-foreground font-medium">Loading employees...</span>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-8 p-6 min-h-screen bg-slate-50/50">
+    <div className="space-y-8 p-6 min-h-screen bg-background">
       {/* Page Title */}
       <div className="space-y-2">
-        <h1 className="text-3xl font-semibold text-slate-900">Employees</h1>
-        <p className="text-slate-600">
+        <h1 className="text-3xl font-semibold text-foreground">Employees</h1>
+        <p className="text-muted-foreground">
           Manage employee information, roles, and compensation details
         </p>
       </div>
 
       {/* Ultra-Compact Metrics Bar */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="bg-white p-3 rounded-lg border border-slate-100 shadow-sm flex items-center gap-3">
-          <div className="p-2 bg-slate-50 rounded-md">
-            <Users className="h-4 w-4 text-slate-500" />
+        <div className="bg-card p-3 rounded-lg border border-border shadow-sm flex items-center gap-3">
+          <div className="p-2 bg-muted rounded-md">
+            <Users className="h-4 w-4 text-muted-foreground" />
           </div>
           <div className="min-w-0">
-            <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider leading-none mb-1">Total Employees</p>
-            <p className="text-base font-bold text-slate-900 truncate leading-none">{totalEmployees}</p>
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider leading-none mb-1">Total Employees</p>
+            <p className="text-base font-bold text-foreground truncate leading-none">{totalEmployees}</p>
           </div>
         </div>
 
-        <div className="bg-white p-3 rounded-lg border border-slate-100 shadow-sm flex items-center gap-3">
-          <div className="p-2 bg-slate-50 rounded-md">
-            <UserCheck className="h-4 w-4 text-slate-500" />
+        <div className="bg-card p-3 rounded-lg border border-border shadow-sm flex items-center gap-3">
+          <div className="p-2 bg-muted rounded-md">
+            <UserCheck className="h-4 w-4 text-muted-foreground" />
           </div>
           <div className="min-w-0">
-            <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider leading-none mb-1">Regular</p>
-            <p className="text-base font-bold text-slate-900 truncate leading-none">{regularEmployees}</p>
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider leading-none mb-1">Regular</p>
+            <p className="text-base font-bold text-foreground truncate leading-none">{regularEmployees}</p>
           </div>
         </div>
 
-        <div className="bg-white p-3 rounded-lg border border-slate-100 shadow-sm flex items-center gap-3">
-          <div className="p-2 bg-slate-50 rounded-md">
-            <Clock className="h-4 w-4 text-slate-500" />
+        <div className="bg-card p-3 rounded-lg border border-border shadow-sm flex items-center gap-3">
+          <div className="p-2 bg-muted rounded-md">
+            <Clock className="h-4 w-4 text-muted-foreground" />
           </div>
           <div className="min-w-0">
-            <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider leading-none mb-1">Probationary</p>
-            <p className="text-base font-bold text-slate-900 truncate leading-none">{probationaryEmployees}</p>
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider leading-none mb-1">Probationary</p>
+            <p className="text-base font-bold text-foreground truncate leading-none">{probationaryEmployees}</p>
           </div>
         </div>
 
-        <div className="bg-white p-3 rounded-lg border border-slate-100 shadow-sm flex items-center gap-3">
-          <div className="p-2 bg-slate-50 rounded-md">
-            <Building2 className="h-4 w-4 text-slate-500" />
+        <div className="bg-card p-3 rounded-lg border border-border shadow-sm flex items-center gap-3">
+          <div className="p-2 bg-muted rounded-md">
+            <Building2 className="h-4 w-4 text-muted-foreground" />
           </div>
           <div className="min-w-0">
-            <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider leading-none mb-1">Departments</p>
-            <p className="text-base font-bold text-slate-900 truncate leading-none">{uniqueDepartments}</p>
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider leading-none mb-1">Departments</p>
+            <p className="text-base font-bold text-foreground truncate leading-none">{uniqueDepartments}</p>
           </div>
         </div>
       </div>
@@ -331,15 +331,15 @@ export default function EmployeesPage() {
       {/* Controls & Table Container */}
       <Card className="border-0 shadow-sm overflow-hidden">
         <CardContent className="p-0">
-          <div className="p-4 bg-white border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="p-4 bg-card border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             {/* Search */}
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search employees..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 h-9 w-full sm:w-64 bg-slate-50/50 border-slate-200 focus:bg-white transition-all"
+                className="pl-9 h-9 w-full sm:w-64 bg-muted/50 border-border focus:bg-background transition-all"
               />
             </div>
 
@@ -349,7 +349,7 @@ export default function EmployeesPage() {
               if (!v) resetForm()
             }}>
               <DialogTrigger asChild>
-                <Button className="h-9 bg-slate-900 hover:bg-slate-800 text-white shadow-sm gap-2">
+                <Button className="h-9 gap-2 shadow-sm">
                   <Plus className="w-4 h-4" />
                   Add Employee
                 </Button>
@@ -363,7 +363,7 @@ export default function EmployeesPage() {
                 <form onSubmit={handleSave} className="space-y-6">
                   {/* Basic Information */}
                   <div className="space-y-4">
-                    <h3 className="text-lg font-medium text-slate-900">Basic Information</h3>
+                    <h3 className="text-lg font-medium text-foreground">Basic Information</h3>
 
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
@@ -443,7 +443,7 @@ export default function EmployeesPage() {
 
                   {/* Government IDs */}
                   <div className="space-y-4">
-                    <h3 className="text-lg font-medium text-slate-900">Government IDs</h3>
+                    <h3 className="text-lg font-medium text-foreground">Government IDs</h3>
 
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
@@ -492,7 +492,7 @@ export default function EmployeesPage() {
 
                   {/* Compensation */}
                   <div className="space-y-4">
-                    <h3 className="text-lg font-medium text-slate-900">Compensation & Schedule</h3>
+                    <h3 className="text-lg font-medium text-foreground">Compensation & Schedule</h3>
 
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
@@ -575,7 +575,7 @@ export default function EmployeesPage() {
                     </div>
                   </div>
 
-                  <Button type="submit" className="w-full bg-slate-900 hover:bg-slate-800">
+                  <Button type="submit" className="w-full">
                     {isEditing ? "Update Employee" : "Add Employee"}
                   </Button>
                 </form>
@@ -599,11 +599,11 @@ export default function EmployeesPage() {
 
           {filteredData.length === 0 && !loading && (
             <div className="text-center py-12">
-              <div className="text-slate-400 mb-2">
+              <div className="text-muted-foreground mb-2">
                 <Users className="h-12 w-12 mx-auto" />
               </div>
-              <h3 className="text-lg font-medium text-slate-900 mb-1">No employees found</h3>
-              <p className="text-slate-500">
+              <h3 className="text-lg font-medium text-foreground mb-1">No employees found</h3>
+              <p className="text-muted-foreground">
                 {searchTerm
                   ? "Try adjusting your search criteria"
                   : "Get started by adding your first employee"

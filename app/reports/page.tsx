@@ -82,9 +82,9 @@ type Expense = {
 }
 
 const statusVariants: Record<string, string> = {
-  "Paid": "bg-slate-900 text-white border-slate-200",
-  "Pending Payment": "bg-white text-slate-900 border-slate-300",
-  "Cancelled": "bg-slate-100 text-slate-600 border-slate-200",
+  "Paid": "bg-primary text-primary-foreground border-transparent",
+  "Pending Payment": "bg-muted text-muted-foreground border-border",
+  "Cancelled": "bg-muted/50 text-muted-foreground border-border",
 }
 
 export default function ReportsPage() {
@@ -454,110 +454,110 @@ export default function ReportsPage() {
   }
 
   return (
-    <div className="space-y-8 p-6 min-h-screen bg-slate-50">
+    <div className="space-y-8 p-6 min-h-screen bg-background text-foreground">
       {/* Header Section */}
       <div className="space-y-2">
-        <h1 className="text-3xl font-semibold text-slate-900">Reports & Analytics</h1>
-        <p className="text-slate-600">Comprehensive payroll and financial reporting dashboard</p>
+        <h1 className="text-3xl font-semibold text-foreground">Reports & Analytics</h1>
+        <p className="text-muted-foreground">Comprehensive payroll and financial reporting dashboard</p>
       </div>
 
       {/* Primary Summary Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="border-0 shadow-sm">
+        <Card className="border border-border shadow-sm bg-card">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-medium text-slate-600">Total Gross Payroll</p>
-              <DollarSign className="h-4 w-4 text-slate-500" />
+              <p className="text-sm font-medium text-muted-foreground">Total Gross Payroll</p>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
             </div>
           </CardHeader>
           <CardContent className="pt-0">
-            <div className="text-2xl font-bold text-slate-900">₱{payrollSummary.totalGross.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-foreground">₱{payrollSummary.totalGross.toLocaleString()}</div>
           </CardContent>
         </Card>
 
-        <Card className="border-0 shadow-sm">
+        <Card className="border border-border shadow-sm bg-card">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-medium text-slate-600">Total Allowances</p>
-              <TrendingUp className="h-4 w-4 text-slate-500" />
+              <p className="text-sm font-medium text-muted-foreground">Total Allowances</p>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </div>
           </CardHeader>
           <CardContent className="pt-0">
-            <div className="text-2xl font-bold text-slate-900">₱{payrollSummary.totalAllowances.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-foreground">₱{payrollSummary.totalAllowances.toLocaleString()}</div>
           </CardContent>
         </Card>
 
-        <Card className="border-0 shadow-sm">
+        <Card className="border border-border shadow-sm bg-card">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-medium text-slate-600">Total Deductions</p>
-              <Calculator className="h-4 w-4 text-slate-500" />
+              <p className="text-sm font-medium text-muted-foreground">Total Deductions</p>
+              <Calculator className="h-4 w-4 text-muted-foreground" />
             </div>
           </CardHeader>
           <CardContent className="pt-0">
-            <div className="text-2xl font-bold text-slate-900">₱{payrollSummary.totalDeductions.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-foreground">₱{payrollSummary.totalDeductions.toLocaleString()}</div>
           </CardContent>
         </Card>
 
-        <Card className="border-0 shadow-sm">
+        <Card className="border border-border shadow-sm bg-card">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-medium text-slate-600">Total Net Pay</p>
-              <FileText className="h-4 w-4 text-slate-500" />
+              <p className="text-sm font-medium text-muted-foreground">Total Net Pay</p>
+              <FileText className="h-4 w-4 text-muted-foreground" />
             </div>
           </CardHeader>
           <CardContent className="pt-0">
-            <div className="text-2xl font-bold text-slate-900">₱{payrollSummary.totalNetPay.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-foreground">₱{payrollSummary.totalNetPay.toLocaleString()}</div>
           </CardContent>
         </Card>
       </div>
 
       {/* Secondary Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="border-0 shadow-sm">
+        <Card className="border border-border shadow-sm bg-card">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600">Total Employees</p>
-                <div className="text-lg font-bold text-slate-900">{additionalMetrics.totalEmployees}</div>
+                <p className="text-sm font-medium text-muted-foreground">Total Employees</p>
+                <div className="text-lg font-bold text-foreground">{additionalMetrics.totalEmployees}</div>
               </div>
-              <Users className="h-5 w-5 text-slate-500" />
+              <Users className="h-5 w-5 text-muted-foreground" />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-0 shadow-sm">
+        <Card className="border border-border shadow-sm bg-card">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600">Total Expenses</p>
-                <div className="text-lg font-bold text-slate-900">₱{additionalMetrics.totalExpenses.toLocaleString()}</div>
+                <p className="text-sm font-medium text-muted-foreground">Total Expenses</p>
+                <div className="text-lg font-bold text-foreground">₱{additionalMetrics.totalExpenses.toLocaleString()}</div>
               </div>
-              <Building2 className="h-5 w-5 text-slate-500" />
+              <Building2 className="h-5 w-5 text-muted-foreground" />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-0 shadow-sm">
+        <Card className="border border-border shadow-sm bg-card">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600">Payroll Records</p>
-                <div className="text-lg font-bold text-slate-900">{additionalMetrics.totalRecords}</div>
+                <p className="text-sm font-medium text-muted-foreground">Payroll Records</p>
+                <div className="text-lg font-bold text-foreground">{additionalMetrics.totalRecords}</div>
               </div>
-              <BarChart3 className="h-5 w-5 text-slate-500" />
+              <BarChart3 className="h-5 w-5 text-muted-foreground" />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-0 shadow-sm">
+        <Card className="border border-border shadow-sm bg-card">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600">Avg. Gross Pay</p>
-                <div className="text-lg font-bold text-slate-900">₱{additionalMetrics.averageGrossPay.toLocaleString()}</div>
+                <p className="text-sm font-medium text-muted-foreground">Avg. Gross Pay</p>
+                <div className="text-lg font-bold text-foreground">₱{additionalMetrics.averageGrossPay.toLocaleString()}</div>
               </div>
-              <PieChart className="h-5 w-5 text-slate-500" />
+              <PieChart className="h-5 w-5 text-muted-foreground" />
             </div>
           </CardContent>
         </Card>
@@ -586,12 +586,12 @@ export default function ReportsPage() {
 
         {/* Employee Details Tab */}
         <TabsContent value="employee-details">
-          <Card className="border-0 shadow-sm">
+          <Card className="border border-border shadow-sm bg-card overflow-hidden">
             <CardHeader>
               <div className="flex justify-between items-center">
                 <div>
-                  <h3 className="text-lg font-medium text-slate-900">Employee Payroll Details</h3>
-                  <p className="text-slate-600">Detailed breakdown of employee payroll records</p>
+                  <h3 className="text-lg font-medium text-foreground">Employee Payroll Details</h3>
+                  <p className="text-muted-foreground">Detailed breakdown of employee payroll records</p>
                 </div>
                 <div className="flex items-center gap-2">
                   {/* Column Visibility Toggle */}
@@ -631,55 +631,55 @@ export default function ReportsPage() {
             <CardContent>
               {employeePayrollDetails.length === 0 ? (
                 <div className="text-center py-12">
-                  <FileText className="h-12 w-12 mx-auto mb-4 text-slate-400" />
-                  <h3 className="text-lg font-medium text-slate-900 mb-2">No payroll data available</h3>
-                  <p className="text-slate-600">Generate payroll records to see detailed reports</p>
+                  <FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-lg font-medium text-foreground mb-2">No payroll data available</h3>
+                  <p className="text-muted-foreground">Generate payroll records to see detailed reports</p>
                 </div>
               ) : (
-                <div className="border border-slate-200 rounded-lg overflow-hidden">
+                <div className="border border-border rounded-lg overflow-hidden">
                   <div className="overflow-x-auto">
                     <Table>
                       <TableHeader>
-                        <TableRow className="border-b border-slate-200">
-                          {visibleColumns.employee_id && <TableHead className="font-medium text-slate-900">Employee ID</TableHead>}
-                          {visibleColumns.full_name && <TableHead className="font-medium text-slate-900">Full Name</TableHead>}
-                          {visibleColumns.pay_type && <TableHead className="font-medium text-slate-900">Pay Type</TableHead>}
-                          {visibleColumns.period && <TableHead className="font-medium text-slate-900">Period</TableHead>}
-                          {visibleColumns.basic_salary && <TableHead className="font-medium text-slate-900">Basic Salary</TableHead>}
-                          {visibleColumns.allowances && <TableHead className="font-medium text-slate-900">Allowances</TableHead>}
-                          {visibleColumns.overtime && <TableHead className="font-medium text-slate-900">Overtime</TableHead>}
-                          {visibleColumns.holiday_pay && <TableHead className="font-medium text-slate-900">Holiday Pay</TableHead>}
-                          {visibleColumns.gross_pay && <TableHead className="font-medium text-slate-900">Gross Pay</TableHead>}
-                          {visibleColumns.absences && <TableHead className="font-medium text-slate-900">Absences</TableHead>}
-                          {visibleColumns.cash_advance && <TableHead className="font-medium text-slate-900">Cash Advance</TableHead>}
-                          {visibleColumns.total_deductions && <TableHead className="font-medium text-slate-900">Total Deductions</TableHead>}
-                          {visibleColumns.net_pay && <TableHead className="font-medium text-slate-900">Net Pay</TableHead>}
-                          {visibleColumns.status && <TableHead className="font-medium text-slate-900">Status</TableHead>}
+                        <TableRow className="border-b border-border bg-muted/30">
+                          {visibleColumns.employee_id && <TableHead className="font-medium text-foreground">Employee ID</TableHead>}
+                          {visibleColumns.full_name && <TableHead className="font-medium text-foreground">Full Name</TableHead>}
+                          {visibleColumns.pay_type && <TableHead className="font-medium text-foreground">Pay Type</TableHead>}
+                          {visibleColumns.period && <TableHead className="font-medium text-foreground">Period</TableHead>}
+                          {visibleColumns.basic_salary && <TableHead className="font-medium text-foreground">Basic Salary</TableHead>}
+                          {visibleColumns.allowances && <TableHead className="font-medium text-foreground">Allowances</TableHead>}
+                          {visibleColumns.overtime && <TableHead className="font-medium text-foreground">Overtime</TableHead>}
+                          {visibleColumns.holiday_pay && <TableHead className="font-medium text-foreground">Holiday Pay</TableHead>}
+                          {visibleColumns.gross_pay && <TableHead className="font-medium text-foreground">Gross Pay</TableHead>}
+                          {visibleColumns.absences && <TableHead className="font-medium text-foreground">Absences</TableHead>}
+                          {visibleColumns.cash_advance && <TableHead className="font-medium text-foreground">Cash Advance</TableHead>}
+                          {visibleColumns.total_deductions && <TableHead className="font-medium text-foreground">Total Deductions</TableHead>}
+                          {visibleColumns.net_pay && <TableHead className="font-medium text-foreground">Net Pay</TableHead>}
+                          {visibleColumns.status && <TableHead className="font-medium text-foreground">Status</TableHead>}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {employeePayrollDetails.map((emp) => (
-                          <TableRow key={emp.id} className="border-b border-slate-100 hover:bg-slate-50 transition">
-                            {visibleColumns.employee_id && <TableCell className="font-medium text-slate-900">{emp.employee_code}</TableCell>}
-                            {visibleColumns.full_name && <TableCell className="font-medium text-slate-900">{emp.full_name}</TableCell>}
-                            {visibleColumns.pay_type && <TableCell className="text-slate-600">{emp.pay_type}</TableCell>}
+                          <TableRow key={emp.id} className="border-b border-border hover:bg-muted/30 transition">
+                            {visibleColumns.employee_id && <TableCell className="font-medium text-foreground">{emp.employee_code}</TableCell>}
+                            {visibleColumns.full_name && <TableCell className="font-medium text-foreground">{emp.full_name}</TableCell>}
+                            {visibleColumns.pay_type && <TableCell className="text-muted-foreground">{emp.pay_type}</TableCell>}
                             {visibleColumns.period && (
-                              <TableCell className="text-sm text-slate-600">
+                              <TableCell className="text-sm text-muted-foreground">
                                 {new Date(emp.period_start).toLocaleDateString()} - {new Date(emp.period_end).toLocaleDateString()}
                               </TableCell>
                             )}
-                            {visibleColumns.basic_salary && <TableCell className="text-slate-900">₱{emp.basic_salary.toLocaleString()}</TableCell>}
-                            {visibleColumns.allowances && <TableCell className="text-slate-900">₱{emp.allowances.toLocaleString()}</TableCell>}
-                            {visibleColumns.overtime && <TableCell className="text-slate-900">₱{emp.overtime_pay.toLocaleString()}</TableCell>}
-                            {visibleColumns.holiday_pay && <TableCell className="text-slate-900">₱{emp.holiday_pay.toLocaleString()}</TableCell>}
-                            {visibleColumns.gross_pay && <TableCell className="text-slate-900">₱{(emp.gross_pay || emp.basic_salary).toLocaleString()}</TableCell>}
-                            {visibleColumns.absences && <TableCell className="text-slate-900">₱{emp.absences.toLocaleString()}</TableCell>}
-                            {visibleColumns.cash_advance && <TableCell className="text-slate-900">₱{emp.cash_advance.toLocaleString()}</TableCell>}
-                            {visibleColumns.total_deductions && <TableCell className="text-slate-900">₱{emp.total_deductions.toLocaleString()}</TableCell>}
-                            {visibleColumns.net_pay && <TableCell className="font-bold text-slate-900">₱{(emp.net_pay + emp.allowances).toLocaleString()}</TableCell>}
+                            {visibleColumns.basic_salary && <TableCell className="text-foreground">₱{emp.basic_salary.toLocaleString()}</TableCell>}
+                            {visibleColumns.allowances && <TableCell className="text-foreground">₱{emp.allowances.toLocaleString()}</TableCell>}
+                            {visibleColumns.overtime && <TableCell className="text-foreground">₱{emp.overtime_pay.toLocaleString()}</TableCell>}
+                            {visibleColumns.holiday_pay && <TableCell className="text-foreground">₱{emp.holiday_pay.toLocaleString()}</TableCell>}
+                            {visibleColumns.gross_pay && <TableCell className="text-foreground">₱{(emp.gross_pay || emp.basic_salary).toLocaleString()}</TableCell>}
+                            {visibleColumns.absences && <TableCell className="text-foreground">₱{emp.absences.toLocaleString()}</TableCell>}
+                            {visibleColumns.cash_advance && <TableCell className="text-foreground">₱{emp.cash_advance.toLocaleString()}</TableCell>}
+                            {visibleColumns.total_deductions && <TableCell className="text-foreground">₱{emp.total_deductions.toLocaleString()}</TableCell>}
+                            {visibleColumns.net_pay && <TableCell className="font-bold text-foreground">₱{(emp.net_pay + emp.allowances).toLocaleString()}</TableCell>}
                             {visibleColumns.status && (
                               <TableCell>
-                                <span className={`px-2 py-1 rounded-full text-xs font-medium border ${statusVariants[emp.status] || "bg-slate-100 text-slate-600 border-slate-200"
+                                <span className={`px-2 py-1 rounded-full text-xs font-medium border ${statusVariants[emp.status] || "bg-muted text-muted-foreground border-border"
                                   }`}>
                                   {emp.status}
                                 </span>
@@ -698,63 +698,63 @@ export default function ReportsPage() {
 
         {/* Monthly Payroll Tab */}
         <TabsContent value="monthly-payroll">
-          <Card className="border-0 shadow-sm">
+          <Card className="border border-border shadow-sm bg-card overflow-hidden">
             <CardHeader>
               <div>
-                <h3 className="text-lg font-medium text-slate-900">Monthly Payroll Summary</h3>
-                <p className="text-slate-600">Payroll breakdown organized by month</p>
+                <h3 className="text-lg font-medium text-foreground">Monthly Payroll Summary</h3>
+                <p className="text-muted-foreground">Payroll breakdown organized by month</p>
               </div>
             </CardHeader>
             <CardContent>
               {monthlyPayrollSummary.length === 0 ? (
                 <div className="text-center py-12">
-                  <Calendar className="h-12 w-12 mx-auto mb-4 text-slate-400" />
-                  <h3 className="text-lg font-medium text-slate-900 mb-2">No monthly data available</h3>
-                  <p className="text-slate-600">Generate payroll records to see monthly summaries</p>
+                  <Calendar className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-lg font-medium text-foreground mb-2">No monthly data available</h3>
+                  <p className="text-muted-foreground">Generate payroll records to see monthly summaries</p>
                 </div>
               ) : (
-                <div className="border border-slate-200 rounded-lg overflow-hidden">
+                <div className="border border-border rounded-lg overflow-hidden">
                   <Table>
                     <TableHeader>
-                      <TableRow className="border-b border-slate-200">
-                        <TableHead className="font-medium text-slate-900">Month</TableHead>
-                        <TableHead className="font-medium text-slate-900">Total Employees</TableHead>
-                        <TableHead className="font-medium text-slate-900">Payroll Records</TableHead>
-                        <TableHead className="font-medium text-slate-900">Gross Pay</TableHead>
-                        <TableHead className="font-medium text-slate-900">Allowances</TableHead>
-                        <TableHead className="font-medium text-slate-900">Deductions</TableHead>
-                        <TableHead className="font-medium text-slate-900">Net Pay (incl. Allowances)</TableHead>
+                      <TableRow className="border-b border-border bg-muted/30">
+                        <TableHead className="font-medium text-foreground">Month</TableHead>
+                        <TableHead className="font-medium text-foreground">Total Employees</TableHead>
+                        <TableHead className="font-medium text-foreground">Payroll Records</TableHead>
+                        <TableHead className="font-medium text-foreground">Gross Pay</TableHead>
+                        <TableHead className="font-medium text-foreground">Allowances</TableHead>
+                        <TableHead className="font-medium text-foreground">Deductions</TableHead>
+                        <TableHead className="font-medium text-foreground">Net Pay (incl. Allowances)</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {monthlyPayrollSummary.map((summary) => (
-                        <TableRow key={`${summary.year}-${summary.month}`} className="border-b border-slate-100 hover:bg-slate-50 transition">
-                          <TableCell className="font-medium text-slate-900">{summary.monthYear}</TableCell>
-                          <TableCell className="text-slate-900">{summary.totalEmployees}</TableCell>
-                          <TableCell className="text-slate-900">{summary.recordCount}</TableCell>
-                          <TableCell className="text-slate-900">₱{summary.totalGrossPay.toLocaleString()}</TableCell>
-                          <TableCell className="text-slate-900">₱{summary.totalAllowances.toLocaleString()}</TableCell>
-                          <TableCell className="text-slate-900">₱{summary.totalDeductions.toLocaleString()}</TableCell>
-                          <TableCell className="font-bold text-slate-900">₱{summary.totalNetPay.toLocaleString()}</TableCell>
+                        <TableRow key={`${summary.year}-${summary.month}`} className="border-b border-border hover:bg-muted/30 transition">
+                          <TableCell className="font-medium text-foreground">{summary.monthYear}</TableCell>
+                          <TableCell className="text-foreground">{summary.totalEmployees}</TableCell>
+                          <TableCell className="text-foreground">{summary.recordCount}</TableCell>
+                          <TableCell className="text-foreground">₱{summary.totalGrossPay.toLocaleString()}</TableCell>
+                          <TableCell className="text-foreground">₱{summary.totalAllowances.toLocaleString()}</TableCell>
+                          <TableCell className="text-foreground">₱{summary.totalDeductions.toLocaleString()}</TableCell>
+                          <TableCell className="font-bold text-foreground">₱{summary.totalNetPay.toLocaleString()}</TableCell>
                         </TableRow>
                       ))}
                       {monthlyPayrollSummary.length > 1 && (
-                        <TableRow className="border-t-2 border-slate-300 font-bold bg-slate-50">
-                          <TableCell className="text-slate-900">Total</TableCell>
-                          <TableCell className="text-slate-500">—</TableCell>
-                          <TableCell className="text-slate-900">
+                        <TableRow className="border-t-2 border-border font-bold bg-muted/50">
+                          <TableCell className="text-foreground">Total</TableCell>
+                          <TableCell className="text-muted-foreground">—</TableCell>
+                          <TableCell className="text-foreground">
                             {monthlyPayrollSummary.reduce((sum, s) => sum + s.recordCount, 0)}
                           </TableCell>
-                          <TableCell className="text-slate-900">
+                          <TableCell className="text-foreground">
                             ₱{monthlyPayrollSummary.reduce((sum, s) => sum + s.totalGrossPay, 0).toLocaleString()}
                           </TableCell>
-                          <TableCell className="text-slate-900">
+                          <TableCell className="text-foreground">
                             ₱{monthlyPayrollSummary.reduce((sum, s) => sum + s.totalAllowances, 0).toLocaleString()}
                           </TableCell>
-                          <TableCell className="text-slate-900">
+                          <TableCell className="text-foreground">
                             ₱{monthlyPayrollSummary.reduce((sum, s) => sum + s.totalDeductions, 0).toLocaleString()}
                           </TableCell>
-                          <TableCell className="text-slate-900">
+                          <TableCell className="text-foreground">
                             ₱{monthlyPayrollSummary.reduce((sum, s) => sum + s.totalNetPay, 0).toLocaleString()}
                           </TableCell>
                         </TableRow>
@@ -772,48 +772,48 @@ export default function ReportsPage() {
           <Card className="border-0 shadow-sm">
             <CardHeader>
               <div>
-                <h3 className="text-lg font-medium text-slate-900">Employee Deductions (Detailed)</h3>
-                <p className="text-slate-600">Breakdown of all deduction types by employee</p>
+                <h3 className="text-lg font-medium text-foreground">Employee Deductions (Detailed)</h3>
+                <p className="text-muted-foreground">Breakdown of all deduction types by employee</p>
               </div>
             </CardHeader>
             <CardContent>
               {employeePayrollDetails.length === 0 ? (
                 <div className="text-center py-12">
-                  <Calculator className="h-12 w-12 mx-auto mb-4 text-slate-400" />
-                  <h3 className="text-lg font-medium text-slate-900 mb-2">No deduction records found</h3>
-                  <p className="text-slate-600">Add employee deductions to see detailed reports</p>
+                  <Calculator className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-lg font-medium text-foreground mb-2">No deduction records found</h3>
+                  <p className="text-muted-foreground">Add employee deductions to see detailed reports</p>
                 </div>
               ) : (
-                <div className="border border-slate-200 rounded-lg overflow-hidden">
+                <div className="border border-border rounded-lg overflow-hidden">
                   <div className="overflow-x-auto">
                     <Table>
                       <TableHeader>
-                        <TableRow className="border-b border-slate-200">
-                          <TableHead className="font-medium text-slate-900">Employee</TableHead>
-                          <TableHead className="font-medium text-slate-900">SSS</TableHead>
-                          <TableHead className="font-medium text-slate-900">PhilHealth</TableHead>
-                          <TableHead className="font-medium text-slate-900">Pag-IBIG</TableHead>
-                          <TableHead className="font-medium text-slate-900">Withholding Tax</TableHead>
-                          <TableHead className="font-medium text-slate-900">Loans</TableHead>
-                          <TableHead className="font-medium text-slate-900">Uniform</TableHead>
-                          <TableHead className="font-medium text-slate-900">Tardiness</TableHead>
-                          <TableHead className="font-medium text-slate-900">Cash Advance</TableHead>
-                          <TableHead className="font-medium text-slate-900">Total</TableHead>
+                        <TableRow className="border-b border-border bg-muted/30">
+                          <TableHead className="font-medium text-foreground">Employee</TableHead>
+                          <TableHead className="font-medium text-foreground">SSS</TableHead>
+                          <TableHead className="font-medium text-foreground">PhilHealth</TableHead>
+                          <TableHead className="font-medium text-foreground">Pag-IBIG</TableHead>
+                          <TableHead className="font-medium text-foreground">Withholding Tax</TableHead>
+                          <TableHead className="font-medium text-foreground">Loans</TableHead>
+                          <TableHead className="font-medium text-foreground">Uniform</TableHead>
+                          <TableHead className="font-medium text-foreground">Tardiness</TableHead>
+                          <TableHead className="font-medium text-foreground">Cash Advance</TableHead>
+                          <TableHead className="font-medium text-foreground">Total</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {employeePayrollDetails.map(emp => (
-                          <TableRow key={emp.id} className="border-b border-slate-100 hover:bg-slate-50 transition">
-                            <TableCell className="font-medium text-slate-900">{emp.full_name}</TableCell>
-                            <TableCell className="text-slate-900">₱{emp.sss.toLocaleString()}</TableCell>
-                            <TableCell className="text-slate-900">₱{emp.philhealth.toLocaleString()}</TableCell>
-                            <TableCell className="text-slate-900">₱{emp.pagibig.toLocaleString()}</TableCell>
-                            <TableCell className="text-slate-900">₱{emp.withholding_tax.toLocaleString()}</TableCell>
-                            <TableCell className="text-slate-900">₱{emp.loans.toLocaleString()}</TableCell>
-                            <TableCell className="text-slate-900">₱{emp.uniform.toLocaleString()}</TableCell>
-                            <TableCell className="text-slate-900">₱{emp.tardiness.toLocaleString()}</TableCell>
-                            <TableCell className="text-slate-900">₱{emp.cash_advance.toLocaleString()}</TableCell>
-                            <TableCell className="font-bold text-slate-900">
+                          <TableRow key={emp.id} className="border-b border-border hover:bg-muted/30 transition">
+                            <TableCell className="font-medium text-foreground">{emp.full_name}</TableCell>
+                            <TableCell className="text-foreground">₱{emp.sss.toLocaleString()}</TableCell>
+                            <TableCell className="text-foreground">₱{emp.philhealth.toLocaleString()}</TableCell>
+                            <TableCell className="text-foreground">₱{emp.pagibig.toLocaleString()}</TableCell>
+                            <TableCell className="text-foreground">₱{emp.withholding_tax.toLocaleString()}</TableCell>
+                            <TableCell className="text-foreground">₱{emp.loans.toLocaleString()}</TableCell>
+                            <TableCell className="text-foreground">₱{emp.uniform.toLocaleString()}</TableCell>
+                            <TableCell className="text-foreground">₱{emp.tardiness.toLocaleString()}</TableCell>
+                            <TableCell className="text-foreground">₱{emp.cash_advance.toLocaleString()}</TableCell>
+                            <TableCell className="font-bold text-foreground">
                               ₱{(emp.total_deductions + emp.cash_advance).toLocaleString()}
                             </TableCell>
                           </TableRow>
@@ -829,38 +829,38 @@ export default function ReportsPage() {
 
         {/* Expenses Tab */}
         <TabsContent value="expenses">
-          <Card className="border-0 shadow-sm">
+          <Card className="border border-border shadow-sm bg-card overflow-hidden">
             <CardHeader>
               <div>
-                <h3 className="text-lg font-medium text-slate-900">Company Expenses</h3>
-                <p className="text-slate-600">Overview of company operational expenses</p>
+                <h3 className="text-lg font-medium text-foreground">Company Expenses</h3>
+                <p className="text-muted-foreground">Overview of company operational expenses</p>
               </div>
             </CardHeader>
             <CardContent>
               {expenses.length === 0 ? (
                 <div className="text-center py-12">
-                  <Building2 className="h-12 w-12 mx-auto mb-4 text-slate-400" />
-                  <h3 className="text-lg font-medium text-slate-900 mb-2">No expense records found</h3>
-                  <p className="text-slate-600">Add company expenses to see financial reports</p>
+                  <Building2 className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-lg font-medium text-foreground mb-2">No expense records found</h3>
+                  <p className="text-muted-foreground">Add company expenses to see financial reports</p>
                 </div>
               ) : (
-                <div className="border border-slate-200 rounded-lg overflow-hidden">
+                <div className="border border-border rounded-lg overflow-hidden">
                   <Table>
                     <TableHeader>
-                      <TableRow className="border-b border-slate-200">
-                        <TableHead className="font-medium text-slate-900">Date</TableHead>
-                        <TableHead className="font-medium text-slate-900">Name</TableHead>
-                        <TableHead className="font-medium text-slate-900">Category</TableHead>
-                        <TableHead className="font-medium text-slate-900">Amount</TableHead>
+                      <TableRow className="border-b border-border bg-muted/30">
+                        <TableHead className="font-medium text-foreground">Date</TableHead>
+                        <TableHead className="font-medium text-foreground">Name</TableHead>
+                        <TableHead className="font-medium text-foreground">Category</TableHead>
+                        <TableHead className="font-medium text-foreground">Amount</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {expenses.map((e) => (
-                        <TableRow key={e.id} className="border-b border-slate-100 hover:bg-slate-50 transition">
-                          <TableCell className="text-slate-900">{new Date(e.incurred_on).toLocaleDateString()}</TableCell>
-                          <TableCell className="font-medium text-slate-900">{e.expense_name}</TableCell>
-                          <TableCell className="text-slate-600">{e.category}</TableCell>
-                          <TableCell className="font-medium text-slate-900">₱{e.amount.toLocaleString()}</TableCell>
+                        <TableRow key={e.id} className="border-b border-border hover:bg-muted/30 transition">
+                          <TableCell className="text-muted-foreground">{new Date(e.incurred_on).toLocaleDateString()}</TableCell>
+                          <TableCell className="font-medium text-foreground">{e.expense_name}</TableCell>
+                          <TableCell className="text-muted-foreground">{e.category}</TableCell>
+                          <TableCell className="font-medium text-foreground">₱{e.amount.toLocaleString()}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>

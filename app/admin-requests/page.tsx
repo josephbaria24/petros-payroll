@@ -32,9 +32,9 @@ const formatDateTime = (dateString: string) => {
 }
 
 const statusVariants: Record<string, string> = {
-  "Approved": "bg-slate-900 text-white border-slate-200",
-  "Pending": "bg-white text-slate-900 border-slate-300",
-  "Rejected": "bg-slate-100 text-slate-600 border-slate-200",
+  "Approved": "bg-primary text-primary-foreground border-transparent",
+  "Pending": "bg-muted text-muted-foreground border-border",
+  "Rejected": "bg-muted/50 text-muted-foreground border-border",
 }
 
 interface Request {
@@ -172,44 +172,44 @@ export default function AdminRequestsPage() {
   }
 
   return (
-    <div className="space-y-8 p-6 min-h-screen" style={{ backgroundColor: '#f8fafc' }}>
+    <div className="space-y-8 p-6 min-h-screen bg-background text-foreground">
       {/* Header Section */}
       <div className="space-y-2">
-        <h1 className="text-3xl font-semibold text-slate-900">Employee Requests</h1>
-        <p className="text-slate-600">Review and manage overtime and holiday work requests</p>
+        <h1 className="text-3xl font-semibold text-foreground">Employee Requests</h1>
+        <p className="text-muted-foreground">Review and manage overtime and holiday work requests</p>
       </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="border-0 shadow-sm">
+        <Card className="border border-border shadow-sm bg-card">
           <CardContent className="p-6">
             <div className="space-y-2">
-              <p className="text-sm font-medium text-slate-600">Total Requests</p>
-              <p className="text-2xl font-bold text-slate-900">{stats.total}</p>
+              <p className="text-sm font-medium text-muted-foreground">Total Requests</p>
+              <p className="text-2xl font-bold text-foreground">{stats.total}</p>
             </div>
           </CardContent>
         </Card>
-        <Card className="border-0 shadow-sm">
+        <Card className="border border-border shadow-sm bg-card">
           <CardContent className="p-6">
             <div className="space-y-2">
-              <p className="text-sm font-medium text-slate-600">Pending</p>
-              <p className="text-2xl font-bold text-slate-900">{stats.pending}</p>
+              <p className="text-sm font-medium text-muted-foreground">Pending</p>
+              <p className="text-2xl font-bold text-foreground">{stats.pending}</p>
             </div>
           </CardContent>
         </Card>
-        <Card className="border-0 shadow-sm">
+        <Card className="border border-border shadow-sm bg-card">
           <CardContent className="p-6">
             <div className="space-y-2">
-              <p className="text-sm font-medium text-slate-600">Approved</p>
-              <p className="text-2xl font-bold text-slate-900">{stats.approved}</p>
+              <p className="text-sm font-medium text-muted-foreground">Approved</p>
+              <p className="text-2xl font-bold text-foreground">{stats.approved}</p>
             </div>
           </CardContent>
         </Card>
-        <Card className="border-0 shadow-sm">
+        <Card className="border border-border shadow-sm bg-card">
           <CardContent className="p-6">
             <div className="space-y-2">
-              <p className="text-sm font-medium text-slate-600">Rejected</p>
-              <p className="text-2xl font-bold text-slate-900">{stats.rejected}</p>
+              <p className="text-sm font-medium text-muted-foreground">Rejected</p>
+              <p className="text-2xl font-bold text-foreground">{stats.rejected}</p>
             </div>
           </CardContent>
         </Card>
@@ -222,7 +222,7 @@ export default function AdminRequestsPage() {
             {/* Search */}
             <div className="flex-1">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-500" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search by employee name, code, or request type..."
                   value={searchTerm}
@@ -237,7 +237,7 @@ export default function AdminRequestsPage() {
 
       {/* Tabs for Status Filter */}
       <Tabs value={statusFilter} onValueChange={setStatusFilter} className="space-y-4">
-        <TabsList className="bg-white border-0 shadow-sm">
+        <TabsList className="bg-muted/30 border border-border shadow-sm p-1">
           <TabsTrigger value="all">All Requests</TabsTrigger>
           <TabsTrigger value="pending">Pending</TabsTrigger>
           <TabsTrigger value="approved">Approved</TabsTrigger>
@@ -246,12 +246,12 @@ export default function AdminRequestsPage() {
 
         <TabsContent value={statusFilter} className="space-y-3">
           {filteredRequests.length === 0 ? (
-            <Card className="border-0 shadow-sm">
+            <Card className="border border-border shadow-sm bg-card">
               <CardContent className="p-12">
                 <div className="flex flex-col items-center justify-center text-center space-y-3">
-                  <FileText className="h-12 w-12 text-slate-300" />
-                  <h3 className="text-lg font-medium text-slate-900">No requests found</h3>
-                  <p className="text-slate-500 max-w-sm">
+                  <FileText className="h-12 w-12 text-muted-foreground" />
+                  <h3 className="text-lg font-medium text-foreground">No requests found</h3>
+                  <p className="text-muted-foreground max-w-sm">
                     {searchTerm || statusFilter !== "all"
                       ? "Try adjusting your filters to see more results."
                       : "No employee requests have been submitted yet."}
@@ -261,16 +261,16 @@ export default function AdminRequestsPage() {
             </Card>
           ) : (
             filteredRequests.map((request) => (
-              <Card key={request.id} className="border-0 shadow-sm hover:shadow-md transition-shadow">
+              <Card key={request.id} className="border border-border shadow-sm hover:shadow-md transition-shadow bg-card">
                 <CardContent className="p-6">
                   <div className="space-y-4">
                     {/* Header Row */}
                     <div className="flex items-start justify-between">
                       <div className="space-y-1">
-                        <h3 className="text-lg font-medium text-slate-900">
+                        <h3 className="text-lg font-medium text-foreground">
                           {request.employee?.full_name || "Unknown Employee"}
                         </h3>
-                        <p className="text-sm text-slate-500">
+                        <p className="text-sm text-muted-foreground">
                           {request.employee?.employee_code} · {request.employee?.department} · {request.employee?.position}
                         </p>
                       </div>
@@ -283,26 +283,26 @@ export default function AdminRequestsPage() {
                     </div>
 
                     {/* Request Details Grid */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2 border-t border-slate-100">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2 border-t border-border">
                       <div>
-                        <p className="text-sm font-medium text-slate-600">Request Type</p>
-                        <p className="text-sm text-slate-900 mt-1">{request.request_type}</p>
+                        <p className="text-sm font-medium text-muted-foreground">Request Type</p>
+                        <p className="text-sm text-foreground mt-1">{request.request_type}</p>
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-slate-600">Date</p>
-                        <p className="text-sm text-slate-900 mt-1">
+                        <p className="text-sm font-medium text-muted-foreground">Date</p>
+                        <p className="text-sm text-foreground mt-1">
                           {formatDate(request.date)}
                         </p>
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-slate-600">Time</p>
-                        <p className="text-sm text-slate-900 mt-1">
+                        <p className="text-sm font-medium text-muted-foreground">Time</p>
+                        <p className="text-sm text-foreground mt-1">
                           {request.time_start} - {request.time_end}
                         </p>
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-slate-600">Submitted</p>
-                        <p className="text-sm text-slate-900 mt-1">
+                        <p className="text-sm font-medium text-muted-foreground">Submitted</p>
+                        <p className="text-sm text-foreground mt-1">
                           {formatDate(request.created_at)}
                         </p>
                       </div>
@@ -310,15 +310,15 @@ export default function AdminRequestsPage() {
 
                     {/* Reason */}
                     <div>
-                      <p className="text-sm font-medium text-slate-600">Reason</p>
-                      <p className="text-sm text-slate-900 mt-1">{request.reason}</p>
+                      <p className="text-sm font-medium text-muted-foreground">Reason</p>
+                      <p className="text-sm text-foreground mt-1">{request.reason}</p>
                     </div>
 
                     {/* Admin Remarks */}
                     {request.admin_remarks && (
-                      <div className="pt-2 border-t border-slate-100">
-                        <p className="text-sm font-medium text-slate-600">Admin Remarks</p>
-                        <p className="text-sm text-slate-600 mt-1 italic">{request.admin_remarks}</p>
+                      <div className="pt-2 border-t border-border">
+                        <p className="text-sm font-medium text-muted-foreground">Admin Remarks</p>
+                        <p className="text-sm text-muted-foreground mt-1 italic">{request.admin_remarks}</p>
                       </div>
                     )}
 
@@ -334,7 +334,7 @@ export default function AdminRequestsPage() {
                         <>
                           <Button
                             variant="outline"
-                            className="text-red-600 hover:text-red-700 border-slate-300"
+                            className="text-destructive hover:text-destructive border-border"
                             onClick={() => {
                               setSelectedRequest(request)
                               setAdminRemarks(request.admin_remarks || "")
@@ -345,7 +345,6 @@ export default function AdminRequestsPage() {
                             Reject
                           </Button>
                           <Button
-                            className="bg-slate-900 hover:bg-slate-800 text-white"
                             onClick={() => {
                               setSelectedRequest(request)
                               setAdminRemarks(request.admin_remarks || "")
@@ -370,10 +369,10 @@ export default function AdminRequestsPage() {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="max-w-2xl lg:w-[40vw] max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-xl font-semibold text-slate-900">
+            <DialogTitle className="text-xl font-semibold text-foreground">
               Request Details
             </DialogTitle>
-            <DialogDescription className="text-slate-600">
+            <DialogDescription className="text-muted-foreground">
               Review and process this employee request
             </DialogDescription>
           </DialogHeader>
@@ -384,10 +383,10 @@ export default function AdminRequestsPage() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-lg font-medium text-slate-900">
+                    <h3 className="text-lg font-medium text-foreground">
                       {selectedRequest.employee?.full_name}
                     </h3>
-                    <p className="text-sm text-slate-500">
+                    <p className="text-sm text-muted-foreground">
                       {selectedRequest.employee?.employee_code} · {selectedRequest.employee?.department}
                     </p>
                   </div>
@@ -401,28 +400,28 @@ export default function AdminRequestsPage() {
               </div>
 
               {/* Request Details */}
-              <div className="grid grid-cols-2 gap-4 p-4 bg-slate-50 rounded-lg">
+              <div className="grid grid-cols-2 gap-4 p-4 bg-muted/30 border border-border rounded-lg">
                 <div>
-                  <p className="text-sm font-medium text-slate-600">Request Type</p>
-                  <p className="text-sm text-slate-900 mt-1">{selectedRequest.request_type}</p>
+                  <p className="text-sm font-medium text-muted-foreground">Request Type</p>
+                  <p className="text-sm text-foreground mt-1">{selectedRequest.request_type}</p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-slate-600">Date</p>
-                  <p className="text-sm text-slate-900 mt-1">
+                  <p className="text-sm font-medium text-muted-foreground">Date</p>
+                  <p className="text-sm text-foreground mt-1">
                     {formatDate(selectedRequest.date)}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-slate-600">Start Time</p>
-                  <p className="text-sm text-slate-900 mt-1">{selectedRequest.time_start}</p>
+                  <p className="text-sm font-medium text-muted-foreground">Start Time</p>
+                  <p className="text-sm text-foreground mt-1">{selectedRequest.time_start}</p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-slate-600">End Time</p>
-                  <p className="text-sm text-slate-900 mt-1">{selectedRequest.time_end}</p>
+                  <p className="text-sm font-medium text-muted-foreground">End Time</p>
+                  <p className="text-sm text-foreground mt-1">{selectedRequest.time_end}</p>
                 </div>
                 <div className="col-span-2">
-                  <p className="text-sm font-medium text-slate-600">Submitted On</p>
-                  <p className="text-sm text-slate-900 mt-1">
+                  <p className="text-sm font-medium text-muted-foreground">Submitted On</p>
+                  <p className="text-sm text-foreground mt-1">
                     {formatDateTime(selectedRequest.created_at)}
                   </p>
                 </div>
@@ -430,8 +429,8 @@ export default function AdminRequestsPage() {
 
               {/* Reason */}
               <div>
-                <Label className="text-sm font-medium text-slate-900">Reason</Label>
-                <div className="text-sm text-slate-900 mt-2 p-3 bg-slate-50 rounded-lg">
+                <Label className="text-sm font-medium text-foreground">Reason</Label>
+                <div className="text-sm text-foreground mt-2 p-3 bg-muted/30 border border-border rounded-lg">
                   {selectedRequest.reason.split(/(?=\d+\.)/g).map((part, i) => (
                     <p key={i} className={i > 0 ? "mt-2" : ""}>
                       {part.trim()}
@@ -442,7 +441,7 @@ export default function AdminRequestsPage() {
 
               {/* Admin Remarks */}
               <div className="space-y-2">
-                <Label htmlFor="admin-remarks" className="text-sm font-medium text-slate-900">
+                <Label htmlFor="admin-remarks" className="text-sm font-medium text-foreground">
                   Admin Remarks {selectedRequest.status === "Pending" && "(Optional)"}
                 </Label>
                 <Textarea
@@ -456,9 +455,9 @@ export default function AdminRequestsPage() {
               </div>
 
               {selectedRequest.status !== "Pending" && (
-                <div className="flex items-start gap-2 p-3 bg-slate-50 rounded-lg">
-                  <AlertCircle className="h-5 w-5 text-slate-500 mt-0.5" />
-                  <p className="text-sm text-slate-600">
+                <div className="flex items-start gap-2 p-3 bg-muted/30 border border-border rounded-lg">
+                  <AlertCircle className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  <p className="text-sm text-muted-foreground">
                     This request has already been {selectedRequest.status.toLowerCase()}.
                     You cannot change the status of processed requests.
                   </p>
@@ -479,13 +478,13 @@ export default function AdminRequestsPage() {
                 </Button>
                 <Button
                   variant="outline"
-                  className="text-red-600 hover:text-red-700"
+                  className="text-destructive hover:text-destructive"
                   onClick={() => handleUpdateStatus("Rejected")}
                   disabled={isProcessing}
                 >
                   {isProcessing ? (
                     <div className="flex items-center space-x-2">
-                      <div className="w-4 h-4 bg-slate-400 rounded-full animate-pulse"></div>
+                      <div className="w-4 h-4 bg-muted-foreground rounded-full animate-pulse"></div>
                       <span>Processing...</span>
                     </div>
                   ) : (
@@ -496,13 +495,12 @@ export default function AdminRequestsPage() {
                   )}
                 </Button>
                 <Button
-                  className="bg-slate-900 hover:bg-slate-800 text-white"
                   onClick={() => handleUpdateStatus("Approved")}
                   disabled={isProcessing}
                 >
                   {isProcessing ? (
                     <div className="flex items-center space-x-2">
-                      <div className="w-4 h-4 bg-white rounded-full animate-pulse"></div>
+                      <div className="w-4 h-4 bg-primary-foreground rounded-full animate-pulse"></div>
                       <span>Processing...</span>
                     </div>
                   ) : (
@@ -516,7 +514,6 @@ export default function AdminRequestsPage() {
             ) : (
               <Button
                 onClick={() => setIsDialogOpen(false)}
-                className="bg-slate-900 hover:bg-slate-800 text-white"
               >
                 Close
               </Button>

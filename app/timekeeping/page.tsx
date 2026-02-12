@@ -83,14 +83,14 @@ function extractPhilippineDate(timestamp: string): string {
 
 function statusBadge(status: string) {
   const variants: Record<string, string> = {
-    "Present": "bg-slate-900 text-white border-slate-200",
-    "Logged": "bg-slate-900 text-white border-slate-200",
-    "Late": "bg-white text-slate-900 border-slate-300",
-    "Absent": "bg-slate-100 text-slate-600 border-slate-200",
-    "On Leave": "bg-slate-100 text-slate-600 border-slate-200",
+    "Present": "bg-primary text-primary-foreground border-transparent",
+    "Logged": "bg-primary text-primary-foreground border-transparent",
+    "Late": "bg-muted text-muted-foreground border-border",
+    "Absent": "bg-muted/50 text-muted-foreground border-border",
+    "On Leave": "bg-muted/50 text-muted-foreground border-border",
   }
 
-  const className = variants[status] || "bg-slate-100 text-slate-600 border-slate-200"
+  const className = variants[status] || "bg-muted text-muted-foreground border-border"
 
   return (
     <Badge
@@ -279,24 +279,24 @@ export default function TimekeepingPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex items-center justify-center h-screen bg-background text-foreground">
         <div className="flex items-center space-x-2">
-          <div className="w-4 h-4 bg-slate-400 rounded-full animate-pulse"></div>
-          <span className="text-slate-600">Loading timekeeping data...</span>
+          <div className="w-4 h-4 bg-primary rounded-full animate-pulse"></div>
+          <span className="text-muted-foreground">Loading timekeeping data...</span>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-8 p-6 min-h-screen" style={{ backgroundColor: '#f8fafc' }}>
+    <div className="space-y-8 p-6 min-h-screen bg-background text-foreground">
       {/* Header */}
       {/* <div className="bg-white border-b">
         <div className="px-6 py-4">
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem>
-                <BreadcrumbPage className="text-slate-600">
+                <BreadcrumbPage className="text-muted-foreground">
                   Time & Attendance
                 </BreadcrumbPage>
               </BreadcrumbItem>
@@ -307,60 +307,60 @@ export default function TimekeepingPage() {
 
       {/* Page Title */}
       <div className="space-y-2">
-        <h1 className="text-3xl font-semibold text-slate-900">Timekeeping</h1>
-        <p className="text-slate-600">
+        <h1 className="text-3xl font-semibold text-foreground">Timekeeping</h1>
+        <p className="text-muted-foreground">
           Monitor employee attendance and track working hours
         </p>
       </div>
 
       {/* Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="border-0 shadow-sm">
+        <Card className="border border-border shadow-sm bg-card">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-slate-600">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
               Present Today
             </CardTitle>
-            <Users className="h-4 w-4 text-slate-400" />
+            <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-slate-900">
+            <div className="text-2xl font-bold text-foreground">
               {presentCount}
             </div>
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="text-xs text-muted-foreground mt-1">
               Employees checked in
             </p>
           </CardContent>
         </Card>
 
-        <Card className="border-0 shadow-sm">
+        <Card className="border border-border shadow-sm bg-card">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-slate-600">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
               Total Hours
             </CardTitle>
-            <Clock className="h-4 w-4 text-slate-400" />
+            <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-slate-900">
+            <div className="text-2xl font-bold text-foreground">
               {totalHours.toFixed(1)}
             </div>
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="text-xs text-muted-foreground mt-1">
               Hours worked today
             </p>
           </CardContent>
         </Card>
 
-        <Card className="border-0 shadow-sm">
+        <Card className="border border-border shadow-sm bg-card">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-slate-600">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
               Overtime Hours
             </CardTitle>
-            <Timer className="h-4 w-4 text-slate-400" />
+            <Timer className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-slate-900">
+            <div className="text-2xl font-bold text-foreground">
               {totalOvertime.toFixed(1)}
             </div>
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="text-xs text-muted-foreground mt-1">
               Extra hours today
             </p>
           </CardContent>
@@ -368,18 +368,18 @@ export default function TimekeepingPage() {
       </div>
 
       {/* Controls */}
-      <Card className="border-0 shadow-sm">
+      <Card className="border border-border shadow-sm bg-card">
         <CardContent className="p-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             {/* Date Filter */}
             <div className="flex items-center space-x-2">
-              <Label className="text-slate-600 font-medium">Date:</Label>
+              <Label className="text-muted-foreground font-medium">Date:</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <div
                     className={cn(
                       "inline-flex items-center whitespace-nowrap rounded-md text-sm  ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-3 cursor-pointer justify-start font-normal",
-                      !selectedDate && "text-slate-500"
+                      !selectedDate && "text-muted-foreground"
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
@@ -403,7 +403,7 @@ export default function TimekeepingPage() {
               if (!v) resetForm()
             }}>
               <DialogTrigger asChild>
-                <Button className="bg-slate-900 hover:bg-slate-800">
+                <Button>
                   <Plus className="w-4 h-4 mr-2" />
                   Add Time Log
                 </Button>
@@ -481,7 +481,7 @@ export default function TimekeepingPage() {
                     </Select>
                   </div>
 
-                  <Button type="submit" className="w-full bg-slate-900 hover:bg-slate-800">
+                  <Button type="submit" className="w-full">
                     Save Time Log
                   </Button>
                 </form>
@@ -492,40 +492,40 @@ export default function TimekeepingPage() {
       </Card>
 
       {/* Data Table */}
-      <Card className="border-0 shadow-sm">
+      <Card className="border border-border shadow-sm overflow-hidden bg-card">
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="border-b border-slate-200">
-                  <TableHead className="font-medium text-slate-900">Employee</TableHead>
-                  <TableHead className="font-medium text-slate-900">Date</TableHead>
-                  <TableHead className="font-medium text-slate-900">Time In</TableHead>
-                  <TableHead className="font-medium text-slate-900">Time Out</TableHead>
-                  <TableHead className="font-medium text-slate-900">Total Hours</TableHead>
-                  <TableHead className="font-medium text-slate-900">Overtime</TableHead>
-                  <TableHead className="font-medium text-slate-900">Status</TableHead>
+                <TableRow className="border-b border-border bg-muted/30">
+                  <TableHead className="font-medium text-foreground">Employee</TableHead>
+                  <TableHead className="font-medium text-foreground">Date</TableHead>
+                  <TableHead className="font-medium text-foreground">Time In</TableHead>
+                  <TableHead className="font-medium text-foreground">Time Out</TableHead>
+                  <TableHead className="font-medium text-foreground">Total Hours</TableHead>
+                  <TableHead className="font-medium text-foreground">Overtime</TableHead>
+                  <TableHead className="font-medium text-foreground">Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {logs.map((log) => (
-                  <TableRow key={log.id} className="border-b border-slate-100 hover:bg-slate-50">
+                  <TableRow key={log.id} className="border-b border-border hover:bg-muted/30">
                     <TableCell>
-                      <div className="font-medium text-slate-900">{log.employee_name}</div>
+                      <div className="font-medium text-foreground">{log.employee_name}</div>
                     </TableCell>
-                    <TableCell className="text-slate-700">
+                    <TableCell className="text-muted-foreground">
                       {new Date(log.date).toLocaleDateString()}
                     </TableCell>
-                    <TableCell className="text-slate-700">
+                    <TableCell className="text-muted-foreground">
                       {log.time_in || "-"}
                     </TableCell>
-                    <TableCell className="text-slate-700">
+                    <TableCell className="text-muted-foreground">
                       {log.time_out || "-"}
                     </TableCell>
-                    <TableCell className="font-medium text-slate-900">
+                    <TableCell className="font-medium text-foreground">
                       {log.total_hours.toFixed(1)}h
                     </TableCell>
-                    <TableCell className="font-medium text-slate-900">
+                    <TableCell className="font-medium text-foreground">
                       {log.overtime_hours > 0 ? `${log.overtime_hours.toFixed(1)}h` : "-"}
                     </TableCell>
                     <TableCell>
@@ -539,11 +539,11 @@ export default function TimekeepingPage() {
 
           {logs.length === 0 && (
             <div className="text-center py-12">
-              <div className="text-slate-400 mb-2">
+              <div className="text-muted-foreground mb-2">
                 <Clock className="h-12 w-12 mx-auto" />
               </div>
-              <h3 className="text-lg font-medium text-slate-900 mb-1">No time logs found</h3>
-              <p className="text-slate-500">
+              <h3 className="text-lg font-medium text-foreground mb-1">No time logs found</h3>
+              <p className="text-muted-foreground">
                 {selectedDate
                   ? `No attendance records for ${format(selectedDate, "PPP")}`
                   : "Select a date to view attendance records"

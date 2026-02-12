@@ -17,6 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Download, DollarSign, FileText, TrendingUp, Calendar, ChevronRight } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { QRCodeSVG } from "qrcode.react"
 
 export default function MyPayrollPage() {
   const { activeOrganization } = useOrganization()
@@ -26,6 +27,7 @@ export default function MyPayrollPage() {
   const router = useRouter()
   const [selectedRecord, setSelectedRecord] = useState<any | null>(null)
   const [employeeDetails, setEmployeeDetails] = useState<any | null>(null)
+  const [userEmail, setUserEmail] = useState<string>("")
 
   useEffect(() => {
     const fetchData = async () => {
@@ -38,6 +40,8 @@ export default function MyPayrollPage() {
         router.push("/login")
         return
       }
+
+      setUserEmail(user.email || "")
 
       if (activeOrganization === "palawan") {
         // Fetch Palawan employee data from localStorage
@@ -73,14 +77,39 @@ export default function MyPayrollPage() {
         return
       }
 
-      const { data: employee } = await supabase
+      if (!user.email) {
+        setError("User email not found in session.")
+        setLoading(false)
+        return
+      }
+
+      const cleanEmail = user.email.trim()
+      console.log(`[MyPayroll] Searching for employee with email: "${cleanEmail}" (Length: ${cleanEmail.length})`)
+
+      const { data: employee, error: empDbError } = await supabase
         .from("employees")
         .select("id, employee_code, full_name, department, position")
-        .eq("email", user.email)
-        .single()
+        .ilike("email", cleanEmail)
+        .maybeSingle()
+
+      if (empDbError) {
+        console.error("[MyPayroll] Database error fetching employee:", empDbError)
+      }
 
       if (!employee) {
-        setError("No employee record found.")
+        // Check user role for better messaging
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", user.id)
+          .maybeSingle()
+
+        const isStaff = profile?.role === 'admin' || profile?.role === 'hr'
+        const message = isStaff
+          ? `No employee record found for your staff account (${cleanEmail}). If you are an admin, you may not have an employee record linked to this email.`
+          : `No employee record found for ${cleanEmail}. Please contact HR to ensure your email is correctly registered in the system.`
+
+        setError(message)
         setLoading(false)
         return
       }
@@ -205,14 +234,14 @@ export default function MyPayrollPage() {
 
   const statusBadge = (status: string) => {
     const variants: Record<string, string> = {
-      "Paid": "bg-slate-900 text-white border-slate-200",
-      "Payment Success": "bg-slate-900 text-white border-slate-200",
-      "Pending Payment": "bg-white text-slate-900 border-slate-300",
-      "Cancelled": "bg-slate-100 text-slate-600 border-slate-200",
+      "Paid": "bg-primary text-primary-foreground border-transparent",
+      "Payment Success": "bg-primary text-primary-foreground border-transparent",
+      "Pending Payment": "bg-muted text-muted-foreground border-border",
+      "Cancelled": "bg-muted/50 text-muted-foreground border-border",
     }
 
     return (
-      <Badge className={variants[status] || "bg-slate-100 text-slate-600 border-slate-200"}>
+      <Badge variant="outline" className={`${variants[status] || "bg-muted text-muted-foreground border-border"} font-medium`}>
         {status}
       </Badge>
     )
@@ -241,90 +270,90 @@ export default function MyPayrollPage() {
   const latestPay = records.length > 0 ? records[0].calculated_net_pay || 0 : 0
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] p-6 space-y-8">
+    <div className="min-h-screen bg-background p-6 space-y-8 text-foreground">
       <div className="mx-auto max-w-7xl space-y-6">
         {/* Breadcrumb Navigation */}
-        <div className="flex items-center space-x-2 text-sm text-slate-600">
+        <div className="flex items-center space-x-2 text-sm text-muted-foreground">
           <span>Dashboard</span>
           <ChevronRight className="h-4 w-4" />
-          <span className="text-slate-900 font-medium">My Payroll</span>
+          <span className="text-foreground font-medium">My Payroll</span>
         </div>
 
         {/* Header Section */}
         <div>
-          <h1 className="text-3xl font-semibold text-slate-900">My Payroll</h1>
-          <p className="mt-1 text-slate-600">View your earnings history and download pay slips</p>
+          <h1 className="text-3xl font-semibold text-foreground">My Payroll</h1>
+          <p className="mt-1 text-muted-foreground">View your earnings history and download pay slips</p>
         </div>
 
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <div className="flex items-center space-x-2">
-              <div className="w-4 h-4 bg-slate-400 rounded-full animate-pulse"></div>
-              <span className="text-slate-600">Loading payroll records...</span>
+              <div className="w-4 h-4 bg-primary rounded-full animate-pulse"></div>
+              <span className="text-muted-foreground">Loading payroll records...</span>
             </div>
           </div>
         ) : error ? (
           <Card className="border-0 shadow-sm">
             <CardContent className="p-12 text-center">
-              <p className="text-slate-600">{error}</p>
+              <p className="text-muted-foreground">{error}</p>
             </CardContent>
           </Card>
         ) : records.length === 0 ? (
-          <Card className="border-0 shadow-sm">
+          <Card className="border border-border shadow-sm bg-card">
             <CardContent className="py-12 text-center">
-              <FileText className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-slate-900 mb-2">No payroll records found</h3>
-              <p className="text-slate-600">Your pay slips will appear here once they're processed.</p>
+              <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-foreground mb-2">No payroll records found</h3>
+              <p className="text-muted-foreground">Your pay slips will appear here once they're processed.</p>
             </CardContent>
           </Card>
         ) : (
           <>
             {/* Summary Stats */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card className="border-0 shadow-sm">
+              <Card className="border border-border shadow-sm bg-card">
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm font-medium text-slate-600">Latest Pay</CardTitle>
-                    <DollarSign className="h-5 w-5 text-slate-400" />
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Latest Pay</CardTitle>
+                    <DollarSign className="h-5 w-5 text-muted-foreground" />
                   </div>
                 </CardHeader>
                 <CardContent className="pb-6">
-                  <p className="text-2xl font-bold text-slate-900">{formatCurrency(latestPay)}</p>
+                  <p className="text-2xl font-bold text-foreground">{formatCurrency(latestPay)}</p>
                 </CardContent>
               </Card>
 
-              <Card className="border-0 shadow-sm">
+              <Card className="border border-border shadow-sm bg-card">
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm font-medium text-slate-600">Average Pay</CardTitle>
-                    <TrendingUp className="h-5 w-5 text-slate-400" />
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Average Pay</CardTitle>
+                    <TrendingUp className="h-5 w-5 text-muted-foreground" />
                   </div>
                 </CardHeader>
                 <CardContent className="pb-6">
-                  <p className="text-2xl font-bold text-slate-900">{formatCurrency(avgEarnings)}</p>
+                  <p className="text-2xl font-bold text-foreground">{formatCurrency(avgEarnings)}</p>
                 </CardContent>
               </Card>
 
-              <Card className="border-0 shadow-sm">
+              <Card className="border border-border shadow-sm bg-card">
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm font-medium text-slate-600">Total Records</CardTitle>
-                    <Calendar className="h-5 w-5 text-slate-400" />
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Total Records</CardTitle>
+                    <Calendar className="h-5 w-5 text-muted-foreground" />
                   </div>
                 </CardHeader>
                 <CardContent className="pb-6">
-                  <p className="text-2xl font-bold text-slate-900">{records.length}</p>
+                  <p className="text-2xl font-bold text-foreground">{records.length}</p>
                 </CardContent>
               </Card>
             </div>
 
             {/* Payroll Records Table */}
-            <Card className="border-0 shadow-sm">
-              <CardHeader className="border-b border-slate-200">
+            <Card className="border border-border shadow-sm bg-card overflow-hidden">
+              <CardHeader className="border-b border-border">
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="text-xl font-semibold text-slate-900">Payroll History</CardTitle>
-                    <p className="text-sm text-slate-600 mt-1">Complete record of your compensation</p>
+                    <CardTitle className="text-xl font-semibold text-foreground">Payroll History</CardTitle>
+                    <p className="text-sm text-muted-foreground mt-1">Complete record of your compensation</p>
                   </div>
                 </div>
               </CardHeader>
@@ -332,31 +361,31 @@ export default function MyPayrollPage() {
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
-                      <TableRow className="border-b border-slate-200 hover:bg-transparent">
-                        <TableHead className="font-medium text-slate-900">Pay Period</TableHead>
-                        <TableHead className="font-medium text-slate-900">Gross Pay</TableHead>
-                        <TableHead className="font-medium text-slate-900">Deductions</TableHead>
-                        <TableHead className="font-medium text-slate-900">Net Pay</TableHead>
-                        <TableHead className="font-medium text-slate-900">Status</TableHead>
-                        <TableHead className="font-medium text-slate-900">Action</TableHead>
+                      <TableRow className="border-b border-border bg-muted/30 hover:bg-muted/30">
+                        <TableHead className="font-medium text-foreground">Pay Period</TableHead>
+                        <TableHead className="font-medium text-foreground">Gross Pay</TableHead>
+                        <TableHead className="font-medium text-foreground">Deductions</TableHead>
+                        <TableHead className="font-medium text-foreground">Net Pay</TableHead>
+                        <TableHead className="font-medium text-foreground">Status</TableHead>
+                        <TableHead className="font-medium text-foreground">Action</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {records.map((rec, i) => (
-                        <TableRow key={i} className="border-b border-slate-100 hover:bg-slate-50">
+                        <TableRow key={i} className="border-b border-border hover:bg-muted/30">
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              <Calendar className="h-4 w-4 text-slate-400" />
-                              <span className="text-slate-900">{formatPeriod(rec.period_start, rec.period_end)}</span>
+                              <Calendar className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-foreground">{formatPeriod(rec.period_start, rec.period_end)}</span>
                             </div>
                           </TableCell>
-                          <TableCell className="font-medium text-slate-900">
+                          <TableCell className="font-medium text-foreground">
                             {formatCurrency(rec.gross_pay)}
                           </TableCell>
-                          <TableCell className="text-slate-600">
+                          <TableCell className="text-muted-foreground">
                             {formatCurrency(rec.calculated_total_deductions)}
                           </TableCell>
-                          <TableCell className="font-semibold text-slate-900">
+                          <TableCell className="font-semibold text-foreground">
                             {formatCurrency(rec.calculated_net_pay)}
                           </TableCell>
                           <TableCell>{statusBadge(rec.status)}</TableCell>
@@ -367,7 +396,7 @@ export default function MyPayrollPage() {
                                   variant="outline"
                                   size="sm"
                                   onClick={() => setSelectedRecord(rec)}
-                                  className="hover:bg-slate-50"
+                                  className="hover:bg-muted/30"
                                 >
                                   <FileText className="h-4 w-4 mr-2" />
                                   View Slip
@@ -375,10 +404,10 @@ export default function MyPayrollPage() {
                               </DialogTrigger>
                               <DialogContent className="lg:w-[50vw] max-h-[90vh] overflow-y-auto">
                                 <DialogHeader className="flex flex-row items-center justify-between pb-4">
-                                  <DialogTitle className="text-xl font-semibold text-slate-900">Pay Slip Details</DialogTitle>
+                                  <DialogTitle className="text-xl font-semibold text-foreground">Pay Slip Details</DialogTitle>
                                   <Button
                                     onClick={downloadPaySlip}
-                                    className="bg-slate-900 hover:bg-slate-800 text-white mr-8"
+                                    className="mr-8"
                                     size="sm"
                                   >
                                     <Download className="w-4 h-4 mr-2" />
@@ -494,13 +523,33 @@ export default function MyPayrollPage() {
                                       </div>
                                     </div>
 
-                                    {/* Net Pay */}
-                                    <div style={{ backgroundColor: '#f3f4f6', padding: '16px', borderRadius: '8px', border: '2px solid #1f2937' }}>
-                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#1f2937' }}>NET PAY:</span>
-                                        <span style={{ fontSize: '24px', fontWeight: 'bold', color: '#0f172a' }}>
-                                          {formatCurrency(selectedRecord.calculated_net_pay)}
-                                        </span>
+                                    {/* Net Pay & QR Code Verification */}
+                                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px', alignItems: 'center' }}>
+                                      <div style={{ backgroundColor: '#f3f4f6', padding: '16px', borderRadius: '8px', border: '2px solid #1f2937' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                          <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#1f2937' }}>NET PAY:</span>
+                                          <span style={{ fontSize: '24px', fontWeight: 'bold', color: '#0f172a' }}>
+                                            {formatCurrency(selectedRecord.calculated_net_pay)}
+                                          </span>
+                                        </div>
+                                      </div>
+
+                                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                                        <div style={{ padding: '8px', border: '1px solid #d1d5db', borderRadius: '4px', backgroundColor: '#ffffff' }}>
+                                          <QRCodeSVG
+                                            value={`VALIDATION DATA:
+Name: ${employeeDetails?.full_name}
+Email: ${userEmail}
+Reference ID: ${selectedRecord.id}
+Period: ${formatPeriod(selectedRecord.period_start, selectedRecord.period_end)}
+Net Amount: ${formatCurrency(selectedRecord.calculated_net_pay)}
+Company: PETROSPHERE INC.`}
+                                            size={100}
+                                            level="H"
+                                            includeMargin={false}
+                                          />
+                                        </div>
+                                        <span style={{ fontSize: '10px', fontWeight: 'bold', color: '#1f2937', textAlign: 'center' }}>VALIDATION QR</span>
                                       </div>
                                     </div>
 

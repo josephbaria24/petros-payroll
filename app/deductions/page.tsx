@@ -48,10 +48,10 @@ type BulkDeductionForm = {
 }
 
 const deductionTypeVariants: Record<string, string> = {
-  "sss": "bg-slate-900 text-white border-slate-200",
-  "philhealth": "bg-white text-slate-900 border-slate-300",
-  "pagibig": "bg-slate-100 text-slate-600 border-slate-200",
-  "other": "bg-slate-100 text-slate-600 border-slate-200",
+  "sss": "bg-primary text-primary-foreground border-transparent",
+  "philhealth": "bg-muted text-muted-foreground border-border",
+  "pagibig": "bg-muted/50 text-muted-foreground border-border",
+  "other": "bg-muted/50 text-muted-foreground border-border",
 }
 
 export default function DeductionsPage() {
@@ -463,110 +463,110 @@ export default function DeductionsPage() {
   }
 
   return (
-    <div className="space-y-8 p-6 min-h-screen bg-slate-50">
+    <div className="space-y-8 p-6 min-h-screen bg-background text-foreground">
       {/* Header Section */}
       <div className="space-y-2">
-        <h1 className="text-3xl font-semibold text-slate-900">Employee Deductions</h1>
-        <p className="text-slate-600">Manage SSS, PhilHealth, Pag-ibig, and other employee deductions</p>
+        <h1 className="text-3xl font-semibold text-foreground">Employee Deductions</h1>
+        <p className="text-muted-foreground">Manage SSS, PhilHealth, Pag-ibig, and other employee deductions</p>
       </div>
 
       {/* Summary Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="border-0 shadow-sm">
+        <Card className="border border-border shadow-sm bg-card">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-medium text-slate-600">Total Deductions</p>
-              <Calculator className="h-4 w-4 text-slate-500" />
+              <p className="text-sm font-medium text-muted-foreground">Total Deductions</p>
+              <Calculator className="h-4 w-4 text-muted-foreground" />
             </div>
           </CardHeader>
           <CardContent className="pt-0">
-            <div className="text-2xl font-bold text-slate-900">₱{grandTotal.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-foreground">₱{grandTotal.toLocaleString()}</div>
           </CardContent>
         </Card>
 
-        <Card className="border-0 shadow-sm">
+        <Card className="border border-border shadow-sm bg-card">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-medium text-slate-600">Total Records</p>
-              <FileText className="h-4 w-4 text-slate-500" />
+              <p className="text-sm font-medium text-muted-foreground">Total Records</p>
+              <FileText className="h-4 w-4 text-muted-foreground" />
             </div>
           </CardHeader>
           <CardContent className="pt-0">
-            <div className="text-2xl font-bold text-slate-900">{summaryMetrics.totalDeductions}</div>
+            <div className="text-2xl font-bold text-foreground">{summaryMetrics.totalDeductions}</div>
           </CardContent>
         </Card>
 
-        <Card className="border-0 shadow-sm">
+        <Card className="border border-border shadow-sm bg-card">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-medium text-slate-600">Employees</p>
-              <Users className="h-4 w-4 text-slate-500" />
+              <p className="text-sm font-medium text-muted-foreground">Employees</p>
+              <Users className="h-4 w-4 text-muted-foreground" />
             </div>
           </CardHeader>
           <CardContent className="pt-0">
-            <div className="text-2xl font-bold text-slate-900">{summaryMetrics.totalEmployees}</div>
+            <div className="text-2xl font-bold text-foreground">{summaryMetrics.totalEmployees}</div>
           </CardContent>
         </Card>
 
-        <Card className="border-0 shadow-sm">
+        <Card className="border border-border shadow-sm bg-card">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-medium text-slate-600">Average Deduction</p>
-              <TrendingDown className="h-4 w-4 text-slate-500" />
+              <p className="text-sm font-medium text-muted-foreground">Average Deduction</p>
+              <TrendingDown className="h-4 w-4 text-muted-foreground" />
             </div>
           </CardHeader>
           <CardContent className="pt-0">
-            <div className="text-2xl font-bold text-slate-900">₱{summaryMetrics.averageDeduction.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-foreground">₱{summaryMetrics.averageDeduction.toLocaleString()}</div>
           </CardContent>
         </Card>
       </div>
 
       {/* Deduction Type Breakdown */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="border-0 shadow-sm">
+        <Card className="border border-border shadow-sm bg-card">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600">SSS</p>
-                <div className="text-lg font-bold text-slate-900">₱{summaryMetrics.sssTotal.toLocaleString()}</div>
+                <p className="text-sm font-medium text-muted-foreground">SSS</p>
+                <div className="text-lg font-bold text-foreground">₱{summaryMetrics.sssTotal.toLocaleString()}</div>
               </div>
-              <DollarSign className="h-5 w-5 text-slate-500" />
+              <DollarSign className="h-5 w-5 text-muted-foreground" />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-0 shadow-sm">
+        <Card className="border border-border shadow-sm bg-card">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600">PhilHealth</p>
-                <div className="text-lg font-bold text-slate-900">₱{summaryMetrics.philhealthTotal.toLocaleString()}</div>
+                <p className="text-sm font-medium text-muted-foreground">PhilHealth</p>
+                <div className="text-lg font-bold text-foreground">₱{summaryMetrics.philhealthTotal.toLocaleString()}</div>
               </div>
-              <DollarSign className="h-5 w-5 text-slate-500" />
+              <DollarSign className="h-5 w-5 text-muted-foreground" />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-0 shadow-sm">
+        <Card className="border border-border shadow-sm bg-card">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600">Pag-ibig</p>
-                <div className="text-lg font-bold text-slate-900">₱{summaryMetrics.pagibigTotal.toLocaleString()}</div>
+                <p className="text-sm font-medium text-muted-foreground">Pag-ibig</p>
+                <div className="text-lg font-bold text-foreground">₱{summaryMetrics.pagibigTotal.toLocaleString()}</div>
               </div>
-              <DollarSign className="h-5 w-5 text-slate-500" />
+              <DollarSign className="h-5 w-5 text-muted-foreground" />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-0 shadow-sm">
+        <Card className="border border-border shadow-sm bg-card">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600">Other</p>
-                <div className="text-lg font-bold text-slate-900">₱{summaryMetrics.otherTotal.toLocaleString()}</div>
+                <p className="text-sm font-medium text-muted-foreground">Other</p>
+                <div className="text-lg font-bold text-foreground">₱{summaryMetrics.otherTotal.toLocaleString()}</div>
               </div>
-              <DollarSign className="h-5 w-5 text-slate-500" />
+              <DollarSign className="h-5 w-5 text-muted-foreground" />
             </div>
           </CardContent>
         </Card>
@@ -575,8 +575,8 @@ export default function DeductionsPage() {
       {/* Action Bar */}
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-xl font-semibold text-slate-900">Deduction Records</h2>
-          <p className="text-slate-600">View and manage employee deduction records</p>
+          <h2 className="text-xl font-semibold text-foreground">Deduction Records</h2>
+          <p className="text-muted-foreground">View and manage employee deduction records</p>
         </div>
 
         <div className="flex gap-3">
@@ -590,12 +590,12 @@ export default function DeductionsPage() {
             </DialogTrigger>
             <DialogContent className="lg:w-[60vw] max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle className="text-xl font-semibold text-slate-900">Add Bulk Deductions</DialogTitle>
+                <DialogTitle className="text-xl font-semibold text-foreground">Add Bulk Deductions</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleBulkSubmit} className="space-y-6">
                 {/* Employee Selection */}
                 <div>
-                  <Label className="text-sm font-medium text-slate-700">Employee</Label>
+                  <Label className="text-sm font-medium text-muted-foreground">Employee</Label>
                   <Select
                     value={bulkForm.employee_id}
                     onValueChange={(v) => setBulkForm({ ...bulkForm, employee_id: v })}
@@ -617,9 +617,9 @@ export default function DeductionsPage() {
                 {/* Deduction Inputs Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* SSS */}
-                  <Card className="border-0 shadow-sm">
+                  <Card className="border border-border shadow-sm bg-card">
                     <CardContent className="p-4 space-y-3">
-                      <Label className="text-base font-medium text-slate-900">SSS</Label>
+                      <Label className="text-base font-medium text-foreground">SSS</Label>
                       <Input
                         type="number"
                         step="0.01"
@@ -636,9 +636,9 @@ export default function DeductionsPage() {
                   </Card>
 
                   {/* PhilHealth */}
-                  <Card className="border-0 shadow-sm">
+                  <Card className="border border-border shadow-sm bg-card">
                     <CardContent className="p-4 space-y-3">
-                      <Label className="text-base font-medium text-slate-900">PhilHealth</Label>
+                      <Label className="text-base font-medium text-foreground">PhilHealth</Label>
                       <Input
                         type="number"
                         step="0.01"
@@ -655,9 +655,9 @@ export default function DeductionsPage() {
                   </Card>
 
                   {/* Pag-ibig */}
-                  <Card className="border-0 shadow-sm">
+                  <Card className="border border-border shadow-sm bg-card">
                     <CardContent className="p-4 space-y-3">
-                      <Label className="text-base font-medium text-slate-900">Pag-ibig</Label>
+                      <Label className="text-base font-medium text-foreground">Pag-ibig</Label>
                       <Input
                         type="number"
                         step="0.01"
@@ -674,9 +674,9 @@ export default function DeductionsPage() {
                   </Card>
 
                   {/* Other */}
-                  <Card className="border-0 shadow-sm">
+                  <Card className="border border-border shadow-sm bg-card">
                     <CardContent className="p-4 space-y-3">
-                      <Label className="text-base font-medium text-slate-900">Other Deductions</Label>
+                      <Label className="text-base font-medium text-foreground">Other Deductions</Label>
                       <Input
                         type="number"
                         step="0.01"
@@ -693,7 +693,7 @@ export default function DeductionsPage() {
                   </Card>
                 </div>
 
-                <Button type="submit" className="w-full bg-slate-900 hover:bg-slate-800 text-white">
+                <Button type="submit" className="w-full">
                   Save All Deductions
                 </Button>
               </form>
@@ -703,21 +703,21 @@ export default function DeductionsPage() {
           {/* Single Deduction Dialog */}
           <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setEditDeduction(null) }}>
             <DialogTrigger asChild>
-              <Button className="bg-slate-900 hover:bg-slate-800 text-white flex items-center gap-2">
+              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground flex items-center gap-2">
                 <Plus className="h-4 w-4" />
                 Add Single Deduction
               </Button>
             </DialogTrigger>
             <DialogContent className="lg:w-[50vw]">
               <DialogHeader>
-                <DialogTitle className="text-xl font-semibold text-slate-900">
+                <DialogTitle className="text-xl font-semibold text-foreground">
                   {editDeduction ? "Edit Deduction" : "Add Single Deduction"}
                 </DialogTitle>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 {/* Employee */}
                 <div>
-                  <Label className="text-sm font-medium text-slate-700">Employee</Label>
+                  <Label className="text-sm font-medium text-muted-foreground">Employee</Label>
                   <Select
                     value={form.employee_id}
                     onValueChange={(v) => setForm({ ...form, employee_id: v })}
@@ -738,7 +738,7 @@ export default function DeductionsPage() {
 
                 {/* Type */}
                 <div>
-                  <Label className="text-sm font-medium text-slate-700">Deduction Type</Label>
+                  <Label className="text-sm font-medium text-muted-foreground">Deduction Type</Label>
                   <Select
                     value={form.type}
                     onValueChange={(v) => setForm({ ...form, type: v })}
@@ -758,7 +758,7 @@ export default function DeductionsPage() {
 
                 {/* Amount */}
                 <div>
-                  <Label className="text-sm font-medium text-slate-700">Amount</Label>
+                  <Label className="text-sm font-medium text-muted-foreground">Amount</Label>
                   <Input
                     type="number"
                     step="0.01"
@@ -770,7 +770,7 @@ export default function DeductionsPage() {
 
                 {/* Notes */}
                 <div>
-                  <Label className="text-sm font-medium text-slate-700">Notes</Label>
+                  <Label className="text-sm font-medium text-muted-foreground">Notes</Label>
                   <Input
                     value={form.notes}
                     onChange={(e) => setForm({ ...form, notes: e.target.value })}
@@ -778,7 +778,7 @@ export default function DeductionsPage() {
                   />
                 </div>
 
-                <Button type="submit" className="w-full bg-slate-900 hover:bg-slate-800 text-white">
+                <Button type="submit" className="w-full">
                   {editDeduction ? "Update Deduction" : "Save Deduction"}
                 </Button>
               </form>
@@ -789,16 +789,16 @@ export default function DeductionsPage() {
 
       {/* Employee Totals Summary */}
       {Object.keys(totals).length > 0 && (
-        <Card className="border-0 shadow-sm">
+        <Card className="border border-border shadow-sm bg-card">
           <CardHeader>
-            <h3 className="text-lg font-medium text-slate-900">Employee Totals</h3>
+            <h3 className="text-lg font-medium text-foreground">Employee Totals</h3>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
               {Object.entries(totals).map(([name, total]) => (
-                <div key={name} className="p-3 bg-slate-50 rounded-lg border border-slate-200">
-                  <p className="text-sm font-medium text-slate-600">{name}</p>
-                  <p className="text-lg font-bold text-slate-900">₱{total.toLocaleString()}</p>
+                <div key={name} className="p-3 bg-muted/30 rounded-lg border border-border">
+                  <p className="text-sm font-medium text-muted-foreground">{name}</p>
+                  <p className="text-lg font-bold text-foreground">₱{total.toLocaleString()}</p>
                 </div>
               ))}
             </div>
@@ -807,38 +807,38 @@ export default function DeductionsPage() {
       )}
 
       {/* Deductions Table */}
-      <Card className="border-0 shadow-sm">
+      <Card className="border border-border shadow-sm bg-card overflow-hidden">
         <CardContent className="p-0">
           {deductions.length === 0 ? (
             <div className="text-center py-12">
-              <FileText className="h-12 w-12 mx-auto mb-4 text-slate-400" />
-              <h3 className="text-lg font-medium text-slate-900 mb-2">No deductions found</h3>
-              <p className="text-slate-600 mb-4">Add employee deductions to get started</p>
+              <FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <h3 className="text-lg font-medium text-foreground mb-2">No deductions found</h3>
+              <p className="text-muted-foreground mb-4">Add employee deductions to get started</p>
             </div>
           ) : (
-            <div className="border border-slate-200 rounded-lg overflow-hidden">
+            <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="border-b border-slate-200">
-                    <TableHead className="font-medium text-slate-900">Employee</TableHead>
-                    <TableHead className="font-medium text-slate-900">Type</TableHead>
-                    <TableHead className="font-medium text-slate-900">Amount</TableHead>
-                    <TableHead className="font-medium text-slate-900">Notes</TableHead>
-                    <TableHead className="text-right font-medium text-slate-900">Actions</TableHead>
+                  <TableRow className="border-b border-border bg-muted/30 hover:bg-muted/30">
+                    <TableHead className="font-medium text-foreground">Employee</TableHead>
+                    <TableHead className="font-medium text-foreground">Type</TableHead>
+                    <TableHead className="font-medium text-foreground">Amount</TableHead>
+                    <TableHead className="font-medium text-foreground">Notes</TableHead>
+                    <TableHead className="text-right font-medium text-foreground">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {deductions.map((d) => (
-                    <TableRow key={d.id} className="border-b border-slate-100 hover:bg-slate-50 transition">
-                      <TableCell className="font-medium text-slate-900">{d.employee_name}</TableCell>
+                    <TableRow key={d.id} className="border-b border-border hover:bg-muted/30 transition">
+                      <TableCell className="font-medium text-foreground">{d.employee_name}</TableCell>
                       <TableCell>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium border capitalize ${deductionTypeVariants[d.type] || "bg-slate-100 text-slate-600 border-slate-200"
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium border capitalize ${deductionTypeVariants[d.type] || "bg-muted text-muted-foreground border-border"
                           }`}>
                           {d.type}
                         </span>
                       </TableCell>
-                      <TableCell className="font-medium text-slate-900">₱{d.amount.toLocaleString()}</TableCell>
-                      <TableCell className="text-slate-600">{d.notes || "—"}</TableCell>
+                      <TableCell className="font-medium text-foreground">₱{d.amount.toLocaleString()}</TableCell>
+                      <TableCell className="text-muted-foreground">{d.notes || "—"}</TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -870,7 +870,7 @@ export default function DeductionsPage() {
                               <AlertDialogTrigger asChild>
                                 <DropdownMenuItem
                                   onSelect={(e) => { e.preventDefault(); setDeleteId(d.id) }}
-                                  className="text-slate-600 hover:text-slate-700 flex items-center gap-2"
+                                  className="text-muted-foreground hover:text-foreground flex items-center gap-2"
                                 >
                                   <Trash2 className="h-4 w-4" />
                                   Delete
@@ -878,8 +878,8 @@ export default function DeductionsPage() {
                               </AlertDialogTrigger>
                               <AlertDialogContent>
                                 <AlertDialogHeader>
-                                  <AlertDialogTitle className="text-slate-900">Confirm Deletion</AlertDialogTitle>
-                                  <AlertDialogDescription className="text-slate-600">
+                                  <AlertDialogTitle className="text-foreground">Confirm Deletion</AlertDialogTitle>
+                                  <AlertDialogDescription className="text-muted-foreground">
                                     Are you sure you want to delete this deduction? This action cannot be undone.
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
@@ -887,7 +887,6 @@ export default function DeductionsPage() {
                                   <AlertDialogCancel>Cancel</AlertDialogCancel>
                                   <AlertDialogAction
                                     onClick={handleDelete}
-                                    className="bg-slate-900 hover:bg-slate-800 text-white"
                                   >
                                     Delete
                                   </AlertDialogAction>

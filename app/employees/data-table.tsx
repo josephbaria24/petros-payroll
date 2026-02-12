@@ -57,6 +57,10 @@ export function DataTable<TData, TValue>({
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
+    meta: {
+      onEdit: onEdit as (val: any) => void,
+      onDelete,
+    },
   })
 
   return (
@@ -65,9 +69,9 @@ export function DataTable<TData, TValue>({
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id} className="bg-slate-50/50 hover:bg-slate-50/50">
+              <TableRow key={headerGroup.id} className="bg-muted/50 hover:bg-muted/50">
                 {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id} className="py-3 font-semibold text-slate-900 border-b border-slate-100 whitespace-nowrap">
+                  <TableHead key={header.id} className="py-3 font-semibold text-foreground border-b border-border whitespace-nowrap">
                     {header.isPlaceholder
                       ? null
                       : flexRender(header.column.columnDef.header, header.getContext())}
@@ -82,18 +86,18 @@ export function DataTable<TData, TValue>({
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
-                  className="hover:bg-slate-50/50 border-b border-slate-50 last:border-0 transition-colors cursor-default"
+                  className="hover:bg-muted/50 border-b border-border last:border-0 transition-colors cursor-default"
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id} className="py-3">
-                      {flexRender(cell.column.columnDef.cell, { ...cell.getContext(), onEdit, onDelete })}
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-32 text-center text-slate-500">
+                <TableCell colSpan={columns.length} className="h-32 text-center text-muted-foreground">
                   No results found.
                 </TableCell>
               </TableRow>
@@ -103,9 +107,9 @@ export function DataTable<TData, TValue>({
       </div>
 
       {/* Pagination */}
-      <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-slate-100">
-        <div className="text-xs text-slate-500">
-          Showing <span className="font-medium text-slate-900">{table.getRowModel().rows.length}</span> of <span className="font-medium text-slate-900">{data.length}</span> employees
+      <div className="flex items-center justify-between px-4 py-3 bg-card border-t border-border">
+        <div className="text-xs text-muted-foreground">
+          Showing <span className="font-medium text-foreground">{table.getRowModel().rows.length}</span> of <span className="font-medium text-foreground">{data.length}</span> employees
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -113,7 +117,7 @@ export function DataTable<TData, TValue>({
             size="sm"
             onClick={() => table.previousPage()}
             disabled={!table.getCanPreviousPage()}
-            className="h-8 px-2 border-slate-200 text-slate-600 hover:text-slate-900 shadow-none disabled:opacity-30 transition-all font-medium gap-1"
+            className="h-8 px-2 border-border text-muted-foreground hover:text-foreground shadow-none disabled:opacity-30 transition-all font-medium gap-1"
           >
             <ChevronLeft className="h-4 w-4" /> Previous
           </Button>
@@ -122,7 +126,7 @@ export function DataTable<TData, TValue>({
             size="sm"
             onClick={() => table.nextPage()}
             disabled={!table.getCanNextPage()}
-            className="h-8 px-2 border-slate-200 text-slate-600 hover:text-slate-900 shadow-none disabled:opacity-30 transition-all font-medium gap-1"
+            className="h-8 px-2 border-border text-muted-foreground hover:text-foreground shadow-none disabled:opacity-30 transition-all font-medium gap-1"
           >
             Next <ChevronRight className="h-4 w-4" />
           </Button>

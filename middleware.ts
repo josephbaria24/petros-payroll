@@ -2,7 +2,7 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-export async function proxy(req: NextRequest) {
+export async function middleware(req: NextRequest) {
     let response = NextResponse.next({
         request: {
             headers: req.headers,
@@ -18,16 +18,13 @@ export async function proxy(req: NextRequest) {
                     return req.cookies.get(name)?.value
                 },
                 set(name: string, value: string, options: CookieOptions) {
+                    // Update request cookies for subsequent logic in this middleware
                     req.cookies.set({
                         name,
                         value,
                         ...options,
                     })
-                    response = NextResponse.next({
-                        request: {
-                            headers: req.headers,
-                        },
-                    })
+                    // Update response cookies to send back to the browser
                     response.cookies.set({
                         name,
                         value,
@@ -35,16 +32,13 @@ export async function proxy(req: NextRequest) {
                     })
                 },
                 remove(name: string, options: CookieOptions) {
+                    // Update request cookies
                     req.cookies.set({
                         name,
                         value: '',
                         ...options,
                     })
-                    response = NextResponse.next({
-                        request: {
-                            headers: req.headers,
-                        },
-                    })
+                    // Update response cookies
                     response.cookies.set({
                         name,
                         value: '',
@@ -58,19 +52,20 @@ export async function proxy(req: NextRequest) {
     // Refresh session if expired - required for Server Components
     const { data: { session } } = await supabase.auth.getSession()
 
-    // Define public routes that don't require authentication
+    // Define public routes
     const publicRoutes = ['/login', '/auth/callback']
     const isPublicRoute = publicRoutes.some(route => req.nextUrl.pathname.startsWith(route)) || req.nextUrl.pathname === '/'
 
-    // If user is not authenticated and trying to access a protected route, redirect to login
+    // Auth redirection logic
     if (!session && !isPublicRoute) {
         const redirectUrl = req.nextUrl.clone()
         redirectUrl.pathname = '/login'
-        redirectUrl.searchParams.set('redirectedFrom', req.nextUrl.pathname)
+        if (req.nextUrl.pathname !== '/') {
+            redirectUrl.searchParams.set('redirectedFrom', req.nextUrl.pathname)
+        }
         return NextResponse.redirect(redirectUrl)
     }
 
-    // If user is authenticated and trying to access login page, redirect to dashboard
     if (session && req.nextUrl.pathname === '/login') {
         const redirectUrl = req.nextUrl.clone()
         redirectUrl.pathname = '/dashboard'

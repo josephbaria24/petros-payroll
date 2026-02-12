@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { CalendarIcon, Eye, Trash2, Plus, X, Calculator, Users, DollarSign, TrendingUp, FileText, Check, XCircle, Clock, CheckCircle, ChevronDown, CheckCircle2, AlertCircle } from "lucide-react"
+import { CalendarIcon, Eye, Trash2, Plus, X, Calculator, Users, DollarSign, TrendingUp, FileText, Check, XCircle, Clock, CheckCircle, ChevronDown, CheckCircle2, AlertCircle, Mail } from "lucide-react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 import {
@@ -33,6 +33,7 @@ import {
 import { useProtectedPage } from "../hooks/useProtectedPage"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { PayrollNotifyDialog } from "@/components/payroll-notify-dialog"
 
 type EmployeeRequest = {
   id: string
@@ -108,12 +109,12 @@ type EmployeeAdjustment = {
 }
 
 const statusVariants: Record<string, string> = {
-  "Paid": "bg-slate-900 text-white border-slate-200",
-  "Pending Payment": "bg-amber-100 text-amber-700 border-amber-200",
-  "Cancelled": "bg-slate-100 text-slate-600 border-slate-200",
-  "Released": "bg-emerald-100 text-emerald-700 border-emerald-200",
-  "Partially Released": "bg-blue-100 text-blue-700 border-blue-200",
-  "Pending": "bg-slate-100 text-slate-600 border-slate-200",
+  "Paid": "bg-primary text-primary-foreground border-border",
+  "Pending Payment": "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
+  "Cancelled": "bg-muted text-muted-foreground border-border",
+  "Released": "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+  "Partially Released": "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
+  "Pending": "bg-muted text-muted-foreground border-border",
 }
 
 export default function PayrollPage() {
@@ -122,6 +123,10 @@ export default function PayrollPage() {
   const { activeOrganization } = useOrganization()
   const [periods, setPeriods] = useState<PayrollPeriod[]>([])
   const [currentPeriodPage, setCurrentPeriodPage] = useState(1)
+  const [isNotifyDialogOpen, setIsNotifyDialogOpen] = useState(false)
+  const [notificationRecords, setNotificationRecords] = useState<any[]>([])
+  const [notificationPeriodName, setNotificationPeriodName] = useState("")
+
   const itemsPerPage = 10
   const [open, setOpen] = useState(false)
   const [selectedPeriodRecords, setSelectedPeriodRecords] = useState<PayrollRecord[]>([])
@@ -470,9 +475,15 @@ export default function PayrollPage() {
         basic_salary,
         overtime_pay,
         holiday_pay,
+        night_diff,
         allowances,
         absences,
         cash_advance,
+        sss,
+        philhealth,
+        pagibig,
+        withholding_tax,
+        loans,
         total_deductions,
         net_pay,
         status,
@@ -503,8 +514,20 @@ export default function PayrollPage() {
         ?.filter(d => d.employee_id === rec.employee_id)
         .reduce((sum, d) => sum + d.amount, 0) || 0
 
-      const totalDeductions = otherDeductions + (rec.absences || 0) + (rec.cash_advance || 0)
-      const grossPay = (rec.basic_salary || 0) + (rec.overtime_pay || 0) + (rec.holiday_pay || 0)
+      const totalDeductions = otherDeductions +
+        (rec.absences || 0) +
+        (rec.cash_advance || 0) +
+        (rec.sss || 0) +
+        (rec.philhealth || 0) +
+        (rec.pagibig || 0) +
+        (rec.loans || 0) +
+        (rec.withholding_tax || 0)
+
+      const grossPay = (rec.basic_salary || 0) +
+        (rec.overtime_pay || 0) +
+        (rec.holiday_pay || 0) +
+        (rec.night_diff || 0) +
+        (rec.allowances || 0)
       const netAfterDeductions = grossPay - totalDeductions
 
 
@@ -808,14 +831,14 @@ export default function PayrollPage() {
         const basicSalary = base_salary
         const cashAdvance = adjustment?.cashAdvance || 0
         const totalDeductions = sss + philhealth + pagibig + loans + absenceDeduction + cashAdvance
-
+        const currentAllowance = allowance || 0
 
         let holidayPay = 0
         if (adjustment?.holidayPay && adjustment.holidayPay > 0) {
           holidayPay = adjustment.holidayPay
         }
 
-        const grossPay = basicSalary + overtimePay + holidayPay
+        const grossPay = basicSalary + overtimePay + holidayPay + currentAllowance
         const netPay = grossPay - totalDeductions
 
         recordsToInsert.push({
@@ -1050,51 +1073,51 @@ export default function PayrollPage() {
   }
 
   return (
-    <div className="space-y-8 p-6 min-h-screen bg-slate-50">
+    <div className="space-y-8 p-6 min-h-screen bg-background">
       <div className="space-y-2">
-        <h1 className="text-3xl font-semibold text-slate-900">Payroll Management</h1>
-        <p className="text-slate-600">Manage employee payroll periods and generate bulk payroll records</p>
+        <h1 className="text-3xl font-semibold text-foreground">Payroll Management</h1>
+        <p className="text-muted-foreground">Manage employee payroll periods and generate bulk payroll records</p>
       </div>
 
       {periods.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="bg-white p-3 rounded-lg border border-slate-100 shadow-sm flex items-center gap-3">
-            <div className="p-2 bg-slate-50 rounded-md">
-              <DollarSign className="h-4 w-4 text-slate-500" />
+          <div className="bg-card p-3 rounded-lg border border-border shadow-sm flex items-center gap-3">
+            <div className="p-2 bg-muted rounded-md">
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
             </div>
             <div className="min-w-0">
-              <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider leading-none mb-1">Basic Salary</p>
-              <p className="text-base font-bold text-slate-900 truncate leading-none">₱{summaryMetrics.totalBasicSalary.toLocaleString()}</p>
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider leading-none mb-1">Basic Salary</p>
+              <p className="text-base font-bold text-foreground truncate leading-none">₱{summaryMetrics.totalBasicSalary.toLocaleString()}</p>
             </div>
           </div>
 
-          <div className="bg-white p-3 rounded-lg border border-slate-100 shadow-sm flex items-center gap-3">
-            <div className="p-2 bg-slate-50 rounded-md">
-              <TrendingUp className="h-4 w-4 text-slate-500" />
+          <div className="bg-card p-3 rounded-lg border border-border shadow-sm flex items-center gap-3">
+            <div className="p-2 bg-muted rounded-md">
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </div>
             <div className="min-w-0">
-              <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider leading-none mb-1">Overtime Pay</p>
-              <p className="text-base font-bold text-slate-900 truncate leading-none">₱{summaryMetrics.totalOvertime.toLocaleString()}</p>
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider leading-none mb-1">Overtime Pay</p>
+              <p className="text-base font-bold text-foreground truncate leading-none">₱{summaryMetrics.totalOvertime.toLocaleString()}</p>
             </div>
           </div>
 
-          <div className="bg-white p-3 rounded-lg border border-slate-100 shadow-sm flex items-center gap-3">
-            <div className="p-2 bg-slate-50 rounded-md">
-              <TrendingUp className="h-4 w-4 text-slate-500" />
+          <div className="bg-card p-3 rounded-lg border border-border shadow-sm flex items-center gap-3">
+            <div className="p-2 bg-muted rounded-md">
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </div>
             <div className="min-w-0">
-              <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider leading-none mb-1">Holiday Pay</p>
-              <p className="text-base font-bold text-slate-900 truncate leading-none">₱{summaryMetrics.totalHoliday.toLocaleString()}</p>
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider leading-none mb-1">Holiday Pay</p>
+              <p className="text-base font-bold text-foreground truncate leading-none">₱{summaryMetrics.totalHoliday.toLocaleString()}</p>
             </div>
           </div>
 
-          <div className="bg-white p-3 rounded-lg border border-slate-900/5 shadow-sm ring-1 ring-slate-900/5 flex items-center gap-3">
-            <div className="p-2 bg-slate-900/5 rounded-md">
-              <Calculator className="h-4 w-4 text-slate-900" />
+          <div className="bg-card p-3 rounded-lg border border-primary/10 shadow-sm ring-1 ring-primary/10 flex items-center gap-3">
+            <div className="p-2 bg-primary/10 rounded-md">
+              <Calculator className="h-4 w-4 text-primary" />
             </div>
             <div className="min-w-0">
-              <p className="text-[10px] font-semibold text-slate-900 uppercase tracking-wider leading-none mb-1">Total Net Pay</p>
-              <p className="text-base font-bold text-slate-900 truncate leading-none">₱{summaryMetrics.totalNet.toLocaleString()}</p>
+              <p className="text-[10px] font-semibold text-primary uppercase tracking-wider leading-none mb-1">Total Net Pay</p>
+              <p className="text-base font-bold text-foreground truncate leading-none">₱{summaryMetrics.totalNet.toLocaleString()}</p>
             </div>
           </div>
         </div>
@@ -1102,13 +1125,13 @@ export default function PayrollPage() {
 
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-xl font-semibold text-slate-900">Payroll Periods</h2>
-          <p className="text-slate-600">View and manage payroll periods</p>
+          <h2 className="text-xl font-semibold text-foreground">Payroll Periods</h2>
+          <p className="text-muted-foreground">View and manage payroll periods</p>
         </div>
 
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button className="bg-slate-900 hover:bg-slate-800 text-white">
+            <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
               <Plus className="h-4 w-4 mr-2" />
               Generate Payroll
             </Button>
@@ -1116,7 +1139,7 @@ export default function PayrollPage() {
 
           <DialogContent className="lg:w-[50vw] max-w-6xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle className="text-xl font-semibold text-slate-900">Generate Payroll for All Employees</DialogTitle>
+              <DialogTitle className="text-xl font-semibold text-foreground">Generate Payroll for All Employees</DialogTitle>
             </DialogHeader>
 
             <Tabs defaultValue="period" className="w-full">
@@ -1134,11 +1157,11 @@ export default function PayrollPage() {
               <TabsContent value="period" className="space-y-6">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label className="text-sm font-medium text-slate-700">Period Start</Label>
+                    <Label className="text-sm font-medium text-muted-foreground">Period Start</Label>
                     <Popover>
                       <PopoverTrigger asChild>
                         <div className="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-3 cursor-pointer w-full justify-start text-left">
-                          {periodStart ? format(periodStart, "PPP") : <span className="text-slate-500">Select date</span>}
+                          {periodStart ? format(periodStart, "PPP") : <span className="text-muted-foreground">Select date</span>}
                           <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                         </div>
                       </PopoverTrigger>
@@ -1154,11 +1177,11 @@ export default function PayrollPage() {
                   </div>
 
                   <div>
-                    <Label className="text-sm font-medium text-slate-700">Period End</Label>
+                    <Label className="text-sm font-medium text-muted-foreground">Period End</Label>
                     <Popover>
                       <PopoverTrigger asChild>
                         <div className="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-3 cursor-pointer w-full justify-start text-left">
-                          {periodEnd ? format(periodEnd, "PPP") : <span className="text-slate-500">Select date</span>}
+                          {periodEnd ? format(periodEnd, "PPP") : <span className="text-muted-foreground">Select date</span>}
                           <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                         </div>
                       </PopoverTrigger>
@@ -1185,12 +1208,12 @@ export default function PayrollPage() {
 
               <TabsContent value="requests" className="space-y-4">
                 {!periodStart || !periodEnd ? (
-                  <div className="text-center py-8 text-slate-500 bg-slate-50 rounded-lg border border-slate-200">
+                  <div className="text-center py-8 text-muted-foreground bg-muted/20 rounded-lg border border-border">
                     <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
                     <p>Please select a period first to view requests</p>
                   </div>
                 ) : employeeRequests.length === 0 ? (
-                  <div className="text-center py-8 text-slate-500 bg-slate-50 rounded-lg border border-slate-200">
+                  <div className="text-center py-8 text-muted-foreground bg-muted/20 rounded-lg border border-border">
                     <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
                     <p>No employee requests found for this period</p>
                   </div>
@@ -1198,8 +1221,8 @@ export default function PayrollPage() {
                   <>
                     <div className="flex items-center justify-between">
                       <div>
-                        <h3 className="text-lg font-medium text-slate-900">Employee Requests</h3>
-                        <p className="text-sm text-slate-600">
+                        <h3 className="text-lg font-medium text-foreground">Employee Requests</h3>
+                        <p className="text-sm text-muted-foreground">
                           {pendingRequests.length} pending, {approvedRequests.length} approved
                         </p>
                       </div>
@@ -1215,10 +1238,10 @@ export default function PayrollPage() {
                       )}
                     </div>
 
-                    <div className="border border-slate-200 rounded-lg overflow-hidden">
+                    <div className="border border-border rounded-lg overflow-hidden">
                       <Table>
                         <TableHeader>
-                          <TableRow className="bg-slate-50">
+                          <TableRow className="bg-muted/50">
                             <TableHead className="w-12">
                               <input
                                 type="checkbox"
@@ -1243,7 +1266,7 @@ export default function PayrollPage() {
                         </TableHeader>
                         <TableBody>
                           {employeeRequests.map((req) => (
-                            <TableRow key={req.id} className="hover:bg-slate-50">
+                            <TableRow key={req.id} className="hover:bg-muted/30">
                               <TableCell>
                                 <input
                                   type="checkbox"
@@ -1263,7 +1286,7 @@ export default function PayrollPage() {
                               <TableCell className="text-sm">
                                 {req.time_start} - {req.time_end}
                               </TableCell>
-                              <TableCell className="text-sm text-slate-600 max-w-xs truncate">
+                              <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
                                 {req.reason}
                               </TableCell>
                               <TableCell>
@@ -1313,8 +1336,8 @@ export default function PayrollPage() {
               <TabsContent value="adjustments" className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label className="text-lg font-medium text-slate-900">Manual Adjustments</Label>
-                    <p className="text-slate-600 text-sm">Add overtime, absences, or holiday pay adjustments</p>
+                    <Label className="text-lg font-medium text-foreground">Manual Adjustments</Label>
+                    <p className="text-muted-foreground text-sm">Add overtime, absences, or holiday pay adjustments</p>
                   </div>
                   <Button
                     type="button"
@@ -1328,7 +1351,7 @@ export default function PayrollPage() {
                 </div>
 
                 {employeeAdjustments.length === 0 && (
-                  <div className="text-center py-8 text-slate-500 bg-slate-50 rounded-lg border border-slate-200">
+                  <div className="text-center py-8 text-muted-foreground bg-muted/10 rounded-lg border border-border">
                     <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
                     <p>No manual adjustments added</p>
                     <p className="text-sm">Add adjustments manually or import from approved requests</p>
@@ -1336,24 +1359,24 @@ export default function PayrollPage() {
                 )}
 
                 {employeeAdjustments.map((adjustment, index) => (
-                  <Card key={index} className="border-0 shadow-sm">
+                  <Card key={index} className="border-border shadow-sm bg-card">
                     <CardContent className="p-6">
                       <div className="space-y-4">
                         <div className="flex items-center justify-between">
-                          <Label className="text-sm font-medium text-slate-700">Employee #{index + 1}</Label>
+                          <Label className="text-sm font-medium text-foreground">Employee #{index + 1}</Label>
                           <Button
                             type="button"
                             variant="ghost"
                             size="sm"
                             onClick={() => removeEmployeeAdjustment(index)}
-                            className="h-8 w-8 p-0 text-slate-500 hover:text-slate-700"
+                            className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
                           >
                             <X className="h-4 w-4" />
                           </Button>
                         </div>
 
                         <div>
-                          <Label className="text-sm font-medium text-slate-700">Employee</Label>
+                          <Label className="text-sm font-medium text-foreground">Employee</Label>
                           <Select
                             value={adjustment.employee_id}
                             onValueChange={(value) => updateEmployeeAdjustment(index, 'employee_id', value)}
@@ -1373,11 +1396,11 @@ export default function PayrollPage() {
                           </Select>
                         </div>
 
-                        <div className="border-t border-slate-200 pt-4">
-                          <Label className="text-sm font-medium text-slate-900 mb-3 block">Absence Deductions</Label>
+                        <div className="border-t border-border pt-4">
+                          <Label className="text-sm font-medium text-foreground mb-3 block">Absence Deductions</Label>
                           <div className="grid grid-cols-2 gap-4">
                             <div>
-                              <Label className="text-sm text-slate-600">Days Absent</Label>
+                              <Label className="text-sm text-muted-foreground">Days Absent</Label>
                               <Input
                                 type="number"
                                 min="0"
@@ -1391,7 +1414,7 @@ export default function PayrollPage() {
                             </div>
 
                             <div>
-                              <Label className="text-sm text-slate-600">Amount Per Day</Label>
+                              <Label className="text-sm text-muted-foreground">Amount Per Day</Label>
                               <Input
                                 type="number"
                                 min="0"
@@ -1406,18 +1429,18 @@ export default function PayrollPage() {
                           </div>
 
                           {adjustment.absenceDays > 0 && adjustment.absenceAmountPerDay > 0 && (
-                            <div className="text-sm text-slate-900 bg-slate-100 p-3 rounded mt-3">
+                            <div className="text-sm text-foreground bg-muted p-3 rounded mt-3">
                               <span className="font-medium">Total Absence Deduction:</span> -₱{(adjustment.absenceDays * adjustment.absenceAmountPerDay).toLocaleString()}
                             </div>
                           )}
                         </div>
-                        <div className="border-t border-slate-200 pt-4">
-                          <Label className="text-sm font-medium text-slate-900 mb-3 block">
+                        <div className="border-t border-border pt-4">
+                          <Label className="text-sm font-medium text-foreground mb-3 block">
                             Cash Advance Deduction
                           </Label>
                           <div className="grid grid-cols-2 gap-4">
                             <div>
-                              <Label className="text-sm text-slate-600">Amount</Label>
+                              <Label className="text-sm text-muted-foreground">Amount</Label>
                               <Input
                                 type="number"
                                 min="0"
@@ -1432,20 +1455,20 @@ export default function PayrollPage() {
                           </div>
 
                           {adjustment.cashAdvance && adjustment.cashAdvance > 0 && (
-                            <div className="text-sm text-slate-900 bg-slate-100 p-3 rounded mt-3">
+                            <div className="text-sm text-foreground bg-muted p-3 rounded mt-3">
                               <span className="font-medium">Cash Advance Deduction:</span>{" "}
                               -₱{adjustment.cashAdvance.toLocaleString()}
                             </div>
                           )}
                         </div>
 
-                        <div className="border-t border-slate-200 pt-4">
-                          <Label className="text-sm font-medium text-slate-900 mb-3 block">
+                        <div className="border-t border-border pt-4">
+                          <Label className="text-sm font-medium text-foreground mb-3 block">
                             Other Deductions (SSS, PhilHealth, etc.)
                           </Label>
                           <div className="grid grid-cols-2 gap-4">
                             <div>
-                              <Label className="text-sm text-slate-600">Amount</Label>
+                              <Label className="text-sm text-muted-foreground">Amount</Label>
                               <Input
                                 type="number"
                                 min="0"
@@ -1460,7 +1483,7 @@ export default function PayrollPage() {
                           </div>
 
                           {adjustment.otherDeductions && adjustment.otherDeductions > 0 && (
-                            <div className="text-sm text-slate-900 bg-slate-100 p-3 rounded mt-3">
+                            <div className="text-sm text-foreground bg-muted p-3 rounded mt-3">
                               <span className="font-medium">Other Deductions:</span>{" "}
                               -₱{adjustment.otherDeductions.toLocaleString()}
                             </div>
@@ -1469,9 +1492,9 @@ export default function PayrollPage() {
 
 
 
-                        <div className="border-t border-slate-200 pt-4">
+                        <div className="border-t border-border pt-4">
                           <div className="flex items-center justify-between mb-3">
-                            <Label className="text-sm font-medium text-slate-900">Overtime Pay</Label>
+                            <Label className="text-sm font-medium text-foreground">Overtime Pay</Label>
                             <Button
                               type="button"
                               variant="outline"
@@ -1484,7 +1507,7 @@ export default function PayrollPage() {
                           </div>
 
                           {adjustment.overtimeEntries.length > 0 && (
-                            <div className="text-sm text-slate-900 bg-slate-100 p-3 rounded mb-3">
+                            <div className="text-sm text-foreground bg-muted p-3 rounded mb-3">
                               <span className="font-medium">Total Overtime Pay:</span> +₱
                               {adjustment.overtimeEntries
                                 .reduce((sum, ot) => sum + (ot.hours * ot.ratePerHour), 0)
@@ -1493,13 +1516,13 @@ export default function PayrollPage() {
                           )}
 
                           {adjustment.overtimeEntries.map((ot, otIndex) => (
-                            <div key={otIndex} className="grid grid-cols-3 gap-3 items-end border border-slate-200 p-3 rounded mb-2 bg-slate-50">
+                            <div key={otIndex} className="grid grid-cols-3 gap-3 items-end border border-border p-3 rounded mb-2 bg-muted/30">
                               <div>
-                                <Label className="text-sm text-slate-600">Date</Label>
+                                <Label className="text-sm text-muted-foreground">Date</Label>
                                 <Popover>
                                   <PopoverTrigger asChild>
                                     <div className="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-3 cursor-pointer w-full justify-start text-left">
-                                      {ot.date ? format(ot.date, "PPP") : <span className="text-slate-500">Select date</span>}
+                                      {ot.date ? format(ot.date, "PPP") : <span className="text-muted-foreground">Select date</span>}
                                     </div>
                                   </PopoverTrigger>
                                   <PopoverContent className="w-auto p-0">
@@ -1514,7 +1537,7 @@ export default function PayrollPage() {
                               </div>
 
                               <div>
-                                <Label className="text-sm text-slate-600">Hours</Label>
+                                <Label className="text-sm text-muted-foreground">Hours</Label>
                                 <Input
                                   type="number"
                                   min="0"
@@ -1527,7 +1550,7 @@ export default function PayrollPage() {
                               </div>
 
                               <div>
-                                <Label className="text-sm text-slate-600">Rate Per Hour</Label>
+                                <Label className="text-sm text-muted-foreground">Rate Per Hour</Label>
                                 <Input
                                   type="number"
                                   min="0"
@@ -1542,13 +1565,13 @@ export default function PayrollPage() {
                           ))}
                         </div>
 
-                        <div className="border-t border-slate-200 pt-4">
-                          <Label className="text-sm font-medium text-slate-900 mb-3 block">Holiday Pay</Label>
+                        <div className="border-t border-border pt-4">
+                          <Label className="text-sm font-medium text-foreground mb-3 block">Holiday Pay</Label>
                           <div className="space-y-3">
                             <Popover>
                               <PopoverTrigger asChild>
                                 <div className="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-3 cursor-pointer w-full justify-start text-left">
-                                  {adjustment.holidayDate ? format(adjustment.holidayDate, "PPP") : <span className="text-slate-500">Select holiday date</span>}
+                                  {adjustment.holidayDate ? format(adjustment.holidayDate, "PPP") : <span className="text-muted-foreground">Select holiday date</span>}
                                   <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                                 </div>
                               </PopoverTrigger>
@@ -1578,11 +1601,11 @@ export default function PayrollPage() {
                         {((adjustment.absenceDays > 0 && adjustment.absenceAmountPerDay > 0) ||
                           (adjustment.overtimeEntries?.length > 0) ||
                           (adjustment.holidayPay && adjustment.holidayPay > 0)) && (
-                            <div className="border-t border-slate-200 pt-4 bg-slate-50 p-4 rounded">
-                              <Label className="text-sm font-medium text-slate-900 mb-2 block">Net Adjustment Summary</Label>
+                            <div className="border-t border-border pt-4 bg-muted/30 p-4 rounded">
+                              <Label className="text-sm font-medium text-foreground mb-2 block">Net Adjustment Summary</Label>
                               <div className="space-y-1 text-sm">
                                 {adjustment.overtimeEntries.length > 0 && (
-                                  <div className="text-slate-700">
+                                  <div className="text-muted-foreground">
                                     Overtime: +₱
                                     {adjustment.overtimeEntries.reduce(
                                       (sum, ot) => sum + (ot.hours * ot.ratePerHour),
@@ -1592,27 +1615,27 @@ export default function PayrollPage() {
                                 )}
 
                                 {adjustment.holidayPay && adjustment.holidayPay > 0 && (
-                                  <div className="text-slate-700">
+                                  <div className="text-muted-foreground">
                                     Holiday Pay: +₱{adjustment.holidayPay.toLocaleString()}
                                   </div>
                                 )}
 
                                 {adjustment.absenceDays > 0 && adjustment.absenceAmountPerDay > 0 && (
-                                  <div className="text-slate-700">
+                                  <div className="text-muted-foreground">
                                     Absence: -₱
                                     {(adjustment.absenceDays * adjustment.absenceAmountPerDay).toLocaleString()}
                                   </div>
                                 )}
 
-                                <div className="font-medium text-slate-900 border-t border-slate-200 pt-2 mt-2">
+                                <div className="font-medium text-foreground border-t border-border pt-2 mt-2">
                                   {adjustment.cashAdvance && adjustment.cashAdvance > 0 && (
-                                    <div className="text-slate-700">
+                                    <div className="text-muted-foreground">
                                       Cash Advance: -₱{adjustment.cashAdvance.toLocaleString()}
                                     </div>
                                   )}
 
                                   {adjustment.otherDeductions && adjustment.otherDeductions > 0 && (
-                                    <div className="text-slate-700">
+                                    <div className="text-muted-foreground">
                                       Other Deductions: -₱{adjustment.otherDeductions.toLocaleString()}
                                     </div>
                                   )}
@@ -1645,7 +1668,7 @@ export default function PayrollPage() {
               handleBulkGeneratePayrollEnhanced()
               setOpen(false)
             }} className="pt-6 border-t">
-              <Button type="submit" className="w-full bg-slate-900 hover:bg-slate-800 text-white">
+              <Button type="submit" className="w-full">
                 Generate Payroll
               </Button>
             </form>
@@ -1657,31 +1680,31 @@ export default function PayrollPage() {
         <CardContent className="p-0">
           {periods.length === 0 ? (
             <div className="text-center py-12">
-              <FileText className="h-12 w-12 mx-auto mb-4 text-slate-400" />
-              <h3 className="text-lg font-medium text-slate-900 mb-2">No payroll periods found</h3>
-              <p className="text-slate-600 mb-4">Generate your first payroll to get started</p>
+              <FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <h3 className="text-lg font-medium text-foreground mb-2">No payroll periods found</h3>
+              <p className="text-muted-foreground mb-4">Generate your first payroll to get started</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-slate-50/50">
-                    <TableHead className="font-semibold text-slate-900 w-[250px]">Payroll Period</TableHead>
-                    <TableHead className="font-semibold text-slate-900">Metrics</TableHead>
-                    <TableHead className="font-semibold text-slate-900">Generated On</TableHead>
-                    <TableHead className="font-semibold text-slate-900">Updated On</TableHead>
-                    <TableHead className="font-semibold text-slate-900">Creator</TableHead>
-                    <TableHead className="font-semibold text-slate-900">Status</TableHead>
-                    <TableHead className="text-right font-semibold text-slate-900">Actions</TableHead>
+                  <TableRow className="bg-muted/50">
+                    <TableHead className="font-semibold text-foreground w-[250px]">Payroll Period</TableHead>
+                    <TableHead className="font-semibold text-foreground">Metrics</TableHead>
+                    <TableHead className="font-semibold text-foreground">Generated On</TableHead>
+                    <TableHead className="font-semibold text-foreground">Updated On</TableHead>
+                    <TableHead className="font-semibold text-foreground">Creator</TableHead>
+                    <TableHead className="font-semibold text-foreground">Status</TableHead>
+                    <TableHead className="text-right font-semibold text-foreground">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {paginatedPeriods.map((period) => (
-                    <TableRow key={period.period_key} className="hover:bg-slate-50/50 border-b border-slate-100 last:border-0 transition-colors">
+                    <TableRow key={period.period_key} className="hover:bg-muted/30 border-b border-border last:border-0 transition-colors">
                       <TableCell className="py-4">
                         <div className="flex flex-col">
-                          <span className="font-medium text-slate-900 truncate">{period.display_name}</span>
-                          <span className="text-xs text-slate-500 font-mono mt-0.5">
+                          <span className="font-medium text-foreground truncate">{period.display_name}</span>
+                          <span className="text-xs text-muted-foreground font-mono mt-0.5">
                             {period.period_start} to {period.period_end}
                           </span>
                         </div>
@@ -1689,33 +1712,33 @@ export default function PayrollPage() {
                       <TableCell>
                         <div className="flex flex-col gap-1">
                           <div className="flex items-center gap-1.5 text-xs">
-                            <Users className="h-3 w-3 text-slate-400" />
-                            <span className="text-slate-600">{period.total_employees} Employees</span>
+                            <Users className="h-3 w-3 text-muted-foreground" />
+                            <span className="text-muted-foreground">{period.total_employees} Employees</span>
                           </div>
                           <div className="flex items-center gap-1.5 text-xs">
-                            <Calculator className="h-3 w-3 text-slate-400" />
-                            <span className="font-medium text-slate-900">₱{period.total_net_after_deductions.toLocaleString()}</span>
+                            <Calculator className="h-3 w-3 text-muted-foreground" />
+                            <span className="font-medium text-foreground">₱{period.total_net_after_deductions.toLocaleString()}</span>
                           </div>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-1.5 text-xs text-slate-600">
-                          <Clock className="h-3.5 w-3.5 text-slate-400" />
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <Clock className="h-3.5 w-3.5 text-muted-foreground" />
                           <span>{formatPH(period.created_at)}</span>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-1.5 text-xs text-slate-600">
-                          <Clock className="h-3.5 w-3.5 text-slate-400" />
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <Clock className="h-3.5 w-3.5 text-muted-foreground" />
                           <span>{formatPH(period.updated_at)}</span>
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1.5 text-xs">
-                          <div className="h-5 w-5 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-600">
+                          <div className="h-5 w-5 rounded-full bg-muted flex items-center justify-center text-[10px] font-bold text-muted-foreground border border-border">
                             {period.creator?.charAt(0) || "S"}
                           </div>
-                          <span className="text-slate-600 truncate max-w-[100px]">{period.creator || "System"}</span>
+                          <span className="text-muted-foreground truncate max-w-[100px]">{period.creator || "System"}</span>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -1748,7 +1771,7 @@ export default function PayrollPage() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-slate-400 hover:text-slate-900"
+                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
                             onClick={() => handleViewPeriodRecords(period)}
                             title="View Details"
                           >
@@ -1757,7 +1780,20 @@ export default function PayrollPage() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-slate-400 hover:text-red-600"
+                            className="h-8 w-8 text-muted-foreground hover:text-primary"
+                            onClick={() => {
+                              setNotificationRecords(period.records)
+                              setNotificationPeriodName(period.display_name)
+                              setIsNotifyDialogOpen(true)
+                            }}
+                            title="Notify Employees"
+                          >
+                            <Mail className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
                             onClick={() => handleDeletePeriod(period.period_key)}
                             title="Delete"
                           >
@@ -1772,10 +1808,17 @@ export default function PayrollPage() {
             </div>
           )}
         </CardContent>
+
+        <PayrollNotifyDialog
+          open={isNotifyDialogOpen}
+          onOpenChange={setIsNotifyDialogOpen}
+          periodName={notificationPeriodName}
+          records={notificationRecords}
+        />
         {periods.length > itemsPerPage && (
-          <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/50">
-            <div className="text-sm text-slate-500">
-              Showing <span className="font-medium text-slate-900">{(currentPeriodPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium text-slate-900">{Math.min(currentPeriodPage * itemsPerPage, periods.length)}</span> of <span className="font-medium text-slate-900">{periods.length}</span> periods
+          <div className="flex items-center justify-between px-6 py-4 border-t border-border bg-muted/30">
+            <div className="text-sm text-muted-foreground">
+              Showing <span className="font-medium text-foreground">{(currentPeriodPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium text-foreground">{Math.min(currentPeriodPage * itemsPerPage, periods.length)}</span> of <span className="font-medium text-foreground">{periods.length}</span> periods
             </div>
             <div className="flex items-center gap-2">
               <Button
@@ -1794,7 +1837,7 @@ export default function PayrollPage() {
                     variant={currentPeriodPage === i + 1 ? "default" : "outline"}
                     size="sm"
                     onClick={() => setCurrentPeriodPage(i + 1)}
-                    className={cn("h-8 w-8 p-0", currentPeriodPage === i + 1 ? "bg-slate-900 text-white" : "")}
+                    className={cn("h-8 w-8 p-0", currentPeriodPage === i + 1 ? "" : "")}
                   >
                     {i + 1}
                   </Button>
@@ -1826,8 +1869,8 @@ export default function PayrollPage() {
   "
         >
 
-          <DialogHeader className="pb-4 border-b border-slate-200">
-            <DialogTitle className="text-xl font-semibold text-slate-900">
+          <DialogHeader className="pb-4 border-b border-border">
+            <DialogTitle className="text-xl font-semibold text-foreground">
               Payroll Details - {selectedPeriodName}
             </DialogTitle>
           </DialogHeader>
@@ -1836,8 +1879,8 @@ export default function PayrollPage() {
 
 
             {selectedIds.length > 0 && (
-              <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg border">
-                <span className="text-sm text-slate-600">
+              <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg border border-border">
+                <span className="text-sm text-muted-foreground">
                   {selectedIds.length} records selected
                 </span>
 
@@ -1863,10 +1906,10 @@ export default function PayrollPage() {
             )}
 
 
-            <div className="border border-slate-200 rounded-lg overflow-hidden">
+            <div className="border border-border rounded-lg overflow-hidden">
               <Table>
                 <TableHeader>
-                  <TableRow className="border-b border-slate-200">
+                  <TableRow className="border-b border-border bg-muted/30">
                     <TableHead className="w-12">
                       <input
                         type="checkbox"
@@ -1880,18 +1923,18 @@ export default function PayrollPage() {
                       />
                     </TableHead>
 
-                    <TableHead className="font-medium text-slate-900">Employee</TableHead>
-                    <TableHead className="font-medium text-slate-900">Pay Type</TableHead>
-                    <TableHead className="font-medium text-slate-900">Basic Salary</TableHead>
-                    <TableHead className="font-medium text-slate-900">Overtime Pay</TableHead>
-                    <TableHead className="font-medium text-slate-900">Holiday Pay</TableHead>
-                    <TableHead className="font-medium text-slate-900">Allowance</TableHead>
-                    <TableHead className="font-medium text-slate-900">Absences</TableHead>
-                    <TableHead className="font-medium text-slate-900">Cash Advance</TableHead>
-                    <TableHead className="font-medium text-slate-900">Total Deductions</TableHead>
-                    <TableHead className="font-medium text-slate-900">Net After Deductions</TableHead>
-                    <TableHead className="font-medium text-slate-900">Total Net</TableHead>
-                    <TableHead className="font-medium text-slate-900">Status</TableHead>
+                    <TableHead className="font-medium text-foreground">Employee</TableHead>
+                    <TableHead className="font-medium text-foreground">Pay Type</TableHead>
+                    <TableHead className="font-medium text-foreground">Basic Salary</TableHead>
+                    <TableHead className="font-medium text-foreground">Overtime Pay</TableHead>
+                    <TableHead className="font-medium text-foreground">Holiday Pay</TableHead>
+                    <TableHead className="font-medium text-foreground">Allowance</TableHead>
+                    <TableHead className="font-medium text-foreground">Absences</TableHead>
+                    <TableHead className="font-medium text-foreground">Cash Advance</TableHead>
+                    <TableHead className="font-medium text-foreground">Total Deductions</TableHead>
+                    <TableHead className="font-medium text-foreground">Net After Deductions</TableHead>
+                    <TableHead className="font-medium text-foreground">Total Net</TableHead>
+                    <TableHead className="font-medium text-foreground">Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1902,7 +1945,7 @@ export default function PayrollPage() {
                         setEditRecord(rec)
                         setEditDialogOpen(true)
                       }}
-                      className="cursor-pointer hover:bg-slate-50 transition border-b border-slate-100"
+                      className="cursor-pointer hover:bg-muted/30 transition border-b border-border"
                     >
                       <TableCell onClick={(e) => e.stopPropagation()}>
                         <input
@@ -1912,23 +1955,23 @@ export default function PayrollPage() {
                           className="rounded"
                         />
                       </TableCell>
-                      <TableCell className="font-medium text-slate-900">{rec.employee_name}</TableCell>
-                      <TableCell className="text-slate-600">{rec.pay_type}</TableCell>
-                      <TableCell className="text-slate-900">₱{rec.basic_salary.toLocaleString()}</TableCell>
-                      <TableCell className="text-slate-900 font-medium">₱{rec.overtime_pay.toLocaleString()}</TableCell>
-                      <TableCell className="text-slate-900">₱{rec.holiday_pay?.toLocaleString() || 0}</TableCell>
-                      <TableCell className="text-slate-900">₱{rec.allowances?.toLocaleString() || 0}</TableCell>
-                      <TableCell className="text-slate-900">₱{rec.absences?.toLocaleString() || 0}</TableCell>
-                      <TableCell className="text-slate-900">₱{rec.cash_advance?.toLocaleString() || 0}</TableCell>
-                      <TableCell className="text-slate-900">₱{rec.total_deductions?.toLocaleString()}</TableCell>
-                      <TableCell className="text-slate-900 font-bold">₱{rec.net_after_deductions?.toLocaleString()}</TableCell>
-                      <TableCell className="text-slate-900 font-bold">
+                      <TableCell className="font-medium text-foreground">{rec.employee_name}</TableCell>
+                      <TableCell className="text-muted-foreground">{rec.pay_type}</TableCell>
+                      <TableCell className="text-foreground">₱{rec.basic_salary.toLocaleString()}</TableCell>
+                      <TableCell className="text-foreground font-medium">₱{rec.overtime_pay.toLocaleString()}</TableCell>
+                      <TableCell className="text-foreground">₱{rec.holiday_pay?.toLocaleString() || 0}</TableCell>
+                      <TableCell className="text-foreground">₱{rec.allowances?.toLocaleString() || 0}</TableCell>
+                      <TableCell className="text-foreground">₱{rec.absences?.toLocaleString() || 0}</TableCell>
+                      <TableCell className="text-foreground">₱{rec.cash_advance?.toLocaleString() || 0}</TableCell>
+                      <TableCell className="text-foreground">₱{rec.total_deductions?.toLocaleString()}</TableCell>
+                      <TableCell className="text-foreground font-bold">₱{rec.net_after_deductions?.toLocaleString()}</TableCell>
+                      <TableCell className="text-foreground font-bold">
                         ₱{rec.total_net?.toLocaleString() || 0}
                       </TableCell>
                       <TableCell>
                         <span className={cn(
                           "px-2 py-1 rounded-full text-xs font-medium border",
-                          statusVariants[rec.status] || "bg-slate-100 text-slate-600 border-slate-200"
+                          statusVariants[rec.status] || "bg-muted text-muted-foreground border-border"
                         )}>
                           {rec.status}
                         </span>
@@ -1962,7 +2005,7 @@ export default function PayrollPage() {
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent className="lg:w-[50vw] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-xl font-semibold text-slate-900">Edit Payroll Record</DialogTitle>
+            <DialogTitle className="text-xl font-semibold text-foreground">Edit Payroll Record</DialogTitle>
           </DialogHeader>
 
           {editRecord && (
@@ -2018,31 +2061,31 @@ export default function PayrollPage() {
             >
               <div className="space-y-4">
                 <div>
-                  <Label className="text-sm font-medium text-slate-700">Employee</Label>
+                  <Label className="text-sm font-medium text-muted-foreground">Employee</Label>
                   <Input
                     value={editRecord.employee_name || ""}
                     disabled
-                    className="bg-slate-50 border-slate-200"
+                    className="bg-muted/50 border-border"
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label className="text-sm font-medium text-slate-700">Pay Type</Label>
+                    <Label className="text-sm font-medium text-muted-foreground">Pay Type</Label>
                     <Input
                       value={editRecord.pay_type || ""}
                       disabled
-                      className="bg-slate-50 border-slate-200"
+                      className="bg-muted/50 border-border"
                     />
                   </div>
 
                   <div>
-                    <Label className="text-sm font-medium text-slate-700">Period</Label>
+                    <Label className="text-sm font-medium text-muted-foreground">Period</Label>
                     <Input
                       value={editRecord.period_start && editRecord.period_end ?
                         `${format(new Date(editRecord.period_start), "MMM d")} - ${format(new Date(editRecord.period_end), "MMM d, yyyy")}` : ""}
                       disabled
-                      className="bg-slate-50 border-slate-200"
+                      className="bg-muted/50 border-border"
                     />
                   </div>
                 </div>
@@ -2051,7 +2094,7 @@ export default function PayrollPage() {
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label className="text-sm font-medium text-slate-700">Basic Salary</Label>
+                    <Label className="text-sm font-medium text-muted-foreground">Basic Salary</Label>
                     <Input
                       type="number"
                       step="0.01"
@@ -2067,7 +2110,7 @@ export default function PayrollPage() {
                   </div>
 
                   <div>
-                    <Label className="text-sm font-medium text-slate-700">Overtime Pay</Label>
+                    <Label className="text-sm font-medium text-foreground">Overtime Pay</Label>
                     <Input
                       type="number"
                       step="0.01"
@@ -2085,7 +2128,7 @@ export default function PayrollPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label className="text-sm font-medium text-slate-700">Allowances</Label>
+                    <Label className="text-sm font-medium text-muted-foreground">Allowances</Label>
                     <Input
                       type="number"
                       step="0.01"
@@ -2100,7 +2143,7 @@ export default function PayrollPage() {
                     />
                   </div>
                   <div>
-                    <Label className="text-sm font-medium text-slate-700">Holiday Pay</Label>
+                    <Label className="text-sm font-medium text-muted-foreground">Holiday Pay</Label>
                     <Input
                       type="number"
                       step="0.01"
@@ -2115,7 +2158,7 @@ export default function PayrollPage() {
                     />
                   </div>
                   <div>
-                    <Label className="text-sm font-medium text-slate-700">Absence Deductions</Label>
+                    <Label className="text-sm font-medium text-muted-foreground">Absence Deductions</Label>
                     <Input
                       type="number"
                       step="0.01"
@@ -2130,7 +2173,7 @@ export default function PayrollPage() {
                     />
                   </div>
                   <div>
-                    <Label className="text-sm font-medium text-slate-700">Cash Advance Deduction</Label>
+                    <Label className="text-sm font-medium text-muted-foreground">Cash Advance Deduction</Label>
                     <Input
                       type="number"
                       step="0.01"
@@ -2148,7 +2191,7 @@ export default function PayrollPage() {
                 </div>
 
                 <div>
-                  <Label className="text-sm font-medium text-slate-700">Other Deductions</Label>
+                  <Label className="text-sm font-medium text-foreground">Other Deductions</Label>
                   <Input
                     type="number"
                     step="0.01"
@@ -2166,7 +2209,7 @@ export default function PayrollPage() {
                 </div>
 
                 <div>
-                  <Label className="text-sm font-medium text-slate-700">Payment Status</Label>
+                  <Label className="text-sm font-medium text-foreground">Payment Status</Label>
                   <Select
                     value={editRecord.status}
                     onValueChange={(val) =>
@@ -2185,20 +2228,20 @@ export default function PayrollPage() {
                 </div>
               </div>
 
-              <div className="space-y-3 p-4 bg-slate-50 rounded-lg border border-slate-200">
-                <h3 className="text-sm font-medium text-slate-900">Calculated Values</h3>
+              <div className="space-y-3 p-4 bg-muted/50 rounded-lg border border-border">
+                <h3 className="text-sm font-medium text-foreground">Calculated Values</h3>
 
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <span className="text-slate-600">Gross Pay (Basic + Overtime):</span>
-                    <div className="font-medium text-slate-900">
+                    <span className="text-muted-foreground">Gross Pay (Basic + Overtime):</span>
+                    <div className="font-medium text-foreground">
                       ₱{((editRecord.basic_salary || 0) + (editRecord.overtime_pay || 0)).toLocaleString()}
                     </div>
                   </div>
 
                   <div>
-                    <span className="text-slate-600">Total Deductions:</span>
-                    <div className="font-medium text-slate-900">
+                    <span className="text-muted-foreground">Total Deductions:</span>
+                    <div className="font-medium text-foreground">
                       ₱{(editRecord.total_deductions || 0).toLocaleString()}
                     </div>
                   </div>
@@ -2206,8 +2249,8 @@ export default function PayrollPage() {
 
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <span className="text-slate-600">Net After Deductions:</span>
-                    <div className="font-medium text-slate-900">
+                    <span className="text-muted-foreground">Net After Deductions:</span>
+                    <div className="font-medium text-foreground">
                       ₱{(
                         ((editRecord.basic_salary || 0) + (editRecord.overtime_pay || 0)) -
                         ((editRecord.total_deductions || 0) + (editRecord.cash_advance || 0))
@@ -2217,8 +2260,8 @@ export default function PayrollPage() {
                   </div>
 
                   <div>
-                    <span className="text-slate-600">Total Net (with Allowances):</span>
-                    <div className="font-bold text-slate-900">
+                    <span className="text-muted-foreground">Total Net (with Allowances):</span>
+                    <div className="font-bold text-foreground">
                       ₱{(
                         ((editRecord.basic_salary || 0) + (editRecord.overtime_pay || 0)) -
                         ((editRecord.total_deductions || 0) + (editRecord.cash_advance || 0)) +
@@ -2230,7 +2273,7 @@ export default function PayrollPage() {
               </div>
 
               <div className="flex gap-3">
-                <Button type="submit" className="flex-1 bg-slate-900 hover:bg-slate-800 text-white">
+                <Button type="submit" className="flex-1">
                   Save Changes
                 </Button>
                 <Button

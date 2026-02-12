@@ -50,7 +50,7 @@ export type Employee = {
 }
 
 declare module '@tanstack/react-table' {
-  interface ColumnMeta<TData extends unknown, TValue> {
+  interface TableMeta<TData extends unknown> {
     onEdit?: (emp: Employee) => void;
     onDelete?: (id: string) => void;
   }
@@ -61,14 +61,14 @@ export const columns: ColumnDef<Employee>[] = [
   {
     accessorKey: "employee_code",
     header: "ID",
-    cell: ({ row }) => <span className="text-xs font-mono text-slate-500">{row.getValue("employee_code")}</span>
+    cell: ({ row }) => <span className="text-xs font-mono text-muted-foreground">{row.getValue("employee_code")}</span>
   },
   {
     accessorKey: "full_name",
     header: ({ column }) => (
       <Button
         variant="ghost"
-        className="p-0 hover:bg-transparent text-slate-900 font-semibold"
+        className="p-0 hover:bg-transparent text-foreground font-semibold"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
       >
         Name <ArrowUpDown className="ml-2 h-3 w-3" />
@@ -78,10 +78,10 @@ export const columns: ColumnDef<Employee>[] = [
       const name = row.getValue("full_name") as string
       return (
         <div className="flex items-center gap-2.5">
-          <div className="h-7 w-7 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-600 border border-slate-200">
+          <div className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-[10px] font-bold text-muted-foreground border border-border">
             {name?.charAt(0) || "E"}
           </div>
-          <span className="font-medium text-slate-900">{name}</span>
+          <span className="font-medium text-foreground">{name}</span>
         </div>
       )
     }
@@ -90,7 +90,7 @@ export const columns: ColumnDef<Employee>[] = [
     accessorKey: "email",
     header: "Email",
     cell: ({ row }) => (
-      <span className="text-xs text-slate-600 truncate max-w-[180px] block">
+      <span className="text-xs text-muted-foreground truncate max-w-[180px] block">
         {row.getValue("email")}
       </span>
     ),
@@ -99,13 +99,13 @@ export const columns: ColumnDef<Employee>[] = [
     accessorKey: "position",
     header: "Position",
     cell: ({ row }) => (
-      <span className="text-xs text-slate-600">{row.getValue("position") || "—"}</span>
+      <span className="text-xs text-muted-foreground">{row.getValue("position") || "—"}</span>
     ),
   },
   {
     accessorKey: "department",
     header: "Department",
-    cell: ({ row }) => <span className="text-xs text-slate-600">{row.getValue("department") || "—"}</span>
+    cell: ({ row }) => <span className="text-xs text-muted-foreground">{row.getValue("department") || "—"}</span>
   },
   {
     accessorKey: "employment_status",
@@ -113,13 +113,13 @@ export const columns: ColumnDef<Employee>[] = [
     cell: ({ row }) => {
       const status = row.getValue("employment_status") as string
       const variants: Record<string, string> = {
-        "Regular": "bg-emerald-50 text-emerald-700 border-emerald-100/50 hover:bg-emerald-50",
-        "Probationary": "bg-blue-50 text-blue-700 border-blue-100/50 hover:bg-blue-50",
-        "Contractual": "bg-amber-50 text-amber-700 border-amber-100/50 hover:bg-amber-50",
-        "Project-based": "bg-slate-50 text-slate-700 border-slate-100/50 hover:bg-slate-50",
+        "Regular": "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/15",
+        "Probationary": "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20 hover:bg-blue-500/15",
+        "Contractual": "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 hover:bg-amber-500/15",
+        "Project-based": "bg-muted text-muted-foreground border-border hover:bg-muted",
       }
       return (
-        <Badge variant="outline" className={cn("font-medium px-2 py-0.5 rounded-full text-[10px]", variants[status] || "bg-slate-50 text-slate-600")}>
+        <Badge variant="outline" className={cn("font-medium px-2 py-0.5 rounded-full text-[10px]", variants[status] || "bg-muted text-muted-foreground")}>
           {status}
         </Badge>
       )
@@ -130,7 +130,7 @@ export const columns: ColumnDef<Employee>[] = [
     header: "Base Salary",
     cell: ({ row }) => {
       const amount = parseFloat(row.getValue("base_salary") || "0")
-      return <div className="text-xs font-semibold text-slate-900">₱{amount.toLocaleString()}</div>
+      return <div className="text-xs font-semibold text-foreground">₱{amount.toLocaleString()}</div>
     },
   },
   {
@@ -138,15 +138,23 @@ export const columns: ColumnDef<Employee>[] = [
     header: "Allowance",
     cell: ({ row }) => {
       const amount = parseFloat(row.getValue("allowance") || "0")
-      return <div className="text-xs text-slate-600">₱{amount.toLocaleString()}</div>
+      return <div className="text-xs text-muted-foreground">₱{amount.toLocaleString()}</div>
+    },
+  },
+  {
+    accessorKey: "leave_credits",
+    header: "Leave Credits",
+    cell: ({ row }) => {
+      const credits = parseFloat(row.getValue("leave_credits") || "0")
+      return <div className="text-xs font-medium text-muted-foreground">{credits.toFixed(1)} days</div>
     },
   },
   {
     id: "actions",
-    cell: ({ row, column }) => {
+    cell: ({ row, table }) => {
       const emp = row.original
-      const onEdit = column.columnDef.meta?.onEdit
-      const onDelete = column.columnDef.meta?.onDelete
+      const onEdit = table.options.meta?.onEdit
+      const onDelete = table.options.meta?.onDelete
       return <EmployeeActions emp={emp} onEdit={onEdit} onDelete={onDelete} />
     },
   }
@@ -168,7 +176,7 @@ function EmployeeActions({
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" className="h-8 w-8 p-0">
-            <MoreHorizontal className="h-4 w-4 text-slate-400" />
+            <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-40">
@@ -186,7 +194,7 @@ function EmployeeActions({
             Edit Profile
           </DropdownMenuItem>
           <DropdownMenuItem
-            className="text-red-600 focus:text-red-600 focus:bg-red-50"
+            className="text-destructive focus:text-destructive focus:bg-destructive/10"
             onClick={() => setOpen(true)}
           >
             Delete Employee
@@ -200,13 +208,13 @@ function EmployeeActions({
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
               This action cannot be undone. This will permanently delete{" "}
-              <span className="font-semibold text-slate-900">{emp.full_name}</span>'s record from the system.
+              <span className="font-semibold text-foreground">{emp.full_name}</span>'s record from the system.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-red-600 hover:bg-red-700 text-white"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => {
                 onDelete?.(emp.id)
                 toast.success(`${emp.full_name} has been deleted`)

@@ -49,6 +49,8 @@ import {
   ChevronsUpDown,
   ChevronLeft,
   ChevronRight,
+  Mail,
+  SendHorizontal
 } from "lucide-react"
 
 import { supabase } from "@/lib/supabaseClient"
@@ -96,16 +98,16 @@ function getStatus(net_pay: number): string {
 
 function statusBadge(status: string) {
   const variants: Record<string, string> = {
-    "Completed": "bg-slate-900 text-white border-slate-200",
-    "Payment Success": "bg-slate-900 text-white border-slate-200",
-    "Paid": "bg-slate-900 text-white border-slate-200",
-    "Pending": "bg-white text-slate-900 border-slate-300",
-    "Pending Payment": "bg-white text-slate-900 border-slate-300",
-    "On Hold": "bg-slate-100 text-slate-600 border-slate-200",
-    "On Hold Payment": "bg-slate-100 text-slate-600 border-slate-200",
+    "Completed": "bg-primary text-primary-foreground border-transparent",
+    "Payment Success": "bg-primary text-primary-foreground border-transparent",
+    "Paid": "bg-primary text-primary-foreground border-transparent",
+    "Pending": "bg-muted text-muted-foreground border-border",
+    "Pending Payment": "bg-muted text-muted-foreground border-border",
+    "On Hold": "bg-muted/50 text-muted-foreground border-border",
+    "On Hold Payment": "bg-muted/50 text-muted-foreground border-border",
   }
 
-  const className = variants[status] || "bg-slate-100 text-slate-600 border-slate-200"
+  const className = variants[status] || "bg-muted text-muted-foreground border-border"
 
   return (
     <Badge
@@ -407,6 +409,34 @@ export default function DashboardPage() {
     }
   }
 
+  async function handleNotifyEmployees() {
+    if (!selectedPeriod) {
+      toast.error("No period selected")
+      return
+    }
+
+    const toastId = toast.loading(`Sending notifications for period ending ${selectedPeriod}...`)
+
+    try {
+      const response = await fetch('/api/payroll/notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ periodEnd: selectedPeriod }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) throw new Error(data.error || 'Failed to send notifications')
+
+      toast.success(
+        `Sent ${data.summary.success} emails successfully!${data.summary.failed > 0 ? ` (${data.summary.failed} failed)` : ''}`,
+        { id: toastId, duration: 5000 }
+      )
+    } catch (error: any) {
+      toast.error(error.message, { id: toastId })
+    }
+  }
+
   const periods = useMemo(() => {
     const unique = Array.from(new Set(records.map(r => r.period_end)))
       .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
@@ -461,24 +491,24 @@ export default function DashboardPage() {
 
   if (isChecking || !role || dataLoading) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex items-center justify-center h-screen bg-background text-foreground">
         <div className="flex items-center space-x-2">
-          <div className="w-4 h-4 bg-slate-400 rounded-full animate-pulse"></div>
-          <span className="text-slate-600">Loading dashboard...</span>
+          <div className="w-4 h-4 bg-primary rounded-full animate-pulse"></div>
+          <span className="text-muted-foreground">Loading dashboard...</span>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-8 p-6 bg-slate-50 min-h-screen">
+    <div className="space-y-8 p-6 bg-background min-h-screen text-foreground">
       {/* Header */}
       {/* <div className="bg-white border-b">
         <div className="px-6 py-4">
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem>
-                <BreadcrumbPage className="text-slate-600">
+                <BreadcrumbPage className="text-muted-foreground">
                   Payroll Management
                 </BreadcrumbPage>
               </BreadcrumbItem>
@@ -489,8 +519,8 @@ export default function DashboardPage() {
 
       {/* Page Title */}
       <div className="space-y-2">
-        <h1 className="text-3xl font-semibold text-slate-900">Dashboard</h1>
-        <p className="text-slate-600">
+        <h1 className="text-3xl font-semibold text-foreground">Dashboard</h1>
+        <p className="text-muted-foreground">
           Monitor and manage employee payroll efficiently
         </p>
       </div>
@@ -498,15 +528,15 @@ export default function DashboardPage() {
       {/* Insights Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Trend Chart */}
-        <Card className="lg:col-span-2 border-0 shadow-sm overflow-hidden flex flex-col">
+        <Card className="lg:col-span-2 border border-border shadow-sm overflow-hidden flex flex-col bg-card">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-7">
             <div>
-              <CardTitle className="text-base font-semibold text-slate-900">Payroll Trends</CardTitle>
-              <p className="text-xs text-slate-500 mt-1">Total payout distribution over time</p>
+              <CardTitle className="text-base font-semibold text-foreground">Payroll Trends</CardTitle>
+              <p className="text-xs text-muted-foreground mt-1">Total payout distribution over time</p>
             </div>
-            <div className="flex items-center gap-1.5 px-2 py-1 bg-slate-50 rounded-md border border-slate-100">
-              <div className="h-2 w-2 rounded-full bg-slate-900" />
-              <span className="text-[10px] font-medium text-slate-600">Net Pay</span>
+            <div className="flex items-center gap-1.5 px-2 py-1 bg-muted rounded-md border border-border">
+              <div className="h-2 w-2 rounded-full bg-primary" />
+              <span className="text-[10px] font-medium text-muted-foreground">Net Pay</span>
             </div>
           </CardHeader>
           <CardContent className="px-2 pb-4 flex-1">
@@ -515,27 +545,28 @@ export default function DashboardPage() {
                 <AreaChart data={trendData}>
                   <defs>
                     <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#0f172a" stopOpacity={0.1} />
-                      <stop offset="95%" stopColor="#0f172a" stopOpacity={0} />
+                      <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.1} />
+                      <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
                   <XAxis
                     dataKey="name"
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fill: '#64748b', fontSize: 10 }}
+                    tick={{ fill: 'var(--muted-foreground)', fontSize: 10 }}
                     dy={10}
                   />
                   <YAxis hide />
                   <Tooltip
-                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontSize: '11px' }}
+                    contentStyle={{ backgroundColor: 'var(--card)', borderRadius: '8px', border: '1px solid var(--border)', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontSize: '11px', color: 'var(--foreground)' }}
+                    itemStyle={{ color: 'var(--foreground)' }}
                     formatter={(value: any) => [`₱${value.toLocaleString()}`, 'Total Payout']}
                   />
                   <Area
                     type="monotone"
                     dataKey="total"
-                    stroke="#0f172a"
+                    stroke="var(--primary)"
                     strokeWidth={2}
                     fillOpacity={1}
                     fill="url(#colorTotal)"
@@ -547,10 +578,10 @@ export default function DashboardPage() {
         </Card>
 
         {/* Status Distribution (Donut) */}
-        <Card className="border-0 shadow-sm flex flex-col">
+        <Card className="border border-border shadow-sm flex flex-col bg-card">
           <CardHeader className="pb-0">
-            <CardTitle className="text-base font-semibold text-slate-900">Payment Status</CardTitle>
-            <p className="text-xs text-slate-500 mt-1">Current processing status</p>
+            <CardTitle className="text-base font-semibold text-foreground">Payment Status</CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">Current processing status</p>
           </CardHeader>
           <CardContent className="flex-1 flex flex-col pt-0">
             <div className="h-[210px] w-full mt-4">
@@ -581,9 +612,9 @@ export default function DashboardPage() {
                 <div key={item.name} className="flex items-center justify-between text-[10px]">
                   <div className="flex items-center gap-1.5">
                     <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                    <span className="text-slate-600 truncate max-w-[120px]">{item.name}</span>
+                    <span className="text-muted-foreground truncate max-w-[120px]">{item.name}</span>
                   </div>
-                  <span className="font-bold text-slate-900">{item.value}</span>
+                  <span className="font-bold text-foreground">{item.value}</span>
                 </div>
               ))}
             </div>
@@ -593,37 +624,37 @@ export default function DashboardPage() {
 
       {/* Secondary Chart Row */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        <Card className="lg:col-span-1 border-0 shadow-sm flex flex-col h-full">
+        <Card className="lg:col-span-1 border border-border shadow-sm flex flex-col h-full bg-card">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold text-slate-900 uppercase tracking-tight">Financial Overview</CardTitle>
+            <CardTitle className="text-sm font-semibold text-foreground uppercase tracking-tight">Financial Overview</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 pt-2 flex-1">
-            <div className="p-3 bg-slate-50/50 rounded-lg border border-slate-100 flex items-center justify-between">
+            <div className="p-3 bg-muted/30 rounded-lg border border-border flex items-center justify-between">
               <div className="space-y-0.5">
-                <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Total Payroll</p>
-                <p className="text-lg font-bold text-slate-900">₱{totalPayroll.toLocaleString()}</p>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Total Payroll</p>
+                <p className="text-lg font-bold text-foreground">₱{totalPayroll.toLocaleString()}</p>
               </div>
-              <div className="h-8 w-8 rounded-full bg-white border border-slate-100 flex items-center justify-center shadow-sm">
-                <DollarSign className="h-4 w-4 text-slate-400" />
+              <div className="h-8 w-8 rounded-full bg-background border border-border flex items-center justify-center shadow-sm">
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
               </div>
             </div>
-            <div className="p-3 bg-slate-50/50 rounded-lg border border-slate-100 flex items-center justify-between">
+            <div className="p-3 bg-muted/30 rounded-lg border border-border flex items-center justify-between">
               <div className="space-y-0.5">
-                <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Processed</p>
-                <p className="text-lg font-bold text-slate-900">{completedPayments}</p>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Processed</p>
+                <p className="text-lg font-bold text-foreground">{completedPayments}</p>
               </div>
-              <div className="h-8 w-8 rounded-full bg-white border border-slate-100 flex items-center justify-center shadow-sm">
-                <TrendingUp className="h-4 w-4 text-emerald-500" />
+              <div className="h-8 w-8 rounded-full bg-background border border-border flex items-center justify-center shadow-sm">
+                <TrendingUp className="h-4 w-4 text-emerald-600" />
               </div>
             </div>
           </CardContent>
         </Card>
 
         {/* Category Bar Chart */}
-        <Card className="lg:col-span-3 border-0 shadow-sm overflow-hidden">
+        <Card className="lg:col-span-3 border border-border shadow-sm overflow-hidden bg-card">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold text-slate-900">Payroll by Employment Type</CardTitle>
-            <p className="text-xs text-slate-500 mt-1">Comparison of net pay distribution</p>
+            <CardTitle className="text-base font-semibold text-foreground">Payroll by Employment Type</CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">Comparison of net pay distribution</p>
           </CardHeader>
           <CardContent>
             <div className="h-[130px] w-full">
@@ -635,12 +666,13 @@ export default function DashboardPage() {
                     type="category"
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fill: '#64748b', fontSize: 10 }}
+                    tick={{ fill: 'var(--muted-foreground)', fontSize: 10 }}
                     width={80}
                   />
                   <Tooltip
-                    cursor={{ fill: '#f8fafc' }}
-                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontSize: '11px' }}
+                    cursor={{ fill: 'var(--muted)' }}
+                    contentStyle={{ backgroundColor: 'var(--card)', borderRadius: '8px', border: '1px solid var(--border)', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontSize: '11px', color: 'var(--foreground)' }}
+                    itemStyle={{ color: 'var(--foreground)' }}
                     formatter={(value: any) => [`₱${value.toLocaleString()}`, 'Amount']}
                   />
                   <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={16}>
@@ -656,7 +688,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Controls */}
-      <Card className="border-0 shadow-sm">
+      <Card className="border border-border shadow-sm bg-card">
         <CardContent className="p-6">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             {/* Filters */}
@@ -672,18 +704,18 @@ export default function DashboardPage() {
               </Tabs>
 
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search employees..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 w-full sm:w-64"
+                  className="pl-10 w-full sm:w-64 bg-muted/50"
                 />
               </div>
             </div>
 
             {/* Period Navigation (Cuts) */}
-            <div className="flex items-center gap-4 bg-white p-1 rounded-lg border border-slate-200">
+            <div className="flex items-center gap-4 bg-muted/30 p-1 rounded-lg border border-border">
               <Button
                 variant="ghost"
                 size="icon"
@@ -694,8 +726,8 @@ export default function DashboardPage() {
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               <div className="flex flex-col items-center min-w-[140px]">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Current Cut</span>
-                <span className="text-xs font-semibold text-slate-900">
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-none mb-1">Current Cut</span>
+                <span className="text-xs font-semibold text-foreground">
                   {selectedPeriod ? new Date(selectedPeriod).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "No Periods"}
                 </span>
               </div>
@@ -712,6 +744,17 @@ export default function DashboardPage() {
 
             {/* Action Buttons */}
             <div className="flex gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2 border-border hover:bg-muted text-foreground font-semibold"
+                onClick={handleNotifyEmployees}
+                disabled={!selectedPeriod || filteredRecords.length === 0}
+              >
+                <SendHorizontal className="h-4 w-4" />
+                Notify Employees
+              </Button>
+
               <Popover>
                 <PopoverTrigger asChild>
                   <div className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3 cursor-pointer justify-start">
@@ -739,7 +782,7 @@ export default function DashboardPage() {
                 }
               }}>
                 <DialogTrigger asChild>
-                  <Button size="sm" className="bg-slate-900 hover:bg-slate-800">
+                  <Button size="sm">
                     <Plus className="w-4 h-4 mr-2" />
                     New Payment
                   </Button>
@@ -808,7 +851,7 @@ export default function DashboardPage() {
                             <div
                               className={cn(
                                 "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-3 w-full justify-start font-normal cursor-pointer",
-                                !periodStart && "text-slate-500"
+                                !periodStart && "text-muted-foreground"
                               )}
                             >
                               <CalendarIcon className="mr-2 h-4 w-4" />
@@ -835,7 +878,7 @@ export default function DashboardPage() {
                               variant="outline"
                               className={cn(
                                 "w-full justify-start font-normal",
-                                !periodEnd && "text-slate-500"
+                                !periodEnd && "text-muted-foreground"
                               )}
                             >
                               <CalendarIcon className="mr-2 h-4 w-4" />
@@ -885,7 +928,7 @@ export default function DashboardPage() {
                       </div>
                     </div>
 
-                    <Button type="submit" className="w-full bg-slate-900 hover:bg-slate-800">
+                    <Button type="submit" className="w-full">
                       {editRecord ? "Update Payment" : "Add Payment"}
                     </Button>
                   </form>
@@ -897,36 +940,36 @@ export default function DashboardPage() {
       </Card>
 
       {/* Data Table */}
-      <Card className="border-0 shadow-sm">
+      <Card className="border border-border shadow-sm overflow-hidden bg-card">
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="border-b border-slate-200">
-                  <TableHead className="font-medium text-slate-900">Employee</TableHead>
-                  <TableHead className="font-medium text-slate-900">Pay Period</TableHead>
-                  <TableHead className="font-medium text-slate-900">Amount</TableHead>
-                  <TableHead className="font-medium text-slate-900">Category</TableHead>
-                  <TableHead className="font-medium text-slate-900">Status</TableHead>
-                  <TableHead className="font-medium text-slate-900 text-right">Actions</TableHead>
+                <TableRow className="border-b border-border bg-muted/30">
+                  <TableHead className="font-medium text-foreground">Employee</TableHead>
+                  <TableHead className="font-medium text-foreground">Pay Period</TableHead>
+                  <TableHead className="font-medium text-foreground">Amount</TableHead>
+                  <TableHead className="font-medium text-foreground">Category</TableHead>
+                  <TableHead className="font-medium text-foreground">Status</TableHead>
+                  <TableHead className="font-medium text-foreground text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredRecords.map((record) => (
-                  <TableRow key={record.id} className="border-b border-slate-100 hover:bg-slate-50">
+                  <TableRow key={record.id} className="border-b border-border hover:bg-muted/30">
                     <TableCell>
                       <div>
-                        <div className="font-medium text-slate-900">{record.full_name}</div>
-                        <div className="text-sm text-slate-500">{record.employee_code}</div>
+                        <div className="font-medium text-foreground">{record.full_name}</div>
+                        <div className="text-sm text-muted-foreground">{record.employee_code}</div>
                       </div>
                     </TableCell>
-                    <TableCell className="text-slate-700">
+                    <TableCell className="text-muted-foreground">
                       {new Date(record.period_end).toLocaleDateString()}
                     </TableCell>
-                    <TableCell className="font-medium text-slate-900">
+                    <TableCell className="font-medium text-foreground">
                       ₱{record.net_pay.toLocaleString()}
                     </TableCell>
-                    <TableCell className="text-slate-700">
+                    <TableCell className="text-muted-foreground">
                       {record.pay_type}
                     </TableCell>
                     <TableCell>
@@ -999,11 +1042,11 @@ export default function DashboardPage() {
 
           {filteredRecords.length === 0 && (
             <div className="text-center py-12">
-              <div className="text-slate-400 mb-2">
+              <div className="text-muted-foreground mb-2">
                 <Users className="h-12 w-12 mx-auto" />
               </div>
-              <h3 className="text-lg font-medium text-slate-900 mb-1">No payments found</h3>
-              <p className="text-slate-500">
+              <h3 className="text-lg font-medium text-foreground mb-1">No payments found</h3>
+              <p className="text-muted-foreground">
                 {searchTerm || filter !== "all"
                   ? "Try adjusting your search or filter criteria"
                   : "Get started by adding your first payment record"

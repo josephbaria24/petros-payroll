@@ -64,8 +64,8 @@ export default function MyTimeLogsPage() {
       const { data: employee, error: empErr } = await supabase
         .from("employees")
         .select("id, attendance_log_userid")
-        .eq("email", user.email)
-        .single();
+        .ilike("email", user.email)
+        .maybeSingle();
 
       if (empErr || !employee?.id) {
         toast.error("Employee record not found.");
@@ -318,26 +318,26 @@ export default function MyTimeLogsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] p-6 space-y-8">
+    <div className="min-h-screen bg-background p-6 space-y-8 text-foreground">
       <div className="mx-auto max-w-4xl space-y-6">
         {/* Breadcrumb Navigation */}
-        <div className="flex items-center space-x-2 text-sm text-slate-600">
+        <div className="flex items-center space-x-2 text-sm text-muted-foreground">
           <span>Dashboard</span>
           <ChevronRight className="h-4 w-4" />
-          <span className="text-slate-900 font-medium">Time & Attendance</span>
+          <span className="text-foreground font-medium">Time & Attendance</span>
         </div>
 
         {/* Header Section */}
         <div>
-          <h1 className="text-3xl font-semibold text-slate-900">Time & Attendance</h1>
-          <p className="mt-1 text-slate-600">Record your daily work hours</p>
+          <h1 className="text-3xl font-semibold text-foreground">Time & Attendance</h1>
+          <p className="mt-1 text-muted-foreground">Record your daily work hours</p>
         </div>
 
         {/* Current Time Display */}
-        <Card className="border-0 shadow-sm">
+        <Card className="border border-border shadow-sm bg-card">
           <CardContent className="p-2">
             <div className="text-center">
-              <div className="text-4xl md:text-4xl font-mono font-bold text-slate-900 tracking-wider">
+              <div className="text-4xl md:text-4xl font-mono font-bold text-foreground tracking-wider">
                 {hasMounted
                   ? new Date().toLocaleTimeString("en-PH", {
                     timeZone: "Asia/Manila",
@@ -348,7 +348,7 @@ export default function MyTimeLogsPage() {
                   })
                   : "Loading..."}
               </div>
-              <div className="mt-3 flex items-center justify-center gap-2 text-lg text-slate-600">
+              <div className="mt-3 flex items-center justify-center gap-2 text-lg text-muted-foreground">
                 <Calendar className="h-5 w-5" />
                 {hasMounted
                   ? new Date().toLocaleDateString("en-PH", {
@@ -365,20 +365,20 @@ export default function MyTimeLogsPage() {
         </Card>
 
         {/* Main Attendance Card */}
-        <Card className="border-0 shadow-sm">
-          <CardHeader className="border-b border-slate-200">
+        <Card className="border border-border shadow-sm bg-card">
+          <CardHeader className="border-b border-border">
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-xl font-semibold text-slate-900 flex items-center gap-2">
+                <CardTitle className="text-xl font-semibold text-foreground flex items-center gap-2">
                   <User className="h-5 w-5" />
                   Today's Attendance
                 </CardTitle>
-                <CardDescription className="text-slate-600 mt-1">
+                <CardDescription className="text-muted-foreground mt-1">
                   {getStatusText()}
                 </CardDescription>
               </div>
               {todayLog?.time_in && (
-                <div className="flex items-center gap-2 text-sm text-slate-600">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Timer className="h-4 w-4" />
                   <span className="font-medium">{getWorkDuration() || "Calculating..."}</span>
                 </div>
@@ -390,28 +390,28 @@ export default function MyTimeLogsPage() {
             {/* Time Display Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Time In Card */}
-              <div className="rounded-lg p-6 border border-slate-200 bg-slate-50">
+              <div className="rounded-lg p-6 border border-border bg-muted/30">
                 <div className="flex items-center gap-3 mb-3">
-                  <div className="p-2 rounded-full bg-slate-200">
-                    <LogIn className="h-5 w-5 text-slate-600" />
+                  <div className="p-2 rounded-full bg-muted">
+                    <LogIn className="h-5 w-5 text-muted-foreground" />
                   </div>
-                  <span className="font-medium text-slate-900">Time In</span>
+                  <span className="font-medium text-foreground">Time In</span>
                 </div>
-                <div className={`text - 2xl font - mono font - bold ${todayLog?.time_in ? "text-slate-900" : "text-slate-400"
+                <div className={`text - 2xl font - mono font - bold ${todayLog?.time_in ? "text-foreground" : "text-muted-foreground"
                   } `}>
                   {format12h(todayLog?.time_in)}
                 </div>
               </div>
 
               {/* Time Out Card */}
-              <div className="rounded-lg p-6 border border-slate-200 bg-slate-50">
+              <div className="rounded-lg p-6 border border-border bg-muted/30">
                 <div className="flex items-center gap-3 mb-3">
-                  <div className="p-2 rounded-full bg-slate-200">
-                    <LogOut className="h-5 w-5 text-slate-600" />
+                  <div className="p-2 rounded-full bg-muted">
+                    <LogOut className="h-5 w-5 text-muted-foreground" />
                   </div>
-                  <span className="font-medium text-slate-900">Time Out</span>
+                  <span className="font-medium text-foreground">Time Out</span>
                 </div>
-                <div className={`text - 2xl font - mono font - bold ${todayLog?.time_out ? "text-slate-900" : "text-slate-400"
+                <div className={`text - 2xl font - mono font - bold ${todayLog?.time_out ? "text-foreground" : "text-muted-foreground"
                   } `}>
                   {format12h(todayLog?.time_out)}
                 </div>
@@ -424,7 +424,7 @@ export default function MyTimeLogsPage() {
                 <Button
                   onClick={handleTimeIn}
                   disabled={loading}
-                  className="px-8 py-6 text-base font-medium bg-slate-900 hover:bg-slate-800"
+                  className="px-8 py-6 text-base font-medium"
                 >
                   {loading ? (
                     <div className="flex items-center gap-2">
@@ -443,11 +443,11 @@ export default function MyTimeLogsPage() {
                   onClick={handleTimeOut}
                   disabled={loading}
                   variant="outline"
-                  className="px-8 py-6 text-base font-medium border-slate-900 text-slate-900 hover:bg-slate-50"
+                  className="px-8 py-6 text-base font-medium border-border text-foreground hover:bg-muted"
                 >
                   {loading ? (
                     <div className="flex items-center gap-2">
-                      <div className="animate-spin h-4 w-4 border-2 border-slate-900 border-t-transparent rounded-full" />
+                      <div className="animate-spin h-4 w-4 border-2 border-foreground border-t-transparent rounded-full" />
                       Recording...
                     </div>
                   ) : (
@@ -459,12 +459,12 @@ export default function MyTimeLogsPage() {
                 </Button>
               ) : (
                 <div className="flex flex-col items-center gap-3 py-4">
-                  <div className="flex items-center gap-2 text-slate-900 font-semibold text-lg">
+                  <div className="flex items-center gap-2 text-foreground font-semibold text-lg">
                     <CheckCircle2 className="h-6 w-6" />
                     Work day completed
                   </div>
-                  <p className="text-slate-600">
-                    Total hours: <span className="font-semibold text-slate-900">{getWorkDuration()}</span>
+                  <p className="text-muted-foreground">
+                    Total hours: <span className="font-semibold text-foreground">{getWorkDuration()}</span>
                   </p>
                 </div>
               )}
@@ -475,39 +475,39 @@ export default function MyTimeLogsPage() {
         {/* Summary Stats */}
         {todayLog?.time_in && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card className="border-0 shadow-sm">
+            <Card className="border border-border shadow-sm bg-card">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-slate-600">Started</CardTitle>
+                <CardTitle className="text-sm font-medium text-muted-foreground">Started</CardTitle>
               </CardHeader>
               <CardContent className="pb-6">
-                <p className="text-2xl font-bold text-slate-900">
+                <p className="text-2xl font-bold text-foreground">
                   {format12h(todayLog.time_in).split(' ')[0]}
                 </p>
-                <p className="text-xs text-slate-500 mt-1">{format12h(todayLog.time_in).split(' ')[1]}</p>
+                <p className="text-xs text-muted-foreground mt-1">{format12h(todayLog.time_in).split(' ')[1]}</p>
               </CardContent>
             </Card>
 
-            <Card className="border-0 shadow-sm">
+            <Card className="border border-border shadow-sm bg-card">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-slate-600">Duration</CardTitle>
+                <CardTitle className="text-sm font-medium text-muted-foreground">Duration</CardTitle>
               </CardHeader>
               <CardContent className="pb-6">
-                <p className="text-2xl font-bold text-slate-900">
+                <p className="text-2xl font-bold text-foreground">
                   {getWorkDuration() || "0h 0m"}
                 </p>
-                <p className="text-xs text-slate-500 mt-1">Excluding lunch break</p>
+                <p className="text-xs text-muted-foreground mt-1">Excluding lunch break</p>
               </CardContent>
             </Card>
 
-            <Card className="border-0 shadow-sm">
+            <Card className="border border-border shadow-sm bg-card">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-slate-600">Status</CardTitle>
+                <CardTitle className="text-sm font-medium text-muted-foreground">Status</CardTitle>
               </CardHeader>
               <CardContent className="pb-6">
-                <p className="text-2xl font-bold text-slate-900">
+                <p className="text-2xl font-bold text-foreground">
                   {todayLog.time_out ? format12h(todayLog.time_out).split(' ')[0] : "Active"}
                 </p>
-                <p className="text-xs text-slate-500 mt-1">
+                <p className="text-xs text-muted-foreground mt-1">
                   {todayLog.time_out ? format12h(todayLog.time_out).split(' ')[1] : "Currently working"}
                 </p>
               </CardContent>

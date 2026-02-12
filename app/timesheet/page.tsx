@@ -141,11 +141,13 @@ export default function WeeklyTimesheet() {
       } = await supabase.auth.getUser()
       if (!user) return
 
+      if (!user.email) return
+
       const { data: employee } = await supabase
         .from("employees")
         .select("id, attendance_log_userid")
-        .eq("email", user.email)
-        .single()
+        .ilike("email", user.email)
+        .maybeSingle()
 
       if (!employee) return
 

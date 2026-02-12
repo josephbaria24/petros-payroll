@@ -40,17 +40,25 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
                 return
             }
 
+            // Diagnostics
+            console.log("[OrganizationContext] Checking membership for:", user.email)
+
+            if (!user.email) {
+                setAllowedOrganizations(["petrosphere"])
+                return
+            }
+
             // Check Petrosphere membership (Supabase)
             const { data: petroEmp } = await supabase
                 .from("employees")
                 .select("id")
-                .eq("email", user.email)
-                .single()
+                .ilike("email", user.email)
+                .maybeSingle()
 
             // Check Palawan membership (LocalStorage)
             const storedPalawan = localStorage.getItem("palawan_employees")
             const palawanEmps = storedPalawan ? JSON.parse(storedPalawan) : []
-            const palawanEmp = palawanEmps.find((e: any) => e.email === user.email)
+            const palawanEmp = palawanEmps.find((e: any) => e.email?.toLowerCase() === user.email?.toLowerCase())
 
             const allowed: Organization[] = []
             if (petroEmp) allowed.push("petrosphere")
