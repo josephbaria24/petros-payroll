@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Download, DollarSign, Users, TrendingUp, Calculator, FileText, Calendar, Building2, PieChart, BarChart3, Settings2 } from "lucide-react"
+import { Download, DollarSign, Users, TrendingUp, Calculator, FileText, Calendar, Building2, PieChart, BarChart3, Settings2, ChevronLeft, ChevronRight } from "lucide-react"
 import { useProtectedPage } from "../hooks/useProtectedPage"
 
 declare global {
@@ -102,10 +102,19 @@ export default function ReportsPage() {
   const [deductions, setDeductions] = useState<Deduction[]>([])
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [employeePayrollDetails, setEmployeePayrollDetails] = useState<EmployeePayrollDetail[]>([])
+  const [currentPage, setCurrentPage] = useState(1)
+  const [currentMonthlyPage, setCurrentMonthlyPage] = useState(1)
+  const [currentDeductionsPage, setCurrentDeductionsPage] = useState(1)
+  const [currentExpensesPage, setCurrentExpensesPage] = useState(1)
+  const pageSize = 10
 
   useEffect(() => {
     fetchReports()
     loadXLSXLibrary()
+    setCurrentPage(1)
+    setCurrentMonthlyPage(1)
+    setCurrentDeductionsPage(1)
+    setCurrentExpensesPage(1)
   }, [activeOrganization])
 
   const loadXLSXLibrary = () => {
@@ -445,6 +454,11 @@ export default function ReportsPage() {
     status: "Status",
   }
 
+  // Pagination Logic
+  const totalPages = Math.ceil(employeePayrollDetails.length / pageSize)
+  const startIndex = (currentPage - 1) * pageSize
+  const paginatedDetails = employeePayrollDetails.slice(startIndex, startIndex + pageSize)
+
   // Calculate additional metrics
   const additionalMetrics = {
     totalEmployees: new Set(employeePayrollDetails.map(emp => emp.employee_id)).size,
@@ -640,46 +654,47 @@ export default function ReportsPage() {
                   <div className="overflow-x-auto">
                     <Table>
                       <TableHeader>
-                        <TableRow className="border-b border-border bg-muted/30">
-                          {visibleColumns.employee_id && <TableHead className="font-medium text-foreground">Employee ID</TableHead>}
-                          {visibleColumns.full_name && <TableHead className="font-medium text-foreground">Full Name</TableHead>}
-                          {visibleColumns.pay_type && <TableHead className="font-medium text-foreground">Pay Type</TableHead>}
-                          {visibleColumns.period && <TableHead className="font-medium text-foreground">Period</TableHead>}
-                          {visibleColumns.basic_salary && <TableHead className="font-medium text-foreground">Basic Salary</TableHead>}
-                          {visibleColumns.allowances && <TableHead className="font-medium text-foreground">Allowances</TableHead>}
-                          {visibleColumns.overtime && <TableHead className="font-medium text-foreground">Overtime</TableHead>}
-                          {visibleColumns.holiday_pay && <TableHead className="font-medium text-foreground">Holiday Pay</TableHead>}
-                          {visibleColumns.gross_pay && <TableHead className="font-medium text-foreground">Gross Pay</TableHead>}
-                          {visibleColumns.absences && <TableHead className="font-medium text-foreground">Absences</TableHead>}
-                          {visibleColumns.cash_advance && <TableHead className="font-medium text-foreground">Cash Advance</TableHead>}
-                          {visibleColumns.total_deductions && <TableHead className="font-medium text-foreground">Total Deductions</TableHead>}
-                          {visibleColumns.net_pay && <TableHead className="font-medium text-foreground">Net Pay</TableHead>}
-                          {visibleColumns.status && <TableHead className="font-medium text-foreground">Status</TableHead>}
+                        <TableRow className="border-b border-slate-200">
+                          {visibleColumns.employee_id && <TableHead className="text-center font-medium text-slate-900">Employee ID</TableHead>}
+                          {visibleColumns.full_name && <TableHead className="text-center font-medium text-slate-900">Full Name</TableHead>}
+                          {visibleColumns.pay_type && <TableHead className="text-center font-medium text-slate-900">Pay Type</TableHead>}
+                          {visibleColumns.period && <TableHead className="text-center font-medium text-slate-900">Period</TableHead>}
+                          {visibleColumns.basic_salary && <TableHead className="text-center font-medium text-slate-900">Basic Salary</TableHead>}
+                          {visibleColumns.allowances && <TableHead className="text-center font-medium text-slate-900">Allowances</TableHead>}
+                          {visibleColumns.overtime && <TableHead className="text-center font-medium text-slate-900">Overtime</TableHead>}
+                          {visibleColumns.holiday_pay && <TableHead className="text-center font-medium text-slate-900">Holiday Pay</TableHead>}
+                          {visibleColumns.gross_pay && <TableHead className="text-center font-medium text-slate-900">Gross Pay</TableHead>}
+                          {visibleColumns.absences && <TableHead className="text-center font-medium text-slate-900">Absences</TableHead>}
+                          {visibleColumns.cash_advance && <TableHead className="text-center font-medium text-slate-900">Cash Advance</TableHead>}
+                          {visibleColumns.total_deductions && <TableHead className="text-center font-medium text-slate-900">Total Deductions</TableHead>}
+                          {visibleColumns.net_pay && <TableHead className="text-center font-medium text-slate-900">Net Pay</TableHead>}
+                          {visibleColumns.status && <TableHead className="text-center font-medium text-slate-900">Status</TableHead>}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {employeePayrollDetails.map((emp) => (
-                          <TableRow key={emp.id} className="border-b border-border hover:bg-muted/30 transition">
-                            {visibleColumns.employee_id && <TableCell className="font-medium text-foreground">{emp.employee_code}</TableCell>}
-                            {visibleColumns.full_name && <TableCell className="font-medium text-foreground">{emp.full_name}</TableCell>}
-                            {visibleColumns.pay_type && <TableCell className="text-muted-foreground">{emp.pay_type}</TableCell>}
+                        {paginatedDetails.map((emp) => (
+                          <TableRow key={emp.id} className="border-b border-slate-100 hover:bg-slate-50 transition">
+                            {visibleColumns.employee_id && <TableCell className="py-4 text-center font-medium text-slate-900">{emp.employee_code}</TableCell>}
+                            {visibleColumns.full_name && <TableCell className="py-4 text-center font-medium text-slate-900">{emp.full_name}</TableCell>}
+                            {visibleColumns.pay_type && <TableCell className="py-4 text-center text-slate-600">{emp.pay_type}</TableCell>}
                             {visibleColumns.period && (
-                              <TableCell className="text-sm text-muted-foreground">
+                              <TableCell className="py-4 text-center text-sm text-slate-600">
                                 {new Date(emp.period_start).toLocaleDateString()} - {new Date(emp.period_end).toLocaleDateString()}
                               </TableCell>
                             )}
-                            {visibleColumns.basic_salary && <TableCell className="text-foreground">₱{emp.basic_salary.toLocaleString()}</TableCell>}
-                            {visibleColumns.allowances && <TableCell className="text-foreground">₱{emp.allowances.toLocaleString()}</TableCell>}
-                            {visibleColumns.overtime && <TableCell className="text-foreground">₱{emp.overtime_pay.toLocaleString()}</TableCell>}
-                            {visibleColumns.holiday_pay && <TableCell className="text-foreground">₱{emp.holiday_pay.toLocaleString()}</TableCell>}
-                            {visibleColumns.gross_pay && <TableCell className="text-foreground">₱{(emp.gross_pay || emp.basic_salary).toLocaleString()}</TableCell>}
-                            {visibleColumns.absences && <TableCell className="text-foreground">₱{emp.absences.toLocaleString()}</TableCell>}
-                            {visibleColumns.cash_advance && <TableCell className="text-foreground">₱{emp.cash_advance.toLocaleString()}</TableCell>}
-                            {visibleColumns.total_deductions && <TableCell className="text-foreground">₱{emp.total_deductions.toLocaleString()}</TableCell>}
-                            {visibleColumns.net_pay && <TableCell className="font-bold text-foreground">₱{(emp.net_pay + emp.allowances).toLocaleString()}</TableCell>}
+                            {visibleColumns.basic_salary && <TableCell className="py-4 text-center text-slate-900">₱{emp.basic_salary.toLocaleString()}</TableCell>}
+                            {visibleColumns.allowances && <TableCell className="py-4 text-center text-slate-900">₱{emp.allowances.toLocaleString()}</TableCell>}
+                            {visibleColumns.overtime && <TableCell className="py-4 text-center text-slate-900">₱{emp.overtime_pay.toLocaleString()}</TableCell>}
+                            {visibleColumns.holiday_pay && <TableCell className="py-4 text-center text-slate-900">₱{emp.holiday_pay.toLocaleString()}</TableCell>}
+                            {visibleColumns.gross_pay && <TableCell className="py-4 text-center text-slate-900">₱{(emp.gross_pay || emp.basic_salary).toLocaleString()}</TableCell>}
+                            {visibleColumns.absences && <TableCell className="py-4 text-center text-slate-900">₱{emp.absences.toLocaleString()}</TableCell>}
+                            {visibleColumns.cash_advance && <TableCell className="py-4 text-center text-slate-900">₱{emp.cash_advance.toLocaleString()}</TableCell>}
+                            {visibleColumns.total_deductions && <TableCell className="py-4 text-center text-slate-900">₱{emp.total_deductions.toLocaleString()}</TableCell>}
+                            {visibleColumns.net_pay && <TableCell className="py-4 text-center font-bold text-slate-900">₱{(emp.net_pay + emp.allowances).toLocaleString()}</TableCell>}
                             {visibleColumns.status && (
-                              <TableCell>
-                                <span className={`px-2 py-1 rounded-full text-xs font-medium border ${statusVariants[emp.status] || "bg-muted text-muted-foreground border-border"
+                              <TableCell className="py-4 text-center">
+                                <span className={`px-2 py-1 rounded-full text-xs font-medium border ${statusVariants[emp.status] || "bg-slate-100 text-slate-600 border-slate-200"
+
                                   }`}>
                                   {emp.status}
                                 </span>
@@ -690,6 +705,61 @@ export default function ReportsPage() {
                       </TableBody>
                     </Table>
                   </div>
+
+                  {/* Pagination Controls */}
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-between p-4 border-t border-slate-100 bg-slate-50/50">
+                      <p className="text-sm text-slate-500">
+                        Showing <span className="font-medium text-slate-700">{startIndex + 1}</span> to <span className="font-medium text-slate-700">{Math.min(startIndex + pageSize, employeePayrollDetails.length)}</span> of <span className="font-medium text-slate-700">{employeePayrollDetails.length}</span> results
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                          disabled={currentPage === 1}
+                          className="h-8 w-8 p-0"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <div className="flex items-center gap-1">
+                          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                            let pageNum;
+                            if (totalPages <= 5) {
+                              pageNum = i + 1;
+                            } else if (currentPage <= 3) {
+                              pageNum = i + 1;
+                            } else if (currentPage >= totalPages - 2) {
+                              pageNum = totalPages - 4 + i;
+                            } else {
+                              pageNum = currentPage - 2 + i;
+                            }
+
+                            return (
+                              <Button
+                                key={pageNum}
+                                variant={currentPage === pageNum ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => setCurrentPage(pageNum)}
+                                className={`h-8 w-8 p-0 ${currentPage === pageNum ? "bg-slate-900" : ""}`}
+                              >
+                                {pageNum}
+                              </Button>
+                            );
+                          })}
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                          disabled={currentPage === totalPages}
+                          className="h-8 w-8 p-0"
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>
@@ -712,57 +782,121 @@ export default function ReportsPage() {
                   <h3 className="text-lg font-medium text-foreground mb-2">No monthly data available</h3>
                   <p className="text-muted-foreground">Generate payroll records to see monthly summaries</p>
                 </div>
-              ) : (
-                <div className="border border-border rounded-lg overflow-hidden">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="border-b border-border bg-muted/30">
-                        <TableHead className="font-medium text-foreground">Month</TableHead>
-                        <TableHead className="font-medium text-foreground">Total Employees</TableHead>
-                        <TableHead className="font-medium text-foreground">Payroll Records</TableHead>
-                        <TableHead className="font-medium text-foreground">Gross Pay</TableHead>
-                        <TableHead className="font-medium text-foreground">Allowances</TableHead>
-                        <TableHead className="font-medium text-foreground">Deductions</TableHead>
-                        <TableHead className="font-medium text-foreground">Net Pay (incl. Allowances)</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {monthlyPayrollSummary.map((summary) => (
-                        <TableRow key={`${summary.year}-${summary.month}`} className="border-b border-border hover:bg-muted/30 transition">
-                          <TableCell className="font-medium text-foreground">{summary.monthYear}</TableCell>
-                          <TableCell className="text-foreground">{summary.totalEmployees}</TableCell>
-                          <TableCell className="text-foreground">{summary.recordCount}</TableCell>
-                          <TableCell className="text-foreground">₱{summary.totalGrossPay.toLocaleString()}</TableCell>
-                          <TableCell className="text-foreground">₱{summary.totalAllowances.toLocaleString()}</TableCell>
-                          <TableCell className="text-foreground">₱{summary.totalDeductions.toLocaleString()}</TableCell>
-                          <TableCell className="font-bold text-foreground">₱{summary.totalNetPay.toLocaleString()}</TableCell>
-                        </TableRow>
-                      ))}
-                      {monthlyPayrollSummary.length > 1 && (
-                        <TableRow className="border-t-2 border-border font-bold bg-muted/50">
-                          <TableCell className="text-foreground">Total</TableCell>
-                          <TableCell className="text-muted-foreground">—</TableCell>
-                          <TableCell className="text-foreground">
-                            {monthlyPayrollSummary.reduce((sum, s) => sum + s.recordCount, 0)}
-                          </TableCell>
-                          <TableCell className="text-foreground">
-                            ₱{monthlyPayrollSummary.reduce((sum, s) => sum + s.totalGrossPay, 0).toLocaleString()}
-                          </TableCell>
-                          <TableCell className="text-foreground">
-                            ₱{monthlyPayrollSummary.reduce((sum, s) => sum + s.totalAllowances, 0).toLocaleString()}
-                          </TableCell>
-                          <TableCell className="text-foreground">
-                            ₱{monthlyPayrollSummary.reduce((sum, s) => sum + s.totalDeductions, 0).toLocaleString()}
-                          </TableCell>
-                          <TableCell className="text-foreground">
-                            ₱{monthlyPayrollSummary.reduce((sum, s) => sum + s.totalNetPay, 0).toLocaleString()}
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
+              ) : (() => {
+                const totalMonthlyPages = Math.ceil(monthlyPayrollSummary.length / pageSize);
+                const startMonthlyIndex = (currentMonthlyPage - 1) * pageSize;
+                const paginatedMonthlySummary = monthlyPayrollSummary.slice(startMonthlyIndex, startMonthlyIndex + pageSize);
+
+                return (
+                  <div className="border border-slate-200 rounded-lg overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="border-b border-slate-200">
+                            <TableHead className="text-center font-medium text-slate-900">Month</TableHead>
+                            <TableHead className="text-center font-medium text-slate-900">Total Employees</TableHead>
+                            <TableHead className="text-center font-medium text-slate-900">Payroll Records</TableHead>
+                            <TableHead className="text-center font-medium text-slate-900">Gross Pay</TableHead>
+                            <TableHead className="text-center font-medium text-slate-900">Allowances</TableHead>
+                            <TableHead className="text-center font-medium text-slate-900">Deductions</TableHead>
+                            <TableHead className="text-center font-medium text-slate-900">Net Pay (incl. Allowances)</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {paginatedMonthlySummary.map((summary) => (
+                            <TableRow key={`${summary.year}-${summary.month}`} className="border-b border-slate-100 hover:bg-slate-50 transition">
+                              <TableCell className="py-4 text-center font-medium text-slate-900">{summary.monthYear}</TableCell>
+                              <TableCell className="py-4 text-center text-slate-900">{summary.totalEmployees}</TableCell>
+                              <TableCell className="py-4 text-center text-slate-900">{summary.recordCount}</TableCell>
+                              <TableCell className="py-4 text-center text-slate-900">₱{summary.totalGrossPay.toLocaleString()}</TableCell>
+                              <TableCell className="py-4 text-center text-slate-900">₱{summary.totalAllowances.toLocaleString()}</TableCell>
+                              <TableCell className="py-4 text-center text-slate-900">₱{summary.totalDeductions.toLocaleString()}</TableCell>
+                              <TableCell className="py-4 text-center font-bold text-slate-900">₱{summary.totalNetPay.toLocaleString()}</TableCell>
+                            </TableRow>
+                          ))}
+                          {monthlyPayrollSummary.length > 1 && currentMonthlyPage === totalMonthlyPages && (
+                            <TableRow className="border-t-2 border-slate-300 font-bold bg-slate-50">
+                              <TableCell className="py-4 text-center text-slate-900">Total</TableCell>
+                              <TableCell className="py-4 text-center text-slate-500">—</TableCell>
+                              <TableCell className="py-4 text-center text-slate-900">
+                                {monthlyPayrollSummary.reduce((sum, s) => sum + s.recordCount, 0)}
+                              </TableCell>
+                              <TableCell className="py-4 text-center text-slate-900">
+                                ₱{monthlyPayrollSummary.reduce((sum, s) => sum + s.totalGrossPay, 0).toLocaleString()}
+                              </TableCell>
+                              <TableCell className="py-4 text-center text-slate-900">
+                                ₱{monthlyPayrollSummary.reduce((sum, s) => sum + s.totalAllowances, 0).toLocaleString()}
+                              </TableCell>
+                              <TableCell className="py-4 text-center text-slate-900">
+                                ₱{monthlyPayrollSummary.reduce((sum, s) => sum + s.totalDeductions, 0).toLocaleString()}
+                              </TableCell>
+                              <TableCell className="py-4 text-center text-slate-900">
+                                ₱{monthlyPayrollSummary.reduce((sum, s) => sum + s.totalNetPay, 0).toLocaleString()}
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+
+                    {/* Pagination Controls */}
+                    {totalMonthlyPages > 1 && (
+                      <div className="flex items-center justify-between p-4 border-t border-slate-100 bg-slate-50/50">
+                        <p className="text-sm text-slate-500">
+                          Showing <span className="font-medium text-slate-700">{startMonthlyIndex + 1}</span> to <span className="font-medium text-slate-700">{Math.min(startMonthlyIndex + pageSize, monthlyPayrollSummary.length)}</span> of <span className="font-medium text-slate-700">{monthlyPayrollSummary.length}</span> results
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentMonthlyPage(prev => Math.max(1, prev - 1))}
+                            disabled={currentMonthlyPage === 1}
+                            className="h-8 w-8 p-0"
+                          >
+                            <ChevronLeft className="h-4 w-4" />
+                          </Button>
+                          <div className="flex items-center gap-1">
+                            {Array.from({ length: Math.min(5, totalMonthlyPages) }, (_, i) => {
+                              let pageNum;
+                              if (totalMonthlyPages <= 5) {
+                                pageNum = i + 1;
+                              } else if (currentMonthlyPage <= 3) {
+                                pageNum = i + 1;
+                              } else if (currentMonthlyPage >= totalMonthlyPages - 2) {
+                                pageNum = totalMonthlyPages - 4 + i;
+                              } else {
+                                pageNum = currentMonthlyPage - 2 + i;
+                              }
+
+                              return (
+                                <Button
+                                  key={pageNum}
+                                  variant={currentMonthlyPage === pageNum ? "default" : "outline"}
+                                  size="sm"
+                                  onClick={() => setCurrentMonthlyPage(pageNum)}
+                                  className={`h-8 w-8 p-0 ${currentMonthlyPage === pageNum ? "bg-slate-900 text-white" : ""}`}
+                                >
+                                  {pageNum}
+                                </Button>
+                              );
+                            })}
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentMonthlyPage(prev => Math.min(totalMonthlyPages, prev + 1))}
+                            disabled={currentMonthlyPage === totalMonthlyPages}
+                            className="h-8 w-8 p-0"
+                          >
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
             </CardContent>
           </Card>
         </TabsContent>
@@ -783,46 +917,108 @@ export default function ReportsPage() {
                   <h3 className="text-lg font-medium text-foreground mb-2">No deduction records found</h3>
                   <p className="text-muted-foreground">Add employee deductions to see detailed reports</p>
                 </div>
-              ) : (
-                <div className="border border-border rounded-lg overflow-hidden">
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="border-b border-border bg-muted/30">
-                          <TableHead className="font-medium text-foreground">Employee</TableHead>
-                          <TableHead className="font-medium text-foreground">SSS</TableHead>
-                          <TableHead className="font-medium text-foreground">PhilHealth</TableHead>
-                          <TableHead className="font-medium text-foreground">Pag-IBIG</TableHead>
-                          <TableHead className="font-medium text-foreground">Withholding Tax</TableHead>
-                          <TableHead className="font-medium text-foreground">Loans</TableHead>
-                          <TableHead className="font-medium text-foreground">Uniform</TableHead>
-                          <TableHead className="font-medium text-foreground">Tardiness</TableHead>
-                          <TableHead className="font-medium text-foreground">Cash Advance</TableHead>
-                          <TableHead className="font-medium text-foreground">Total</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {employeePayrollDetails.map(emp => (
-                          <TableRow key={emp.id} className="border-b border-border hover:bg-muted/30 transition">
-                            <TableCell className="font-medium text-foreground">{emp.full_name}</TableCell>
-                            <TableCell className="text-foreground">₱{emp.sss.toLocaleString()}</TableCell>
-                            <TableCell className="text-foreground">₱{emp.philhealth.toLocaleString()}</TableCell>
-                            <TableCell className="text-foreground">₱{emp.pagibig.toLocaleString()}</TableCell>
-                            <TableCell className="text-foreground">₱{emp.withholding_tax.toLocaleString()}</TableCell>
-                            <TableCell className="text-foreground">₱{emp.loans.toLocaleString()}</TableCell>
-                            <TableCell className="text-foreground">₱{emp.uniform.toLocaleString()}</TableCell>
-                            <TableCell className="text-foreground">₱{emp.tardiness.toLocaleString()}</TableCell>
-                            <TableCell className="text-foreground">₱{emp.cash_advance.toLocaleString()}</TableCell>
-                            <TableCell className="font-bold text-foreground">
-                              ₱{(emp.total_deductions + emp.cash_advance).toLocaleString()}
-                            </TableCell>
+              ) : (() => {
+                const totalDeductionsPages = Math.ceil(employeePayrollDetails.length / pageSize);
+                const startDeductionsIndex = (currentDeductionsPage - 1) * pageSize;
+                const paginatedDeductionsDetails = employeePayrollDetails.slice(startDeductionsIndex, startDeductionsIndex + pageSize);
+
+                return (
+                  <div className="border border-slate-200 rounded-lg overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="border-b border-slate-200">
+                            <TableHead className="text-center font-medium text-slate-900">Employee</TableHead>
+                            <TableHead className="text-center font-medium text-slate-900">SSS</TableHead>
+                            <TableHead className="text-center font-medium text-slate-900">PhilHealth</TableHead>
+                            <TableHead className="text-center font-medium text-slate-900">Pag-IBIG</TableHead>
+                            <TableHead className="text-center font-medium text-slate-900">Withholding Tax</TableHead>
+                            <TableHead className="text-center font-medium text-slate-900">Loans</TableHead>
+                            <TableHead className="text-center font-medium text-slate-900">Uniform</TableHead>
+                            <TableHead className="text-center font-medium text-slate-900">Tardiness</TableHead>
+                            <TableHead className="text-center font-medium text-slate-900">Cash Advance</TableHead>
+                            <TableHead className="text-center font-medium text-slate-900">Total</TableHead>
+
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                        </TableHeader>
+                        <TableBody>
+                          {paginatedDeductionsDetails.map(emp => (
+                            <TableRow key={emp.id} className="border-b border-slate-100 hover:bg-slate-50 transition">
+                              <TableCell className="py-4 text-center font-medium text-slate-900">{emp.full_name}</TableCell>
+                              <TableCell className="py-4 text-center text-slate-900">₱{emp.sss.toLocaleString()}</TableCell>
+                              <TableCell className="py-4 text-center text-slate-900">₱{emp.philhealth.toLocaleString()}</TableCell>
+                              <TableCell className="py-4 text-center text-slate-900">₱{emp.pagibig.toLocaleString()}</TableCell>
+                              <TableCell className="py-4 text-center text-slate-900">₱{emp.withholding_tax.toLocaleString()}</TableCell>
+                              <TableCell className="py-4 text-center text-slate-900">₱{emp.loans.toLocaleString()}</TableCell>
+                              <TableCell className="py-4 text-center text-slate-900">₱{emp.uniform.toLocaleString()}</TableCell>
+                              <TableCell className="py-4 text-center text-slate-900">₱{emp.tardiness.toLocaleString()}</TableCell>
+                              <TableCell className="py-4 text-center text-slate-900">₱{emp.cash_advance.toLocaleString()}</TableCell>
+                              <TableCell className="py-4 text-center font-bold text-slate-900">
+                                ₱{(emp.total_deductions + emp.cash_advance).toLocaleString()}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+
+                    {/* Pagination Controls */}
+                    {totalDeductionsPages > 1 && (
+                      <div className="flex items-center justify-between p-4 border-t border-slate-100 bg-slate-50/50">
+                        <p className="text-sm text-slate-500">
+                          Showing <span className="font-medium text-slate-700">{startDeductionsIndex + 1}</span> to <span className="font-medium text-slate-700">{Math.min(startDeductionsIndex + pageSize, employeePayrollDetails.length)}</span> of <span className="font-medium text-slate-700">{employeePayrollDetails.length}</span> results
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentDeductionsPage(prev => Math.max(1, prev - 1))}
+                            disabled={currentDeductionsPage === 1}
+                            className="h-8 w-8 p-0"
+                          >
+                            <ChevronLeft className="h-4 w-4" />
+                          </Button>
+                          <div className="flex items-center gap-1">
+                            {Array.from({ length: Math.min(5, totalDeductionsPages) }, (_, i) => {
+                              let pageNum;
+                              if (totalDeductionsPages <= 5) {
+                                pageNum = i + 1;
+                              } else if (currentDeductionsPage <= 3) {
+                                pageNum = i + 1;
+                              } else if (currentDeductionsPage >= totalDeductionsPages - 2) {
+                                pageNum = totalDeductionsPages - 4 + i;
+                              } else {
+                                pageNum = currentDeductionsPage - 2 + i;
+                              }
+
+                              return (
+                                <Button
+                                  key={pageNum}
+                                  variant={currentDeductionsPage === pageNum ? "default" : "outline"}
+                                  size="sm"
+                                  onClick={() => setCurrentDeductionsPage(pageNum)}
+                                  className={`h-8 w-8 p-0 ${currentDeductionsPage === pageNum ? "bg-slate-900 text-white" : ""}`}
+                                >
+                                  {pageNum}
+                                </Button>
+                              );
+                            })}
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentDeductionsPage(prev => Math.min(totalDeductionsPages, prev + 1))}
+                            disabled={currentDeductionsPage === totalDeductionsPages}
+                            className="h-8 w-8 p-0"
+                          >
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
-              )}
+                );
+              })()}
             </CardContent>
           </Card>
         </TabsContent>
@@ -843,30 +1039,91 @@ export default function ReportsPage() {
                   <h3 className="text-lg font-medium text-foreground mb-2">No expense records found</h3>
                   <p className="text-muted-foreground">Add company expenses to see financial reports</p>
                 </div>
-              ) : (
-                <div className="border border-border rounded-lg overflow-hidden">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="border-b border-border bg-muted/30">
-                        <TableHead className="font-medium text-foreground">Date</TableHead>
-                        <TableHead className="font-medium text-foreground">Name</TableHead>
-                        <TableHead className="font-medium text-foreground">Category</TableHead>
-                        <TableHead className="font-medium text-foreground">Amount</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {expenses.map((e) => (
-                        <TableRow key={e.id} className="border-b border-border hover:bg-muted/30 transition">
-                          <TableCell className="text-muted-foreground">{new Date(e.incurred_on).toLocaleDateString()}</TableCell>
-                          <TableCell className="font-medium text-foreground">{e.expense_name}</TableCell>
-                          <TableCell className="text-muted-foreground">{e.category}</TableCell>
-                          <TableCell className="font-medium text-foreground">₱{e.amount.toLocaleString()}</TableCell>
+              ) : (() => {
+                const totalExpensesPages = Math.ceil(expenses.length / pageSize);
+                const startExpensesIndex = (currentExpensesPage - 1) * pageSize;
+                const paginatedExpenses = expenses.slice(startExpensesIndex, startExpensesIndex + pageSize);
+
+                return (
+                  <div className="border border-slate-200 rounded-lg overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="border-b border-slate-200">
+                          <TableHead className="text-center font-medium text-slate-900">Date</TableHead>
+                          <TableHead className="text-center font-medium text-slate-900">Name</TableHead>
+                          <TableHead className="text-center font-medium text-slate-900">Category</TableHead>
+                          <TableHead className="text-center font-medium text-slate-900">Amount</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
+                      </TableHeader>
+                      <TableBody>
+                        {paginatedExpenses.map((e) => (
+                          <TableRow key={e.id} className="border-b border-slate-100 hover:bg-slate-50 transition">
+                            <TableCell className="py-4 text-center text-slate-900">{new Date(e.incurred_on).toLocaleDateString()}</TableCell>
+                            <TableCell className="py-4 text-center font-medium text-slate-900">{e.expense_name}</TableCell>
+                            <TableCell className="py-4 text-center text-slate-600">{e.category}</TableCell>
+                            <TableCell className="py-4 text-center font-medium text-slate-900">₱{e.amount.toLocaleString()}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+
+                    {/* Pagination Controls */}
+                    {totalExpensesPages > 1 && (
+                      <div className="flex items-center justify-between p-4 border-t border-slate-100 bg-slate-50/50">
+                        <p className="text-sm text-slate-500">
+                          Showing <span className="font-medium text-slate-700">{startExpensesIndex + 1}</span> to <span className="font-medium text-slate-700">{Math.min(startExpensesIndex + pageSize, expenses.length)}</span> of <span className="font-medium text-slate-700">{expenses.length}</span> results
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentExpensesPage(prev => Math.max(1, prev - 1))}
+                            disabled={currentExpensesPage === 1}
+                            className="h-8 w-8 p-0"
+                          >
+                            <ChevronLeft className="h-4 w-4" />
+                          </Button>
+                          <div className="flex items-center gap-1">
+                            {Array.from({ length: Math.min(5, totalExpensesPages) }, (_, i) => {
+                              let pageNum;
+                              if (totalExpensesPages <= 5) {
+                                pageNum = i + 1;
+                              } else if (currentExpensesPage <= 3) {
+                                pageNum = i + 1;
+                              } else if (currentExpensesPage >= totalExpensesPages - 2) {
+                                pageNum = totalExpensesPages - 4 + i;
+                              } else {
+                                pageNum = currentExpensesPage - 2 + i;
+                              }
+
+                              return (
+                                <Button
+                                  key={pageNum}
+                                  variant={currentExpensesPage === pageNum ? "default" : "outline"}
+                                  size="sm"
+                                  onClick={() => setCurrentExpensesPage(pageNum)}
+                                  className={`h-8 w-8 p-0 ${currentExpensesPage === pageNum ? "bg-slate-900 text-white" : ""}`}
+                                >
+                                  {pageNum}
+                                </Button>
+                              );
+                            })}
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentExpensesPage(prev => Math.min(totalExpensesPages, prev + 1))}
+                            disabled={currentExpensesPage === totalExpensesPages}
+                            className="h-8 w-8 p-0"
+                          >
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </CardContent>
           </Card>
         </TabsContent>
