@@ -203,6 +203,25 @@ export default function EmployeesPage() {
       if (error) {
         console.error("Error saving employee:", error.message)
       } else {
+        // Sync with emp_email table
+        const { full_name, email } = form
+        const emailLower = email.trim().toLowerCase()
+
+        // Check if it already exists
+        const { data: existing } = await supabase
+          .from("emp_email")
+          .select("id")
+          .eq("corp_email", emailLower)
+          .maybeSingle()
+
+        if (!existing && full_name && emailLower) {
+          await supabase.from("emp_email").insert([{
+            full_name: full_name,
+            corp_email: emailLower
+          }])
+          fetchEmailSuggestions()
+        }
+
         setOpen(false)
         setForm(initialForm)
         setIsEditing(false)
@@ -395,25 +414,53 @@ export default function EmployeesPage() {
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="full_name_email">Employee Identity</Label>
-                      <Select
-                        onValueChange={(v) => {
-                          const [name, email] = v.split("|||")
-                          setForm({ ...form, full_name: name, email: email })
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select from directory..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {emailSuggestions.map((entry) => (
-                            <SelectItem key={entry.corp_email} value={`${entry.full_name}|||${entry.corp_email}`}>
-                              {entry.full_name} ({entry.corp_email})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    <div className="space-y-4 p-4 bg-muted/30 rounded-lg border border-border/50">
+                      <div className="space-y-2">
+                        <Label htmlFor="full_name_lookup" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Directory Lookup (Optional Helper)</Label>
+                        <Select
+                          onValueChange={(v) => {
+                            const [name, email] = v.split("|||")
+                            setForm({ ...form, full_name: name, email: email })
+                          }}
+                        >
+                          <SelectTrigger id="full_name_lookup">
+                            <SelectValue placeholder="Select from directory..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {emailSuggestions.map((entry) => (
+                              <SelectItem key={entry.corp_email} value={`${entry.full_name}|||${entry.corp_email}`}>
+                                {entry.full_name} ({entry.corp_email})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <p className="text-[10px] text-muted-foreground">Selecting an identity will pre-fill the name and email fields below.</p>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="full_name">Full Name</Label>
+                          <Input
+                            id="full_name"
+                            required
+                            value={form.full_name}
+                            onChange={(e) => setForm({ ...form, full_name: e.target.value })}
+                            placeholder="e.g. Juan Dela Cruz"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="email">Corporate Email</Label>
+                          <Input
+                            id="email"
+                            type="email"
+                            required
+                            value={form.email}
+                            onChange={(e) => setForm({ ...form, email: e.target.value })}
+                            placeholder="e.g. juan@petrosphere.com.ph"
+                          />
+                        </div>
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
