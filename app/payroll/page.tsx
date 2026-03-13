@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { CalendarIcon, Eye, Trash2, Plus, X, Calculator, Users, DollarSign, TrendingUp, FileText, Check, XCircle, Clock, CheckCircle, ChevronDown, CheckCircle2, AlertCircle, Mail } from "lucide-react"
+import { CalendarIcon, Eye, Trash2, Plus, X, Calculator, Users, PhilippinePeso, TrendingUp, FileText, Check, XCircle, Clock, CheckCircle, ChevronDown, CheckCircle2, AlertCircle, Mail } from "lucide-react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 import {
@@ -798,11 +798,26 @@ export default function PayrollPage() {
 
         let sss = 0, philhealth = 0, pagibig = 0, loans = 0
 
+        const columnMap: Record<string, string> = {
+          sss: "sss",
+          philhealth: "philhealth",
+          pagibig: "pagibig",
+          sss_loan: "loans",
+          pagibig_loan: "loans",
+          salary_loan: "loans",
+          other: "loans"
+        }
+
         employeeDeductions.forEach(d => {
-          if (d.type === 'sss') sss += d.amount
-          else if (d.type === 'philhealth') philhealth += d.amount
-          else if (d.type === 'pagibig') pagibig += d.amount
-          else if (d.type === 'other') loans += d.amount
+          const type = d.type.toLowerCase()
+          if (type === 'sss') sss += d.amount
+          else if (type === 'philhealth') philhealth += d.amount
+          else if (type === 'pagibig') pagibig += d.amount
+          else if (columnMap[type] === 'loans') loans += d.amount
+          else {
+            // Default any other custom types to loans
+            loans += d.amount
+          }
         })
 
         const adjustment = employeeAdjustments.find(a => a.employee_id === employee_id)
@@ -1083,7 +1098,7 @@ export default function PayrollPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div className="bg-card p-3 rounded-lg border border-border shadow-sm flex items-center gap-3">
             <div className="p-2 bg-muted rounded-md">
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              <PhilippinePeso className="h-4 w-4 text-muted-foreground" />
             </div>
             <div className="min-w-0">
               <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider leading-none mb-1">Basic Salary</p>

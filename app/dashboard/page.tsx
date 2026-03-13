@@ -40,7 +40,7 @@ import {
 import {
   MoreHorizontal,
   Users,
-  DollarSign,
+  PhilippinePeso,
   TrendingUp,
   Plus,
   Search,
@@ -632,10 +632,10 @@ export default function DashboardPage() {
             <div className="p-3 bg-muted/30 rounded-lg border border-border flex items-center justify-between">
               <div className="space-y-0.5">
                 <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Total Payroll</p>
-                <p className="text-lg font-bold text-foreground">₱{totalPayroll.toLocaleString()}</p>
+                <p className="text-lg font-bold text-foreground">₱${totalPayroll.toLocaleString()}</p>
               </div>
               <div className="h-8 w-8 rounded-full bg-background border border-border flex items-center justify-center shadow-sm">
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
+                <PhilippinePeso className="h-4 w-4 text-muted-foreground" />
               </div>
             </div>
             <div className="p-3 bg-muted/30 rounded-lg border border-border flex items-center justify-between">
@@ -967,7 +967,7 @@ export default function DashboardPage() {
                       {new Date(record.period_end).toLocaleDateString()}
                     </TableCell>
                     <TableCell className="font-medium text-foreground">
-                      ₱{record.net_pay.toLocaleString()}
+                      ₱${record.net_pay.toLocaleString()}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {record.pay_type}

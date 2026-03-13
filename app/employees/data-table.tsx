@@ -86,10 +86,11 @@ export function DataTable<TData, TValue>({
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
-                  className="hover:bg-muted/50 border-b border-border last:border-0 transition-colors cursor-default"
+                  onClick={() => onEdit?.(row.original)}
+                  className="hover:bg-muted/50 border-b border-border last:border-0 transition-colors cursor-pointer group"
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id} className="py-3">
+                    <TableCell key={cell.id} className="py-3 group-hover:text-primary transition-colors">
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}

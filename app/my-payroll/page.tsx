@@ -15,7 +15,7 @@ import {
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Download, DollarSign, FileText, TrendingUp, Calendar, ChevronRight } from "lucide-react"
+import { FileText, Download, Eye, PhilippinePeso, Trash2, Search, Info, TrendingUp, Calendar, ChevronRight } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { QRCodeSVG } from "qrcode.react"
 
@@ -314,7 +314,7 @@ export default function MyPayrollPage() {
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-sm font-medium text-muted-foreground">Latest Pay</CardTitle>
-                    <DollarSign className="h-5 w-5 text-muted-foreground" />
+                    <PhilippinePeso className="h-5 w-5 text-muted-foreground" />
                   </div>
                 </CardHeader>
                 <CardContent className="pb-6">

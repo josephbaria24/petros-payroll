@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Download, DollarSign, Users, TrendingUp, Calculator, FileText, Calendar, Building2, PieChart, BarChart3, Settings2, ChevronLeft, ChevronRight } from "lucide-react"
+import { Download, PhilippinePeso, Users, TrendingUp, Calculator, FileText, Calendar, Building2, PieChart, BarChart3, Settings2, ChevronLeft, ChevronRight } from "lucide-react"
 import { useProtectedPage } from "../hooks/useProtectedPage"
 
 declare global {
@@ -481,7 +481,7 @@ export default function ReportsPage() {
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <p className="text-sm font-medium text-muted-foreground">Total Gross Payroll</p>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              <PhilippinePeso className="h-4 w-4 text-muted-foreground" />
             </div>
           </CardHeader>
           <CardContent className="pt-0">
