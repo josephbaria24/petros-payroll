@@ -66,6 +66,11 @@ type PayrollRecord = {
   status: string
   absences?: number
   cash_advance?: number
+  sss?: number
+  philhealth?: number
+  pagibig?: number
+  withholding_tax?: number
+  loans?: number
   total_deductions?: number
   net_after_deductions?: number
   total_net?: number
@@ -105,7 +110,7 @@ type EmployeeAdjustment = {
   overtimeEntries: OvertimeEntry[]
   cashAdvance?: number
   otherDeductions?: number
-
+  withholdingTax?: number
 }
 
 const statusVariants: Record<string, string> = {
@@ -500,37 +505,15 @@ export default function PayrollPage() {
       return
     }
 
-    const { data: deductions, error: dError } = await supabase
-      .from("deductions")
-      .select("employee_id, amount, created_at")
-
-    if (dError) {
-      console.error(dError)
-      return
-    }
-
     const processedRecords = payroll.map((rec: any) => {
-      const otherDeductions = deductions
-        ?.filter(d => d.employee_id === rec.employee_id)
-        .reduce((sum, d) => sum + d.amount, 0) || 0
-
-      const totalDeductions = otherDeductions +
-        (rec.absences || 0) +
-        (rec.cash_advance || 0) +
-        (rec.sss || 0) +
-        (rec.philhealth || 0) +
-        (rec.pagibig || 0) +
-        (rec.loans || 0) +
-        (rec.withholding_tax || 0)
-
       const grossPay = (rec.basic_salary || 0) +
         (rec.overtime_pay || 0) +
         (rec.holiday_pay || 0) +
         (rec.night_diff || 0) +
         (rec.allowances || 0)
+      
+      const totalDeductions = (rec.total_deductions || 0)
       const netAfterDeductions = grossPay - totalDeductions
-
-
 
       return {
         id: rec.id,
@@ -546,9 +529,14 @@ export default function PayrollPage() {
         status: rec.status,
         absences: rec.absences || 0,
         cash_advance: rec.cash_advance || 0,
+        sss: rec.sss || 0,
+        philhealth: rec.philhealth || 0,
+        pagibig: rec.pagibig || 0,
+        withholding_tax: rec.withholding_tax || 0,
+        loans: rec.loans || 0,
         total_deductions: totalDeductions,
         net_after_deductions: netAfterDeductions,
-        total_net: netAfterDeductions + (rec.allowances || 0),
+        total_net: netAfterDeductions,
         created_at: rec.created_at,
         updated_at: rec.updated_at || rec.created_at,
         creator_name: (rec as any).profiles?.[0]?.fullname || (rec as any).profiles?.fullname ||
@@ -845,9 +833,12 @@ export default function PayrollPage() {
 
         const basicSalary = base_salary
         const cashAdvance = adjustment?.cashAdvance || 0
-        const totalDeductions = sss + philhealth + pagibig + loans + absenceDeduction + cashAdvance
+        const otherDeductions = adjustment?.otherDeductions || 0
+        const withholdingTax = adjustment?.withholdingTax || 0
+        
+        const totalDeductions = sss + philhealth + pagibig + loans + absenceDeduction + cashAdvance + otherDeductions + withholdingTax
         const currentAllowance = allowance || 0
-
+        
         let holidayPay = 0
         if (adjustment?.holidayPay && adjustment.holidayPay > 0) {
           holidayPay = adjustment.holidayPay
@@ -868,7 +859,8 @@ export default function PayrollPage() {
           sss,
           philhealth,
           pagibig,
-          loans,
+          loans: loans + otherDeductions,
+          withholding_tax: withholdingTax,
           cash_advance: cashAdvance,
           gross_pay: grossPay,
           total_deductions: totalDeductions,
@@ -1479,11 +1471,11 @@ export default function PayrollPage() {
 
                         <div className="border-t border-border pt-4">
                           <Label className="text-sm font-medium text-foreground mb-3 block">
-                            Other Deductions (SSS, PhilHealth, etc.)
+                            Other Deductions & Tax
                           </Label>
                           <div className="grid grid-cols-2 gap-4">
                             <div>
-                              <Label className="text-sm text-muted-foreground">Amount</Label>
+                              <Label className="text-sm text-muted-foreground">Other Amount (Loans)</Label>
                               <Input
                                 type="number"
                                 min="0"
@@ -1495,12 +1487,25 @@ export default function PayrollPage() {
                                 }
                               />
                             </div>
+                            <div>
+                              <Label className="text-sm text-muted-foreground">Withholding Tax</Label>
+                              <Input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                placeholder="0.00"
+                                value={adjustment.withholdingTax || ""}
+                                onChange={(e) =>
+                                  updateEmployeeAdjustment(index, "withholdingTax", parseFloat(e.target.value) || 0)
+                                }
+                              />
+                            </div>
                           </div>
 
-                          {adjustment.otherDeductions && adjustment.otherDeductions > 0 && (
+                          {( (adjustment.otherDeductions && adjustment.otherDeductions > 0) || (adjustment.withholdingTax && adjustment.withholdingTax > 0) ) && (
                             <div className="text-sm text-foreground bg-muted p-3 rounded mt-3">
-                              <span className="font-medium">Other Deductions:</span>{" "}
-                              -₱{adjustment.otherDeductions.toLocaleString()}
+                              <span className="font-medium">Adjustment Total:</span>{" "}
+                              -₱{((adjustment.otherDeductions || 0) + (adjustment.withholdingTax || 0)).toLocaleString()}
                             </div>
                           )}
                         </div>
@@ -2030,13 +2035,18 @@ export default function PayrollPage() {
                 e.preventDefault()
                 const toastId = toast.loading("Updating payroll...")
 
-                const grossPay = (editRecord.basic_salary || 0) + (editRecord.overtime_pay || 0) + (editRecord.holiday_pay || 0)
-                const totalDeductions =
-                  (editRecord.total_deductions || 0) +
-                  (editRecord.cash_advance || 0)
-                const netAfterDeductions = grossPay - totalDeductions
-                const totalNet = netAfterDeductions + (editRecord.allowances || 0)
-
+                const sss = editRecord.sss || 0
+                const philhealth = editRecord.philhealth || 0
+                const pagibig = editRecord.pagibig || 0
+                const withholding_tax = editRecord.withholding_tax || 0
+                const loans = editRecord.loans || 0
+                const absences = editRecord.absences || 0
+                const cash_advance = editRecord.cash_advance || 0
+                
+                const totalDeductions = sss + philhealth + pagibig + withholding_tax + loans + absences + cash_advance
+                
+                const grossPay = (editRecord.basic_salary || 0) + (editRecord.overtime_pay || 0) + (editRecord.holiday_pay || 0) + (editRecord.allowances || 0)
+                const netPay = grossPay - totalDeductions
 
                 const { error } = await supabase
                   .from("payroll_records")
@@ -2045,12 +2055,18 @@ export default function PayrollPage() {
                     overtime_pay: editRecord.overtime_pay,
                     allowances: editRecord.allowances || 0,
                     holiday_pay: editRecord.holiday_pay || 0,
-                    absences: editRecord.absences || 0,
-                    cash_advance: editRecord.cash_advance || 0,
-                    gross_pay: grossPay,
-                    total_deductions: editRecord.total_deductions || 0,
-                    net_pay: netAfterDeductions,
+                    absences: absences,
+                    cash_advance: cash_advance,
+                    sss: sss,
+                    philhealth: philhealth,
+                    pagibig: pagibig,
+                    withholding_tax: withholding_tax,
+                    loans: loans,
+                    gross_pay: (editRecord.basic_salary || 0) + (editRecord.overtime_pay || 0) + (editRecord.holiday_pay || 0), // Keeping original gross pay definition if needed
+                    total_deductions: totalDeductions,
+                    net_pay: netPay,
                     status: editRecord.status,
+                    updated_at: new Date().toISOString()
                   })
                   .eq("id", editRecord.id)
 
@@ -2065,8 +2081,9 @@ export default function PayrollPage() {
                       rec.id === editRecord.id ? {
                         ...rec,
                         ...editRecord,
-                        total_net: totalNet,
-                        net_after_deductions: netAfterDeductions
+                        total_deductions: totalDeductions,
+                        net_after_deductions: netPay,
+                        total_net: netPay
                       } : rec
                     )
                     setSelectedPeriodRecords(updatedRecords)
@@ -2205,19 +2222,84 @@ export default function PayrollPage() {
 
                 </div>
 
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">SSS Deduction</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0.00"
+                      value={editRecord.sss || ""}
+                      onChange={(e) =>
+                        setEditRecord((prev) =>
+                          prev ? { ...prev, sss: parseFloat(e.target.value) || 0 } : prev
+                        )
+                      }
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">PhilHealth Deduction</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0.00"
+                      value={editRecord.philhealth || ""}
+                      onChange={(e) =>
+                        setEditRecord((prev) =>
+                          prev ? { ...prev, philhealth: parseFloat(e.target.value) || 0 } : prev
+                        )
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Pag-IBIG Deduction</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0.00"
+                      value={editRecord.pagibig || ""}
+                      onChange={(e) =>
+                        setEditRecord((prev) =>
+                          prev ? { ...prev, pagibig: parseFloat(e.target.value) || 0 } : prev
+                        )
+                      }
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Withholding Tax</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0.00"
+                      value={editRecord.withholding_tax || ""}
+                      onChange={(e) =>
+                        setEditRecord((prev) =>
+                          prev ? { ...prev, withholding_tax: parseFloat(e.target.value) || 0 } : prev
+                        )
+                      }
+                    />
+                  </div>
+                </div>
+
                 <div>
-                  <Label className="text-sm font-medium text-foreground">Other Deductions</Label>
+                  <Label className="text-sm font-medium text-muted-foreground">Loans</Label>
                   <Input
                     type="number"
                     step="0.01"
                     min="0"
                     placeholder="0.00"
-                    value={(editRecord.total_deductions || 0) - (editRecord.absences || 0)}
+                    value={editRecord.loans || ""}
                     onChange={(e) => {
-                      const otherDeductions = parseFloat(e.target.value) || 0
-                      const totalDeductions = (editRecord.absences || 0) + otherDeductions
+                      const val = parseFloat(e.target.value) || 0
                       setEditRecord((prev) =>
-                        prev ? { ...prev, total_deductions: totalDeductions } : prev
+                        prev ? { ...prev, loans: val } : prev
                       )
                     }}
                   />
@@ -2248,39 +2330,35 @@ export default function PayrollPage() {
 
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <span className="text-muted-foreground">Gross Pay (Basic + Overtime):</span>
+                    <span className="text-muted-foreground">Gross Pay (Basic + OT + Holiday + Allowance):</span>
                     <div className="font-medium text-foreground">
-                      ₱{((editRecord.basic_salary || 0) + (editRecord.overtime_pay || 0)).toLocaleString()}
+                      ₱{((editRecord.basic_salary || 0) + (editRecord.overtime_pay || 0) + (editRecord.holiday_pay || 0) + (editRecord.allowances || 0)).toLocaleString()}
                     </div>
                   </div>
 
                   <div>
                     <span className="text-muted-foreground">Total Deductions:</span>
-                    <div className="font-medium text-foreground">
-                      ₱{(editRecord.total_deductions || 0).toLocaleString()}
+                    <div className="font-medium text-foreground text-red-600">
+                      ₱{(
+                        (editRecord.sss || 0) + 
+                        (editRecord.philhealth || 0) + 
+                        (editRecord.pagibig || 0) + 
+                        (editRecord.withholding_tax || 0) + 
+                        (editRecord.loans || 0) + 
+                        (editRecord.absences || 0) + 
+                        (editRecord.cash_advance || 0)
+                      ).toLocaleString()}
                     </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="text-muted-foreground">Net After Deductions:</span>
-                    <div className="font-medium text-foreground">
+                <div className="pt-2 border-t border-border">
+                  <div className="flex justify-between items-center">
+                    <span className="text-base font-semibold text-foreground">Final Net Pay:</span>
+                    <div className="text-xl font-bold text-primary">
                       ₱{(
-                        ((editRecord.basic_salary || 0) + (editRecord.overtime_pay || 0)) -
-                        ((editRecord.total_deductions || 0) + (editRecord.cash_advance || 0))
-                      ).toLocaleString()}
-
-                    </div>
-                  </div>
-
-                  <div>
-                    <span className="text-muted-foreground">Total Net (with Allowances):</span>
-                    <div className="font-bold text-foreground">
-                      ₱{(
-                        ((editRecord.basic_salary || 0) + (editRecord.overtime_pay || 0)) -
-                        ((editRecord.total_deductions || 0) + (editRecord.cash_advance || 0)) +
-                        (editRecord.allowances || 0)
+                        ((editRecord.basic_salary || 0) + (editRecord.overtime_pay || 0) + (editRecord.holiday_pay || 0) + (editRecord.allowances || 0)) -
+                        ((editRecord.sss || 0) + (editRecord.philhealth || 0) + (editRecord.pagibig || 0) + (editRecord.withholding_tax || 0) + (editRecord.loans || 0) + (editRecord.absences || 0) + (editRecord.cash_advance || 0))
                       ).toLocaleString()}
                     </div>
                   </div>
