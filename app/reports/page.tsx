@@ -10,6 +10,9 @@ import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Download, PhilippinePeso, Users, TrendingUp, Calculator, FileText, Calendar, Building2, PieChart, BarChart3, Settings2, ChevronLeft, ChevronRight } from "lucide-react"
 import { useProtectedPage } from "../hooks/useProtectedPage"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
 
 declare global {
   interface Window {
@@ -35,6 +38,15 @@ type MonthlyPayrollSummary = {
   totalNetPay: number
   totalAllowances: number
   recordCount: number
+  totalSSS: number
+  totalPhilHealth: number
+  totalPagIbig: number
+  totalWithholdingTax: number
+  totalLoans: number
+  totalUniform: number
+  totalTardiness: number
+  totalCashAdvance: number
+  totalAbsences: number
 }
 
 type EmployeePayrollDetail = {
@@ -63,10 +75,14 @@ type EmployeePayrollDetail = {
   uniform: number
   tardiness: number
   cash_advance: number
+  night_diff: number
+  bonuses: number
+  commission: number
 }
 
 type Deduction = {
   id: string
+  employee_id: string
   employee_name: string
   type: string
   amount: number
@@ -108,6 +124,50 @@ export default function ReportsPage() {
   const [currentExpensesPage, setCurrentExpensesPage] = useState(1)
   const pageSize = 10
 
+  const currentYear = new Date().getFullYear()
+  const [selectedYear, setSelectedYear] = useState<string>("all")
+  const [selectedMonth, setSelectedMonth] = useState<string>("all")
+
+  const years = Array.from({ length: 5 }, (_, i) => (currentYear - i).toString())
+  const months = [
+    { value: "01", label: "January" },
+    { value: "02", label: "February" },
+    { value: "03", label: "March" },
+    { value: "04", label: "April" },
+    { value: "05", label: "May" },
+    { value: "06", label: "June" },
+    { value: "07", label: "July" },
+    { value: "08", label: "August" },
+    { value: "09", label: "September" },
+    { value: "10", label: "October" },
+    { value: "11", label: "November" },
+    { value: "12", label: "December" },
+  ]
+
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false)
+  const [exportYear, setExportYear] = useState<string>(currentYear.toString())
+  const [exportMonth, setExportMonth] = useState<string>((new Date().getMonth() + 1).toString().padStart(2, '0'))
+  const [exportPeriod, setExportPeriod] = useState<string>("all")
+
+  // Reset period when year or month changes
+  useEffect(() => {
+    setExportPeriod("all")
+  }, [exportYear, exportMonth])
+
+  // Function to get available payroll periods based on selected year/month in export dialog
+  const getAvailablePeriods = () => {
+    const periods = employeePayrollDetails
+      .filter(emp => {
+        const date = new Date(emp.period_end)
+        const yearMatch = exportYear === "all" || date.getFullYear().toString() === exportYear
+        const monthMatch = exportMonth === "all" || (date.getMonth() + 1).toString().padStart(2, '0') === exportMonth
+        return yearMatch && monthMatch
+      })
+      .map(emp => `${emp.period_start} to ${emp.period_end}`)
+
+    return Array.from(new Set(periods)).sort().reverse()
+  }
+
   useEffect(() => {
     fetchReports()
     loadXLSXLibrary()
@@ -128,53 +188,107 @@ export default function ReportsPage() {
     }
   }
 
-  const exportToExcel = () => {
+  const exportToExcel = (targetYear?: string, targetMonth?: string) => {
     if (!window.XLSX) {
       alert('Excel library is still loading. Please try again in a moment.')
       return
     }
 
-    if (employeePayrollDetails.length === 0) {
-      alert('No employee payroll data to export')
+    const yearToFilter = targetYear || selectedYear
+    const monthToFilter = targetMonth || selectedMonth
+
+    const filteredRecords = employeePayrollDetails.filter(emp => {
+      // If a specific period is selected in the dialog
+      if (exportPeriod !== "all") {
+        const [start, end] = exportPeriod.split(' to ')
+        return emp.period_start === start && emp.period_end === end
+      }
+
+      if (yearToFilter === "all" && monthToFilter === "all") return true
+      const date = new Date(emp.period_end)
+      const yearMatch = yearToFilter === "all" || date.getFullYear().toString() === yearToFilter
+      const monthMatch = monthToFilter === "all" || (date.getMonth() + 1).toString().padStart(2, '0') === monthToFilter
+      return yearMatch && monthMatch
+    })
+
+    if (filteredRecords.length === 0) {
+      alert('No employee payroll data found for the selected period')
       return
     }
 
-    const excelData = employeePayrollDetails.map(emp => ({
-      'Employee ID': emp.employee_id,
-      'Employee Code': emp.employee_code || 'N/A',
-      'Full Name': emp.full_name,
-      'Pay Type': emp.pay_type,
-      'Period Start': emp.period_start,
-      'Period End': emp.period_end,
-      'Basic Salary': emp.basic_salary,
-      'Allowances': emp.allowances,
-      'Overtime Pay': emp.overtime_pay,
-      'Holiday Pay': emp.holiday_pay,
-      'Gross Pay': emp.gross_pay,
-      'Absences': emp.absences,
-      'SSS': emp.sss,
-      'PhilHealth': emp.philhealth,
-      'Pag-IBIG': emp.pagibig,
-      'Withholding Tax': emp.withholding_tax,
-      'Loans': emp.loans,
-      'Uniform': emp.uniform,
-      'Tardiness': emp.tardiness,
-      'Cash Advance': emp.cash_advance, // ✅ add this
-      'Total Deductions': emp.total_deductions + emp.cash_advance, // ✅ updated
-      'Net Pay': emp.net_pay + emp.allowances - emp.cash_advance, // ✅ adjusted
-      'Status': emp.status,
-      'Month/Year': emp.month_year
-    }))
+    // Get all unique deduction types for dynamic columns
+    const dynamicDeductionTypes = Array.from(new Set(deductions.map(d => d.type)))
+
+    const excelData = filteredRecords.map(emp => {
+      const row: any = {
+        'Employee ID': emp.employee_id,
+        'Employee Code': emp.employee_code || 'N/A',
+        'Full Name': emp.full_name,
+        'Pay Type': emp.pay_type,
+        'Period Start': emp.period_start,
+        'Period End': emp.period_end,
+        'Basic Salary': emp.basic_salary,
+        'Allowances': emp.allowances,
+        'Overtime Pay': emp.overtime_pay,
+        'Holiday Pay': emp.holiday_pay,
+        'Night Diff': emp.night_diff || 0,
+        'Bonuses': emp.bonuses || 0,
+        'Commission': emp.commission || 0,
+        'Gross Pay': emp.gross_pay,
+        'Absences': emp.absences,
+        'SSS': emp.sss,
+        'PhilHealth': emp.philhealth,
+        'Pag-IBIG': emp.pagibig,
+        'Withholding Tax': emp.withholding_tax,
+        'Loans': emp.loans,
+        'Uniform': emp.uniform,
+        'Tardiness': emp.tardiness,
+        'Cash Advance': emp.cash_advance,
+      }
+
+      // Add dynamic deductions
+      dynamicDeductionTypes.forEach(type => {
+        // Find if this specific employee has this deduction in this period
+        // Note: The 'deductions' state seems to be global, but for export we might need to filter by employee
+        // However, the current schema/state doesn't easily link 'deductions' table entries to a specific 'payroll_record'
+        // unless we join them. For now, since 'deductions' are fetched separately, we'll try to find any matching
+        // employee deductions. A better way would be to have them in EmployeePayrollDetail.
+        row[type] = deductions
+          .filter(d => d.employee_id === emp.employee_id) // This assumes employee_id is available in Deduction
+          .filter(d => {
+            const dDate = new Date(d.created_at)
+            const pStart = new Date(emp.period_start)
+            const pEnd = new Date(emp.period_end)
+            return dDate >= pStart && dDate <= pEnd && d.type === type
+          })
+          .reduce((sum, d) => sum + d.amount, 0)
+      })
+
+      row['Total Deductions'] = emp.total_deductions
+      row['Net Pay'] = emp.net_pay
+      row['Status'] = emp.status
+      row['Month/Year'] = emp.month_year
+      return row
+    })
 
     const wb = window.XLSX.utils.book_new()
     const ws = window.XLSX.utils.json_to_sheet(excelData)
 
-    ws['!cols'] = Array(24).fill({ width: 15 })
+    ws['!cols'] = Array(excelData.length > 0 ? Object.keys(excelData[0]).length : 24).fill({ width: 15 })
 
     window.XLSX.utils.book_append_sheet(wb, ws, "Employee Payroll Details")
 
     const currentDate = new Date().toISOString().split('T')[0]
-    const filename = `Employee_Payroll_Report_${currentDate}.xlsx`
+    let periodLabel = ""
+    
+    if (exportPeriod !== "all") {
+      periodLabel = `_${exportPeriod.replace(/ to /g, '_')}`
+    } else if (yearToFilter !== "all" || monthToFilter !== "all") {
+      const monthLabel = monthToFilter !== "all" ? months.find(m => m.value === monthToFilter)?.label : ""
+      periodLabel = `_${monthLabel}${yearToFilter !== "all" ? "_" + yearToFilter : ""}`
+    }
+
+    const filename = `Payroll_Report_${currentDate}${periodLabel}.xlsx`
 
     window.XLSX.writeFile(wb, filename)
   }
@@ -250,6 +364,9 @@ export default function ReportsPage() {
           loans,
           uniform,
           tardiness,
+          night_diff,
+          bonuses,
+          commission,
           status,
           employees(id, employee_code, full_name, pay_type)
         `)
@@ -306,6 +423,9 @@ export default function ReportsPage() {
           uniform: record.uniform || 0,
           tardiness: record.tardiness || 0,
           cash_advance: record.cash_advance || 0,
+          night_diff: record.night_diff || 0,
+          bonuses: record.bonuses || 0,
+          commission: record.commission || 0,
         }
       })
 
@@ -330,16 +450,36 @@ export default function ReportsPage() {
             totalDeductions: 0,
             totalNetPay: 0,
             totalAllowances: 0,
-            recordCount: 0
+            recordCount: 0,
+            totalSSS: 0,
+            totalPhilHealth: 0,
+            totalPagIbig: 0,
+            totalWithholdingTax: 0,
+            totalLoans: 0,
+            totalUniform: 0,
+            totalTardiness: 0,
+            totalCashAdvance: 0,
+            totalAbsences: 0,
           })
         }
 
         const monthlyData = monthlyMap.get(monthYearKey)!
         monthlyData.recordCount += 1
         monthlyData.totalGrossPay += record.gross_pay || record.basic_salary || 0
-        monthlyData.totalDeductions += (record.total_deductions || 0) + (record.cash_advance || 0)
-        monthlyData.totalNetPay += (record.net_pay || 0) - (record.cash_advance || 0)
+        monthlyData.totalDeductions += record.total_deductions + (record.cash_advance || 0)
+        monthlyData.totalNetPay += record.net_pay - (record.cash_advance || 0)
         monthlyData.totalAllowances += record.allowances
+
+        // Individual deductions
+        monthlyData.totalSSS += record.sss || 0
+        monthlyData.totalPhilHealth += record.philhealth || 0
+        monthlyData.totalPagIbig += record.pagibig || 0
+        monthlyData.totalWithholdingTax += record.withholding_tax || 0
+        monthlyData.totalLoans += record.loans || 0
+        monthlyData.totalUniform += record.uniform || 0
+        monthlyData.totalTardiness += record.tardiness || 0
+        monthlyData.totalCashAdvance += record.cash_advance || 0
+        monthlyData.totalAbsences += record.absences || 0
 
         const uniqueEmployees = new Set<string>()
         employeeDetails.forEach((emp) => {
@@ -382,6 +522,7 @@ export default function ReportsPage() {
       setDeductions(
         (deductionRecords || []).map((d: any) => ({
           id: d.id,
+          employee_id: d.employee_id,
           employee_name: d.employees?.full_name || 'Unknown',
           type: d.type,
           amount: d.amount,
@@ -454,10 +595,18 @@ export default function ReportsPage() {
     status: "Status",
   }
 
+  const filteredDetails = employeePayrollDetails.filter(emp => {
+    if (selectedYear === "all" && selectedMonth === "all") return true
+    const date = new Date(emp.period_end)
+    const yearMatch = selectedYear === "all" || date.getFullYear().toString() === selectedYear
+    const monthMatch = selectedMonth === "all" || (date.getMonth() + 1).toString().padStart(2, '0') === selectedMonth
+    return yearMatch && monthMatch
+  })
+
   // Pagination Logic
-  const totalPages = Math.ceil(employeePayrollDetails.length / pageSize)
+  const totalPages = Math.ceil(filteredDetails.length / pageSize)
   const startIndex = (currentPage - 1) * pageSize
-  const paginatedDetails = employeePayrollDetails.slice(startIndex, startIndex + pageSize)
+  const paginatedDetails = filteredDetails.slice(startIndex, startIndex + pageSize)
 
   // Calculate additional metrics
   const additionalMetrics = {
@@ -470,9 +619,42 @@ export default function ReportsPage() {
   return (
     <div className="space-y-8 p-6 min-h-screen bg-background text-foreground">
       {/* Header Section */}
-      <div className="space-y-2">
-        <h1 className="text-3xl font-semibold text-foreground">Reports & Analytics</h1>
-        <p className="text-muted-foreground">Comprehensive payroll and financial reporting dashboard</p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="space-y-2">
+          <h1 className="text-3xl font-semibold text-foreground">Reports & Analytics</h1>
+          <p className="text-muted-foreground">Comprehensive payroll and financial reporting dashboard</p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 p-4 bg-card rounded-lg border border-border">
+          <div className="space-y-1">
+            <span className="text-xs font-medium text-muted-foreground uppercase">Filter by Period</span>
+            <div className="flex items-center gap-2">
+              <Select value={selectedYear} onValueChange={setSelectedYear}>
+                <SelectTrigger className="w-[120px] h-9">
+                  <SelectValue placeholder="Year" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Years</SelectItem>
+                  {years.map(y => (
+                    <SelectItem key={y} value={y}>{y}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                <SelectTrigger className="w-[140px] h-9">
+                  <SelectValue placeholder="Month" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Months</SelectItem>
+                  {months.map(m => (
+                    <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Primary Summary Metrics */}
@@ -632,7 +814,7 @@ export default function ReportsPage() {
                   </DropdownMenu>
 
                   <Button
-                    onClick={exportToExcel}
+                    onClick={() => setIsExportDialogOpen(true)}
                     variant="outline"
                     className="flex items-center gap-2"
                   >
@@ -794,12 +976,17 @@ export default function ReportsPage() {
                         <TableHeader>
                           <TableRow className="border-b border-slate-200">
                             <TableHead className="text-center font-medium text-slate-900">Month</TableHead>
-                            <TableHead className="text-center font-medium text-slate-900">Total Employees</TableHead>
-                            <TableHead className="text-center font-medium text-slate-900">Payroll Records</TableHead>
+                            <TableHead className="text-center font-medium text-slate-900">Employees</TableHead>
                             <TableHead className="text-center font-medium text-slate-900">Gross Pay</TableHead>
                             <TableHead className="text-center font-medium text-slate-900">Allowances</TableHead>
+                            <TableHead className="text-center font-medium text-slate-900">SSS</TableHead>
+                            <TableHead className="text-center font-medium text-slate-900">PhilHealth</TableHead>
+                            <TableHead className="text-center font-medium text-slate-900">Pag-IBIG</TableHead>
+                            <TableHead className="text-center font-medium text-slate-900">W. Tax</TableHead>
+                            <TableHead className="text-center font-medium text-slate-900">Loans</TableHead>
+                            <TableHead className="text-center font-medium text-slate-900">Cash Advance</TableHead>
                             <TableHead className="text-center font-medium text-slate-900">Deductions</TableHead>
-                            <TableHead className="text-center font-medium text-slate-900">Net Pay (incl. Allowances)</TableHead>
+                            <TableHead className="text-center font-medium text-slate-900">Net Pay</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -807,9 +994,14 @@ export default function ReportsPage() {
                             <TableRow key={`${summary.year}-${summary.month}`} className="border-b border-slate-100 hover:bg-slate-50 transition">
                               <TableCell className="py-4 text-center font-medium text-slate-900">{summary.monthYear}</TableCell>
                               <TableCell className="py-4 text-center text-slate-900">{summary.totalEmployees}</TableCell>
-                              <TableCell className="py-4 text-center text-slate-900">{summary.recordCount}</TableCell>
                               <TableCell className="py-4 text-center text-slate-900">₱{summary.totalGrossPay.toLocaleString()}</TableCell>
                               <TableCell className="py-4 text-center text-slate-900">₱{summary.totalAllowances.toLocaleString()}</TableCell>
+                              <TableCell className="py-4 text-center text-slate-900">₱{summary.totalSSS.toLocaleString()}</TableCell>
+                              <TableCell className="py-4 text-center text-slate-900">₱{summary.totalPhilHealth.toLocaleString()}</TableCell>
+                              <TableCell className="py-4 text-center text-slate-900">₱{summary.totalPagIbig.toLocaleString()}</TableCell>
+                              <TableCell className="py-4 text-center text-slate-900">₱{summary.totalWithholdingTax.toLocaleString()}</TableCell>
+                              <TableCell className="py-4 text-center text-slate-900">₱{summary.totalLoans.toLocaleString()}</TableCell>
+                              <TableCell className="py-4 text-center text-slate-900">₱{summary.totalCashAdvance.toLocaleString()}</TableCell>
                               <TableCell className="py-4 text-center text-slate-900">₱{summary.totalDeductions.toLocaleString()}</TableCell>
                               <TableCell className="py-4 text-center font-bold text-slate-900">₱{summary.totalNetPay.toLocaleString()}</TableCell>
                             </TableRow>
@@ -817,15 +1009,32 @@ export default function ReportsPage() {
                           {monthlyPayrollSummary.length > 1 && currentMonthlyPage === totalMonthlyPages && (
                             <TableRow className="border-t-2 border-slate-300 font-bold bg-slate-50">
                               <TableCell className="py-4 text-center text-slate-900">Total</TableCell>
-                              <TableCell className="py-4 text-center text-slate-500">—</TableCell>
                               <TableCell className="py-4 text-center text-slate-900">
-                                {monthlyPayrollSummary.reduce((sum, s) => sum + s.recordCount, 0)}
+                                {monthlyPayrollSummary.reduce((sum, s) => sum + s.totalEmployees, 0)}
                               </TableCell>
                               <TableCell className="py-4 text-center text-slate-900">
                                 ₱{monthlyPayrollSummary.reduce((sum, s) => sum + s.totalGrossPay, 0).toLocaleString()}
                               </TableCell>
                               <TableCell className="py-4 text-center text-slate-900">
                                 ₱{monthlyPayrollSummary.reduce((sum, s) => sum + s.totalAllowances, 0).toLocaleString()}
+                              </TableCell>
+                              <TableCell className="py-4 text-center text-slate-900">
+                                ₱{monthlyPayrollSummary.reduce((sum, s) => sum + s.totalSSS, 0).toLocaleString()}
+                              </TableCell>
+                              <TableCell className="py-4 text-center text-slate-900">
+                                ₱{monthlyPayrollSummary.reduce((sum, s) => sum + s.totalPhilHealth, 0).toLocaleString()}
+                              </TableCell>
+                              <TableCell className="py-4 text-center text-slate-900">
+                                ₱{monthlyPayrollSummary.reduce((sum, s) => sum + s.totalPagIbig, 0).toLocaleString()}
+                              </TableCell>
+                              <TableCell className="py-4 text-center text-slate-900">
+                                ₱{monthlyPayrollSummary.reduce((sum, s) => sum + s.totalWithholdingTax, 0).toLocaleString()}
+                              </TableCell>
+                              <TableCell className="py-4 text-center text-slate-900">
+                                ₱{monthlyPayrollSummary.reduce((sum, s) => sum + s.totalLoans, 0).toLocaleString()}
+                              </TableCell>
+                              <TableCell className="py-4 text-center text-slate-900">
+                                ₱{monthlyPayrollSummary.reduce((sum, s) => sum + s.totalCashAdvance, 0).toLocaleString()}
                               </TableCell>
                               <TableCell className="py-4 text-center text-slate-900">
                                 ₱{monthlyPayrollSummary.reduce((sum, s) => sum + s.totalDeductions, 0).toLocaleString()}
@@ -1128,6 +1337,88 @@ export default function ReportsPage() {
           </Card>
         </TabsContent>
       </Tabs>
+      <Dialog open={isExportDialogOpen} onOpenChange={setIsExportDialogOpen}>
+        <DialogContent className="lg:w-[30%] w-[90%]">
+          <DialogHeader>
+            <DialogTitle>Export Payroll Report</DialogTitle>
+            <DialogDescription>
+              Select the period you want to export to Excel.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="year" className="text-right">
+                Year
+              </Label>
+              <Select value={exportYear} onValueChange={setExportYear}>
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select year" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Years</SelectItem>
+                  {years.map((y) => (
+                    <SelectItem key={y} value={y}>
+                      {y}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="month" className="text-right">
+                Month
+              </Label>
+              <Select value={exportMonth} onValueChange={setExportMonth}>
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select month" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Months</SelectItem>
+                  {months.map((m) => (
+                    <SelectItem key={m.value} value={m.value}>
+                      {m.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="period" className="text-right font-medium">
+                Period
+              </Label>
+              <Select value={exportPeriod} onValueChange={setExportPeriod}>
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select payroll period" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Available Periods</SelectItem>
+                  {getAvailablePeriods().map((period) => (
+                    <SelectItem key={period} value={period}>
+                      {period}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsExportDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                exportToExcel(exportYear, exportMonth)
+                setIsExportDialogOpen(false)
+                setExportPeriod("all") // Reset after export
+              }}
+              className="flex items-center gap-2"
+            >
+              <Download className="h-4 w-4" />
+              Download Excel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
