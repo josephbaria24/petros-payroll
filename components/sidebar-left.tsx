@@ -11,7 +11,6 @@ import {
   Calculator,
   MessageCircleQuestion,
   Moon,
-  LogOut,
   Calendar,
   Droplet,
   Newspaper,
@@ -19,11 +18,9 @@ import {
   MessageCircleReplyIcon,
 } from "lucide-react"
 
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname } from "next/navigation"
 
-import { NavFavorites } from "@/components/nav-favorites"
 import { NavMain } from "@/components/nav-main"
-import { NavSecondary } from "@/components/nav-secondary"
 import { NavWorkspaces } from "@/components/nav-workspaces"
 import { TeamSwitcher } from "@/components/team-switcher"
 import {
@@ -38,7 +35,6 @@ import { useOrganization } from "@/contexts/OrganizationContext"
 
 export function SidebarLeft({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
-  const router = useRouter()
   const { activeOrganization } = useOrganization()
   const [role, setRole] = React.useState<string | null>(null)
   const [pendingCount, setPendingCount] = React.useState<number>(0)
@@ -90,10 +86,6 @@ export function SidebarLeft({ ...props }: React.ComponentProps<typeof Sidebar>) 
     fetchRole()
   }, [])
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut()
-    router.push("/login")
-  }
 
   // Build nav based on role with groups and colors
   const navGroups = React.useMemo(() => {
@@ -141,8 +133,7 @@ export function SidebarLeft({ ...props }: React.ComponentProps<typeof Sidebar>) 
         label: "PERSONAL",
         items: [
           { title: "My Payroll", url: "/my-payroll", icon: Calculator, color: "#06b6d4" },
-          { title: "My Attendance", url: "/my-attendance", icon: Clock, color: "#f59e0b" },
-          { title: "My Timesheet", url: "/timesheet", icon: Calendar, color: "#3b82f6" },
+          { title: "TimeSheet", url: "/timesheet", icon: Calendar, color: "#3b82f6" },
           { title: "Requests", url: "/requests", icon: MessageCircleReply, color: "#ef4444" }
         ]
       }
@@ -159,14 +150,7 @@ export function SidebarLeft({ ...props }: React.ComponentProps<typeof Sidebar>) 
     }))
   }, [role, pathname, pendingCount])
 
-  const navSecondary = [
-    {
-      title: "Help",
-      url: "/help",
-      icon: MessageCircleQuestion,
-      isActive: pathname.startsWith("/help"),
-    },
-  ]
+  const navSecondary = []
 
   return (
     <Sidebar className="border-r border-sidebar-border bg-sidebar/50 backdrop-blur-xl" {...props}>
@@ -199,20 +183,12 @@ export function SidebarLeft({ ...props }: React.ComponentProps<typeof Sidebar>) 
           </div>
         ))}
 
-        <div className="mt-auto">
-          <NavSecondary items={navSecondary} />
-        </div>
-
-        {/* Logout Button */}
-        <div className="px-4 pb-6 mt-2">
-          <Button
-            variant="ghost"
-            className="w-full justify-start text-sm font-medium text-muted-foreground hover:text-red-500 hover:bg-red-50/10 transition-colors group"
-            onClick={handleLogout}
-          >
-            <LogOut className="mr-3 h-4 w-4 transition-transform group-hover:-translate-x-1" />
-            Logout
-          </Button>
+        <div className="mt-auto px-4 pb-6">
+          <div className="text-center group">
+            <p className="text-[10px] font-bold tracking-widest text-muted-foreground/40 ">
+              Developed by <span className="text-foreground transition-colors group-hover:text-primary/60">PetroCore</span><span className="text-red-500 transition-colors group-hover:text-red-500">X</span>
+            </p>
+          </div>
         </div>
       </SidebarContent>
 

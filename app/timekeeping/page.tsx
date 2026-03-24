@@ -64,6 +64,8 @@ type TimeLog = {
   date: string
   time_in: string | null
   time_out: string | null
+  time_in_display?: string
+  time_out_display?: string
   total_hours: number
   overtime_hours: number
   status: string
@@ -79,6 +81,16 @@ function extractPhilippineTime(timestamp: string): string {
 function extractPhilippineDate(timestamp: string): string {
   // Extract date directly from timestamp
   return timestamp.split('T')[0] // Extract YYYY-MM-DD
+}
+
+// Helper function to format HH:MM to 12-hour AM/PM
+function formatTo12Hour(timeStr: string | null): string {
+  if (!timeStr || timeStr === "-") return "-";
+  const [hours, minutes] = timeStr.split(':');
+  const h = parseInt(hours);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const displayHours = h % 12 || 12;
+  return `${displayHours}:${minutes} ${ampm}`;
 }
 
 function statusBadge(status: string) {
@@ -190,6 +202,8 @@ export default function TimekeepingPage() {
         date: datePH || "-",
         time_in: timeInPH || "-",
         time_out: timeOutPH || "-",
+        time_in_display: formatTo12Hour(timeInPH),
+        time_out_display: formatTo12Hour(timeOutPH),
         total_hours: Math.round(totalHours * 100) / 100, // Round to 2 decimal places
         overtime_hours: totalHours > 8 ? Math.round((totalHours - 8) * 100) / 100 : 0,
         status: log.status || "Logged",
@@ -517,10 +531,10 @@ export default function TimekeepingPage() {
                       {new Date(log.date).toLocaleDateString()}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {log.time_in || "-"}
+                      {log.time_in_display}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {log.time_out || "-"}
+                      {log.time_out_display}
                     </TableCell>
                     <TableCell className="font-medium text-foreground">
                       {log.total_hours.toFixed(1)}h

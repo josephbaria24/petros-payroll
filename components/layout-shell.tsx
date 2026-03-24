@@ -1,7 +1,7 @@
 // components/layout-shell.tsx
 "use client"
 
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import {
   SidebarProvider,
   SidebarInset,
@@ -10,9 +10,13 @@ import {
 import { SidebarRight } from "@/components/sidebar-right"
 import { SidebarLeft } from "@/components/sidebar-left"
 import { ModeToggle } from "@/components/mode-toggle"
+import { Button } from "@/components/ui/button"
+import { LogOut } from "lucide-react"
+import { supabase } from "@/lib/supabaseClient"
 
 export function LayoutShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const router = useRouter()
 
   const isAuthPage = ["/login", "/signup", "/forgot-password"].some((route) =>
     pathname.startsWith(route)
@@ -21,11 +25,14 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
   // 🔁 Choose background based on pathname
   const backgroundClass = pathname === "/my-payroll"
     ? "bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50"
-    : pathname === "/my-attendance"
-      ? "bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50"
-      : pathname === "/timesheet"
+    : pathname === "/timesheet"
         ? "bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50"
         : "bg-white" // fallback for other pages
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    router.push("/login")
+  }
 
   if (isAuthPage) {
     return (
@@ -47,6 +54,15 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
 
             <div className="flex items-center gap-2">
               <ModeToggle />
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-9 gap-2 text-muted-foreground hover:text-red-500 hover:bg-red-50/10"
+                onClick={handleLogout}
+              >
+                <LogOut className="h-4 w-4" />
+                <span className="hidden sm:inline"></span>
+              </Button>
             </div>
           </header>
 

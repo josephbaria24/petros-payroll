@@ -744,7 +744,7 @@ export default function DashboardPage() {
 
             {/* Action Buttons */}
             <div className="flex gap-3">
-              <Button
+              {/* <Button
                 variant="outline"
                 size="sm"
                 className="gap-2 border-border hover:bg-muted text-foreground font-semibold"
@@ -753,7 +753,7 @@ export default function DashboardPage() {
               >
                 <SendHorizontal className="h-4 w-4" />
                 Notify Employees
-              </Button>
+              </Button> */}
 
               <Popover>
                 <PopoverTrigger asChild>

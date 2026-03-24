@@ -132,7 +132,7 @@ export default function PayrollPage() {
   const [notificationRecords, setNotificationRecords] = useState<any[]>([])
   const [notificationPeriodName, setNotificationPeriodName] = useState("")
 
-  const itemsPerPage = 10
+  const itemsPerPage = 5
   const [open, setOpen] = useState(false)
   const [selectedPeriodRecords, setSelectedPeriodRecords] = useState<PayrollRecord[]>([])
   const [selectedPeriodName, setSelectedPeriodName] = useState("")
@@ -1087,47 +1087,102 @@ export default function PayrollPage() {
       </div>
 
       {periods.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="bg-card p-3 rounded-lg border border-border shadow-sm flex items-center gap-3">
-            <div className="p-2 bg-muted rounded-md">
-              <PhilippinePeso className="h-4 w-4 text-muted-foreground" />
+        <>
+          {/* Summary Metrics Chips */}
+          <div className="flex flex-wrap gap-3 items-center">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-primary/20 bg-primary/5 shadow-sm">
+              <PhilippinePeso className="h-3.5 w-3.5 text-primary" />
+              <span className="text-[10px] font-bold text-primary/70 uppercase tracking-tighter">Total Net Pay</span>
+              <span className="text-sm font-bold text-primary">₱{summaryMetrics.totalNet.toLocaleString()}</span>
             </div>
-            <div className="min-w-0">
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider leading-none mb-1">Basic Salary</p>
-              <p className="text-base font-bold text-foreground truncate leading-none">₱{summaryMetrics.totalBasicSalary.toLocaleString()}</p>
+
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-border bg-card shadow-sm">
+              <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter">Basic Salary</span>
+              <span className="text-sm font-bold text-foreground">₱{summaryMetrics.totalBasicSalary.toLocaleString()}</span>
+            </div>
+
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-border bg-card shadow-sm">
+              <TrendingUp className="h-3.5 w-3.5 text-amber-500" />
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter">Total Overtime</span>
+              <span className="text-sm font-bold text-foreground">₱{summaryMetrics.totalOvertime.toLocaleString()}</span>
+            </div>
+
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-border bg-card shadow-sm">
+              <Users className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter">Periods</span>
+              <span className="text-sm font-bold text-foreground">{periods.length}</span>
             </div>
           </div>
 
-          <div className="bg-card p-3 rounded-lg border border-border shadow-sm flex items-center gap-3">
-            <div className="p-2 bg-muted rounded-md">
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          {/* Latest Period Big Preview */}
+          <Card className="border-2 border-primary/10 shadow-xl bg-card overflow-hidden relative group transition-all hover:border-primary/20">
+            <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
+              <PhilippinePeso className="h-32 w-32" />
             </div>
-            <div className="min-w-0">
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider leading-none mb-1">Overtime Pay</p>
-              <p className="text-base font-bold text-foreground truncate leading-none">₱{summaryMetrics.totalOvertime.toLocaleString()}</p>
-            </div>
-          </div>
+            <CardContent className="p-8">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative z-10">
+                <div className="space-y-4">
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Latest Payroll Period</span>
+                    <h2 className="text-4xl font-black text-foreground tracking-tight">
+                      {periods[0].display_name}
+                    </h2>
+                    <p className="text-sm text-muted-foreground font-mono">
+                      {periods[0].period_start} to {periods[0].period_end}
+                    </p>
+                  </div>
+                  
+                  <div className="flex flex-wrap gap-4 pt-2">
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-muted/50 border border-border">
+                      <Users className="h-4 w-4 text-muted-foreground" />
+                      <div className="flex flex-col">
+                        <span className="text-[10px] text-muted-foreground font-bold uppercase leading-none mb-1">Employees</span>
+                        <span className="text-xs font-semibold">{periods[0].total_employees} Total</span>
+                      </div>
+                    </div>
+                    
+                    <div className="flex flex-col items-start gap-1">
+                      <span className="text-[10px] text-muted-foreground font-bold uppercase leading-none">Status</span>
+                      <Badge className={cn("cursor-pointer border-transparent shadow-none", statusVariants[periods[0].status] || statusVariants["Pending"])}>
+                        {periods[0].status}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
 
-          <div className="bg-card p-3 rounded-lg border border-border shadow-sm flex items-center gap-3">
-            <div className="p-2 bg-muted rounded-md">
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider leading-none mb-1">Holiday Pay</p>
-              <p className="text-base font-bold text-foreground truncate leading-none">₱{summaryMetrics.totalHoliday.toLocaleString()}</p>
-            </div>
-          </div>
+                <div className="flex flex-col gap-3 w-full md:w-auto">
+                  <Button 
+                    className="w-full md:w-48 h-12 text-base font-bold shadow-lg shadow-primary/20 group-hover:scale-[1.02] transition-transform"
+                    onClick={() => handleViewPeriodRecords(periods[0])}
+                  >
+                    <Eye className="mr-2 h-5 w-5" />
+                    View Full Details
+                  </Button>
+                </div>
+              </div>
 
-          <div className="bg-card p-3 rounded-lg border border-primary/10 shadow-sm ring-1 ring-primary/10 flex items-center gap-3">
-            <div className="p-2 bg-primary/10 rounded-md">
-              <Calculator className="h-4 w-4 text-primary" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-[10px] font-semibold text-primary uppercase tracking-wider leading-none mb-1">Total Net Pay</p>
-              <p className="text-base font-bold text-foreground truncate leading-none">₱{summaryMetrics.totalNet.toLocaleString()}</p>
-            </div>
-          </div>
-        </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mt-10 pt-8 border-t border-border/50">
+                <div className="space-y-1">
+                  <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Total Net Pay</p>
+                  <p className="text-lg font-bold text-foreground">₱{periods[0].total_net_after_deductions.toLocaleString()}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Basic Salary</p>
+                  <p className="text-lg font-bold text-foreground">₱{periods[0].total_basic_salary.toLocaleString()}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Overtime Pay</p>
+                  <p className="text-lg font-bold text-foreground">₱{periods[0].total_overtime.toLocaleString()}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Deductions</p>
+                  <p className="text-lg font-bold text-destructive">₱{periods[0].total_deductions.toLocaleString()}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </>
       )}
 
       <div className="flex justify-between items-center">
