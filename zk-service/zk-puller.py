@@ -149,7 +149,7 @@ def fetch_logs():
 
     conn = None
     zk_configs = [
-        {"ip": "192.168.254.201", "port": 4370, "timeout": 10, "password": 0, "force_udp": False},
+        {"ip": "192.168.1.201", "port": 4370, "timeout": 10, "password": 0, "force_udp": False},
     ]
 
     for config in zk_configs:
@@ -254,4 +254,13 @@ def fetch_logs():
                 pass
 
 if __name__ == "__main__":
-    fetch_logs()
+    import time
+    print("[SERVICE] Starting persistent biometrics sync service...")
+    while True:
+        try:
+            fetch_logs()
+        except Exception as e:
+            print(f"[CRITICAL ERROR] {e}")
+        
+        # Sync every 5 minutes (300 seconds)
+        time.sleep(300)
