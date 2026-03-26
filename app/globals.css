@@ -112,6 +112,59 @@
   --sidebar-ring: #8b8b8b;
 }
 
+.theme-petrosphere {
+  --primary: #00004d;
+  --primary-foreground: #ffffff;
+  --sidebar-primary: #ffb700;
+  --sidebar-primary-foreground: #00004d;
+  --sidebar: #0f172a;
+  --sidebar-foreground: #f8fafc;
+  --sidebar-accent: #1e293b;
+  --sidebar-accent-foreground: #ffb700;
+  --sidebar-border: #0f172a;
+}
+
+.dark.theme-petrosphere,
+.theme-petrosphere.dark,
+.dark .theme-petrosphere {
+  --primary: #ffb700;
+  --primary-foreground: #00004d;
+  --sidebar-primary: #ffb700;
+  --sidebar-primary-foreground: #00004d;
+  --sidebar: #0f172a;
+  --sidebar-foreground: #f8fafc;
+  --sidebar-accent: #1e293b;
+  --sidebar-accent-foreground: #ffb700;
+  --sidebar-border: #0f172a;
+}
+
+.theme-palawan {
+  --primary: #f97316;
+  --primary-foreground: #1e3a8a;
+  --sidebar-primary: #f97316;
+  --sidebar-primary-foreground: #1e3a8a;
+  --sidebar: #0f172a;
+  --sidebar-foreground: #f8fafc;
+  --sidebar-accent: #1e293b;
+  --sidebar-accent-foreground: #f97316;
+  --sidebar-border: #0f172a;
+}
+
+.dark.theme-palawan,
+.theme-palawan.dark,
+.dark .theme-palawan {
+  --primary: #f97316;
+  --primary-foreground: #1e3a8a;
+  --sidebar-primary: #f97316;
+  --sidebar-primary-foreground: #1e3a8a;
+  --sidebar: #0f172a;
+  --sidebar-foreground: #f8fafc;
+  --sidebar-accent: #1e293b;
+  --sidebar-accent-foreground: #f97316;
+  --sidebar-border: #0f172a;
+}
+
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

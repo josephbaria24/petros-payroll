@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { supabase } from "@/lib/supabaseClient"
 import { useOrganization } from "@/contexts/OrganizationContext"
 import { Button } from "@/components/ui/button"
@@ -35,13 +35,6 @@ import {
   SelectValue
 } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbList,
-  BreadcrumbPage
-} from "@/components/ui/breadcrumb"
 import { toast } from "sonner"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -51,8 +44,27 @@ import {
   Users,
   TrendingUp,
   Plus,
-  Timer
+  Timer,
+  PanelRightOpen,
+  PanelRightClose,
+  ChevronRight,
+  Activity,
+  BarChart3
 } from "lucide-react"
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+  BarChart,
+  Bar,
+  Cell,
+  PieChart,
+  Pie,
+} from "recharts"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 import { useProtectedPage } from "../hooks/useProtectedPage"
@@ -71,16 +83,14 @@ type TimeLog = {
   status: string
 }
 
-// Helper function to extract Philippine time from ZKT timestamp (stored as UTC but represents PH time)
+// Helper function to extract Philippine time from ZKT timestamp
 function extractPhilippineTime(timestamp: string): string {
-  // Extract time directly from timestamp (ZKT stores Philippine time as UTC)
-  return timestamp.split('T')[1].split('+')[0].substring(0, 5) // Extract HH:MM
+  return timestamp.split('T')[1].split('+')[0].substring(0, 5)
 }
 
 // Helper function to extract Philippine date from ZKT timestamp
 function extractPhilippineDate(timestamp: string): string {
-  // Extract date directly from timestamp
-  return timestamp.split('T')[0] // Extract YYYY-MM-DD
+  return timestamp.split('T')[0]
 }
 
 // Helper function to format HH:MM to 12-hour AM/PM
@@ -93,26 +103,7 @@ function formatTo12Hour(timeStr: string | null): string {
   return `${displayHours}:${minutes} ${ampm}`;
 }
 
-function statusBadge(status: string) {
-  const variants: Record<string, string> = {
-    "Present": "bg-primary text-primary-foreground border-transparent",
-    "Logged": "bg-primary text-primary-foreground border-transparent",
-    "Late": "bg-muted text-muted-foreground border-border",
-    "Absent": "bg-muted/50 text-muted-foreground border-border",
-    "On Leave": "bg-muted/50 text-muted-foreground border-border",
-  }
-
-  const className = variants[status] || "bg-muted text-muted-foreground border-border"
-
-  return (
-    <Badge
-      variant="outline"
-      className={`${className} font-medium`}
-    >
-      {status}
-    </Badge>
-  )
-}
+const COLORS = ['#0ea5e9', '#8b5cf6', '#f59e0b', '#10b981', '#ef4444', '#6366f1']
 
 export default function TimekeepingPage() {
   useProtectedPage(["admin", "hr"])
@@ -121,6 +112,7 @@ export default function TimekeepingPage() {
   const [open, setOpen] = useState(false)
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
   const [loading, setLoading] = useState(true)
+  const [panelOpen, setPanelOpen] = useState(true)
 
   const [form, setForm] = useState({
     employee_id: "",
@@ -151,17 +143,14 @@ export default function TimekeepingPage() {
       return
     }
 
-    // Use the same logic as WeeklyTimesheet for date range
-    const selectedDate = format(date, "yyyy-MM-dd")
-    const weekStartUTC = new Date(`${selectedDate}T00:00:00+08:00`).toISOString()
-    const weekEndUTC = new Date(`${selectedDate}T23:59:59+08:00`).toISOString()
+    const selectedDateStr = format(date, "yyyy-MM-dd")
 
+    // Use work_date column (plain date, represents the Philippine date) to avoid timezone bleeding
     const { data: logsData, error: logsError } = await supabase
       .from("attendance_logs")
-      .select("id, user_id, timestamp, timeout, status")
-      .gte("timestamp", weekStartUTC)
-      .lte("timestamp", weekEndUTC)
-      .order("timestamp", { ascending: false })
+      .select("id, user_id, timestamp, status, work_date")
+      .eq("work_date", selectedDateStr)
+      .order("timestamp", { ascending: true })
 
     if (logsError) {
       console.error("Error fetching logs:", logsError)
@@ -177,37 +166,78 @@ export default function TimekeepingPage() {
       return
     }
 
-    const enrichedLogs = logsData.map((log) => {
-      const matchedEmp = employeesData.find(
-        (emp) => emp.attendance_log_userid === log.user_id
-      )
+    // --- Grouping Logic: Pair time_in and time_out ---
+    const userGroups: Record<number, any[]> = {}
+    logsData.forEach((log) => {
+      if (!userGroups[log.user_id]) userGroups[log.user_id] = []
+      userGroups[log.user_id].push(log)
+    })
 
-      // Extract Philippine time directly from ZKT timestamps (same as WeeklyTimesheet)
-      const timeInPH = log.timestamp ? extractPhilippineTime(log.timestamp) : null
-      const timeOutPH = log.timeout ? extractPhilippineTime(log.timeout) : null
-      const datePH = log.timestamp ? extractPhilippineDate(log.timestamp) : null
+    const enrichedLogs: TimeLog[] = []
 
-      // Calculate total hours using the original timestamps for accuracy
-      const timeInUTC = log.timestamp ? new Date(log.timestamp) : null
-      const timeOutUTC = log.timeout ? new Date(log.timeout) : null
-      const totalHours =
-        timeInUTC && timeOutUTC
-          ? (timeOutUTC.getTime() - timeInUTC.getTime()) / (1000 * 60 * 60)
-          : 0
+    for (const userIdStr in userGroups) {
+      const userId = parseInt(userIdStr)
+      const userLogs = userGroups[userId]
+      const matchedEmp = employeesData.find((emp) => emp.attendance_log_userid === userId)
+      const empName = matchedEmp?.full_name || "Unknown"
+      const empId = matchedEmp?.id || ""
 
-      return {
-        id: log.id,
-        employee_id: matchedEmp?.id || "",
-        employee_name: matchedEmp?.full_name || "Unknown",
-        date: datePH || "-",
-        time_in: timeInPH || "-",
-        time_out: timeOutPH || "-",
-        time_in_display: formatTo12Hour(timeInPH),
-        time_out_display: formatTo12Hour(timeOutPH),
-        total_hours: Math.round(totalHours * 100) / 100, // Round to 2 decimal places
-        overtime_hours: totalHours > 8 ? Math.round((totalHours - 8) * 100) / 100 : 0,
-        status: log.status || "Logged",
+      let currentIn: any = null
+
+      const processSession = (inEvent: any | null, outEvent: any | null) => {
+        const timeInUTC = inEvent ? new Date(inEvent.timestamp) : null
+        const timeOutUTC = outEvent ? new Date(outEvent.timestamp) : null
+
+        const timeInPH = inEvent ? extractPhilippineTime(inEvent.timestamp) : null
+        const timeOutPH = outEvent ? extractPhilippineTime(outEvent.timestamp) : null
+        // Use work_date (plain Philippine date) instead of extracting from UTC timestamp
+        const datePH = (inEvent || outEvent)?.work_date || selectedDateStr
+
+        const totalHours =
+          timeInUTC && timeOutUTC
+            ? (timeOutUTC.getTime() - timeInUTC.getTime()) / (1000 * 60 * 60)
+            : 0
+
+        enrichedLogs.push({
+          id: (inEvent || outEvent).id.toString(),
+          employee_id: empId,
+          employee_name: empName,
+          date: datePH,
+          time_in: timeInPH,
+          time_out: timeOutPH,
+          time_in_display: formatTo12Hour(timeInPH),
+          time_out_display: formatTo12Hour(timeOutPH),
+          total_hours: Math.round(totalHours * 100) / 100,
+          overtime_hours: totalHours > 8 ? Math.round((totalHours - 8) * 100) / 100 : 0,
+          status: outEvent ? "time_out" : "time_in",
+        })
       }
+
+      userLogs.forEach((log) => {
+        if (log.status === "time_in") {
+          if (currentIn) {
+            processSession(currentIn, null)
+          }
+          currentIn = log
+        } else if (log.status === "time_out") {
+          if (currentIn) {
+            processSession(currentIn, log)
+            currentIn = null
+          } else {
+            processSession(null, log)
+          }
+        }
+      })
+
+      if (currentIn) {
+        processSession(currentIn, null)
+      }
+    }
+
+    enrichedLogs.sort((a, b) => {
+      const timeA = a.time_in || a.time_out || "00:00"
+      const timeB = b.time_in || b.time_out || "00:00"
+      return timeB.localeCompare(timeA)
     })
 
     setLogs(enrichedLogs)
@@ -286,10 +316,52 @@ export default function TimekeepingPage() {
     })
   }
 
-  // Calculate metrics
-  const totalHours = logs.reduce((sum, log) => sum + log.total_hours, 0)
-  const totalOvertime = logs.reduce((sum, log) => sum + log.overtime_hours, 0)
+  // ===== Analytics Data =====
   const presentCount = logs.filter(log => log.time_in && log.time_in !== "-").length
+  const completedSessions = logs.filter(log => log.time_out && log.time_out !== "-")
+  const totalHoursWorked = completedSessions.reduce((sum, log) => sum + log.total_hours, 0)
+  const totalOvertime = completedSessions.reduce((sum, log) => sum + log.overtime_hours, 0)
+  const avgHours = completedSessions.length > 0 ? totalHoursWorked / completedSessions.length : 0
+
+  // Hours by employee (for bar chart)
+  const hoursByEmployee = useMemo(() => {
+    const map = new Map<string, number>()
+    logs.forEach(log => {
+      const name = log.employee_name || "Unknown"
+      map.set(name, (map.get(name) || 0) + log.total_hours)
+    })
+    return Array.from(map)
+      .map(([name, hours]) => ({ name: name.split(' ')[0], hours: Math.round(hours * 100) / 100 }))
+      .sort((a, b) => b.hours - a.hours)
+      .slice(0, 8)
+  }, [logs])
+
+  // Status distribution (for pie chart)
+  const statusDistribution = useMemo(() => {
+    const completed = logs.filter(l => l.time_in && l.time_out && l.time_in !== "-" && l.time_out !== "-").length
+    const inProgress = logs.filter(l => l.time_in && l.time_in !== "-" && (!l.time_out || l.time_out === "-")).length
+    const result = []
+    if (completed > 0) result.push({ name: "Completed", value: completed })
+    if (inProgress > 0) result.push({ name: "In Progress", value: inProgress })
+    return result
+  }, [logs])
+
+  // Hours trend over the day (hourly buckets)
+  const hourlyTrend = useMemo(() => {
+    const buckets: Record<string, number> = {}
+    for (let h = 6; h <= 22; h++) {
+      const label = `${h > 12 ? h - 12 : h}${h >= 12 ? 'PM' : 'AM'}`
+      buckets[label] = 0
+    }
+    logs.forEach(log => {
+      if (log.time_in && log.time_in !== "-") {
+        const hour = parseInt(log.time_in.split(':')[0])
+        const label = `${hour > 12 ? hour - 12 : hour}${hour >= 12 ? 'PM' : 'AM'}`
+        if (buckets[label] !== undefined) buckets[label]++
+      }
+    })
+    return Object.entries(buckets).map(([time, count]) => ({ time, count }))
+  }, [logs])
 
   if (loading) {
     return (
@@ -303,123 +375,46 @@ export default function TimekeepingPage() {
   }
 
   return (
-    <div className="space-y-8 p-6 min-h-screen bg-background text-foreground">
-      {/* Header */}
-      {/* <div className="bg-white border-b">
-        <div className="px-6 py-4">
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbPage className="text-muted-foreground">
-                  Time & Attendance
-                </BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-        </div>
-      </div> */}
-
-      {/* Page Title */}
-      <div className="space-y-2">
-        <h1 className="text-3xl font-semibold text-foreground">Timekeeping</h1>
-        <p className="text-muted-foreground">
-          Monitor employee attendance and track working hours
-        </p>
-      </div>
-
-      {/* Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="border border-border shadow-sm bg-card">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Present Today
-            </CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-foreground">
-              {presentCount}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Employees checked in
+    <div className="relative min-h-screen bg-background text-foreground">
+      {/* Main Content */}
+      <div className={cn("transition-all duration-300 ease-in-out p-6 space-y-6", panelOpen ? "mr-[420px]" : "mr-0")}>
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <h1 className="text-3xl font-bold text-foreground tracking-tight">Timekeeping</h1>
+            <p className="text-muted-foreground text-sm">
+              Attendance analytics for {selectedDate ? format(selectedDate, "MMMM dd, yyyy") : "today"}
             </p>
-          </CardContent>
-        </Card>
+          </div>
 
-        <Card className="border border-border shadow-sm bg-card">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Hours
-            </CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-foreground">
-              {totalHours.toFixed(1)}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Hours worked today
-            </p>
-          </CardContent>
-        </Card>
+          <div className="flex items-center gap-3">
+            {/* Date Picker */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2 font-semibold">
+                  <CalendarIcon className="h-4 w-4" />
+                  {selectedDate ? format(selectedDate, "MMM dd, yyyy") : "Pick date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="end">
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={(date) => setSelectedDate(date)}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
 
-        <Card className="border border-border shadow-sm bg-card">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Overtime Hours
-            </CardTitle>
-            <Timer className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-foreground">
-              {totalOvertime.toFixed(1)}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Extra hours today
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Controls */}
-      <Card className="border border-border shadow-sm bg-card">
-        <CardContent className="p-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            {/* Date Filter */}
-            <div className="flex items-center space-x-2">
-              <Label className="text-muted-foreground font-medium">Date:</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <div
-                    className={cn(
-                      "inline-flex items-center whitespace-nowrap rounded-md text-sm  ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-3 cursor-pointer justify-start font-normal",
-                      !selectedDate && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {selectedDate ? format(selectedDate, "PPP") : "Pick a date"}
-                  </div>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={selectedDate}
-                    onSelect={(date) => setSelectedDate(date)}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            {/* Add Time Log Button */}
+            {/* Add Log Dialog */}
             <Dialog open={open} onOpenChange={(v) => {
               setOpen(v)
               if (!v) resetForm()
             }}>
               <DialogTrigger asChild>
-                <Button>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Time Log
+                <Button size="sm" className="gap-2">
+                  <Plus className="w-4 h-4" />
+                  Add Log
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-md">
@@ -501,72 +496,320 @@ export default function TimekeepingPage() {
                 </form>
               </DialogContent>
             </Dialog>
-          </div>
-        </CardContent>
-      </Card>
 
-      {/* Data Table */}
-      <Card className="border border-border shadow-sm overflow-hidden bg-card">
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="border-b border-border bg-muted/30">
-                  <TableHead className="font-medium text-foreground">Employee</TableHead>
-                  <TableHead className="font-medium text-foreground">Date</TableHead>
-                  <TableHead className="font-medium text-foreground">Time In</TableHead>
-                  <TableHead className="font-medium text-foreground">Time Out</TableHead>
-                  <TableHead className="font-medium text-foreground">Total Hours</TableHead>
-                  <TableHead className="font-medium text-foreground">Overtime</TableHead>
-                  <TableHead className="font-medium text-foreground">Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {logs.map((log) => (
-                  <TableRow key={log.id} className="border-b border-border hover:bg-muted/30">
-                    <TableCell>
-                      <div className="font-medium text-foreground">{log.employee_name}</div>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {new Date(log.date).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {log.time_in_display}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {log.time_out_display}
-                    </TableCell>
-                    <TableCell className="font-medium text-foreground">
-                      {log.total_hours.toFixed(1)}h
-                    </TableCell>
-                    <TableCell className="font-medium text-foreground">
-                      {log.overtime_hours > 0 ? `${log.overtime_hours.toFixed(1)}h` : "-"}
-                    </TableCell>
-                    <TableCell>
-                      {statusBadge(log.status)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            {/* Panel Toggle */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPanelOpen(!panelOpen)}
+              className="gap-2"
+            >
+              {panelOpen ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
+              {panelOpen ? "Close" : "Logs"}
+            </Button>
           </div>
+        </div>
 
-          {logs.length === 0 && (
-            <div className="text-center py-12">
-              <div className="text-muted-foreground mb-2">
-                <Clock className="h-12 w-12 mx-auto" />
+        {/* Summary Metric Cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[
+            { label: "Present Today", value: presentCount.toString(), icon: Users, accent: "text-emerald-600", bg: "bg-emerald-500/10" },
+            { label: "Total Hours", value: totalHoursWorked.toFixed(1) + "h", icon: Clock, accent: "text-blue-600", bg: "bg-blue-500/10" },
+            { label: "Avg Hours", value: avgHours.toFixed(1) + "h", icon: TrendingUp, accent: "text-violet-600", bg: "bg-violet-500/10" },
+            { label: "Overtime", value: totalOvertime.toFixed(1) + "h", icon: Timer, accent: "text-amber-600", bg: "bg-amber-500/10" },
+          ].map((metric, i) => (
+            <Card key={i} className="border border-border shadow-sm bg-card hover:shadow-md transition-all overflow-hidden group">
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{metric.label}</p>
+                  <div className={cn("h-8 w-8 rounded-xl flex items-center justify-center transition-all", metric.bg)}>
+                    <metric.icon className={cn("h-4 w-4", metric.accent)} />
+                  </div>
+                </div>
+                <p className="text-2xl font-black text-foreground tracking-tight">{metric.value}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Charts Row 1 */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Check-in Activity (Area Chart) */}
+          <Card className="lg:col-span-2 border border-border shadow-sm bg-card">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-base font-bold text-foreground flex items-center gap-2">
+                    <Activity className="h-4 w-4 text-primary" />
+                    Check-in Activity
+                  </CardTitle>
+                  <p className="text-xs text-muted-foreground mt-1">Number of check-ins by hour</p>
+                </div>
+                <div className="flex items-center gap-1.5 px-2 py-1 bg-muted rounded-md border border-border">
+                  <div className="h-2 w-2 rounded-full bg-primary" />
+                  <span className="text-[10px] font-medium text-muted-foreground">Check-ins</span>
+                </div>
               </div>
-              <h3 className="text-lg font-medium text-foreground mb-1">No time logs found</h3>
-              <p className="text-muted-foreground">
+            </CardHeader>
+            <CardContent className="px-2 pb-4">
+              <div className="h-[240px] w-full">
+                {hourlyTrend.some(d => d.count > 0) ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={hourlyTrend}>
+                      <defs>
+                        <linearGradient id="colorCheckins" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.15} />
+                          <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                      <XAxis
+                        dataKey="time"
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fill: 'var(--muted-foreground)', fontSize: 9 }}
+                        dy={10}
+                      />
+                      <YAxis hide />
+                      <RechartsTooltip
+                        contentStyle={{ backgroundColor: 'var(--card)', borderRadius: '10px', border: '1px solid var(--border)', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', fontSize: '11px', color: 'var(--foreground)' }}
+                        itemStyle={{ color: 'var(--foreground)' }}
+                        formatter={(value: any) => [value, 'Check-ins']}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="count"
+                        stroke="var(--primary)"
+                        strokeWidth={2.5}
+                        fillOpacity={1}
+                        fill="url(#colorCheckins)"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex flex-col items-center justify-center text-muted-foreground gap-2">
+                    <Activity className="h-10 w-10 opacity-20" />
+                    <p className="text-sm font-medium">No activity data for this date</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Attendance Status (Pie Chart) */}
+          <Card className="border border-border shadow-sm bg-card">
+            <CardHeader className="pb-0">
+              <CardTitle className="text-base font-bold text-foreground">Session Status</CardTitle>
+              <p className="text-xs text-muted-foreground mt-1">Completed vs In Progress</p>
+            </CardHeader>
+            <CardContent className="flex flex-col pt-0">
+              <div className="h-[180px] w-full mt-4">
+                {statusDistribution.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={statusDistribution}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={50}
+                        outerRadius={75}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {statusDistribution.map((_, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <RechartsTooltip
+                        contentStyle={{ borderRadius: '10px', border: '1px solid var(--border)', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', fontSize: '11px' }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex flex-col items-center justify-center text-muted-foreground gap-2">
+                    <Clock className="h-10 w-10 opacity-20" />
+                    <p className="text-sm font-medium">No sessions yet</p>
+                  </div>
+                )}
+              </div>
+              {/* Legend */}
+              <div className="space-y-2 mt-auto px-2 pb-2">
+                {statusDistribution.map((item, i) => (
+                  <div key={item.name} className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2">
+                      <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: COLORS[i] }} />
+                      <span className="text-muted-foreground font-medium">{item.name}</span>
+                    </div>
+                    <span className="font-bold text-foreground">{item.value}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Charts Row 2 */}
+        <Card className="border border-border shadow-sm bg-card">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-base font-bold text-foreground flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4 text-primary" />
+                  Hours by Employee
+                </CardTitle>
+                <p className="text-xs text-muted-foreground mt-1">Top employees ranked by total hours worked</p>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[200px] w-full">
+              {hoursByEmployee.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={hoursByEmployee} layout="vertical">
+                    <XAxis type="number" hide />
+                    <YAxis
+                      dataKey="name"
+                      type="category"
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: 'var(--muted-foreground)', fontSize: 11, fontWeight: 600 }}
+                      width={90}
+                    />
+                    <RechartsTooltip
+                      cursor={{ fill: 'var(--muted)', opacity: 0.3 }}
+                      contentStyle={{ backgroundColor: 'var(--card)', borderRadius: '10px', border: '1px solid var(--border)', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', fontSize: '11px', color: 'var(--foreground)' }}
+                      itemStyle={{ color: 'var(--foreground)' }}
+                      formatter={(value: any) => [`${value}h`, 'Hours']}
+                    />
+                    <Bar dataKey="hours" radius={[0, 6, 6, 0]} barSize={20}>
+                      {hoursByEmployee.map((_, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex flex-col items-center justify-center text-muted-foreground gap-2">
+                  <BarChart3 className="h-10 w-10 opacity-20" />
+                  <p className="text-sm font-medium">No employee data for this date</p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ===== Floating Right Panel ===== */}
+      <div
+        className={cn(
+          "fixed top-[57px] right-0 bottom-0 w-[420px] bg-card border-l border-border shadow-2xl z-30 transition-transform duration-300 ease-in-out flex flex-col",
+          panelOpen ? "translate-x-0" : "translate-x-full"
+        )}
+      >
+        {/* Panel Header */}
+        <div className="p-4 border-b border-border bg-muted/30 flex-shrink-0">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-bold text-foreground uppercase tracking-wider flex items-center gap-2">
+              <Clock className="h-4 w-4 text-primary" />
+              Attendance Logs
+            </h2>
+            <Badge variant="outline" className="text-[10px] font-bold">
+              {logs.length} records
+            </Badge>
+          </div>
+
+          {/* Panel Date Picker */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="w-full justify-start gap-2 font-medium text-xs">
+                <CalendarIcon className="h-3.5 w-3.5" />
+                {selectedDate ? format(selectedDate, "EEEE, MMMM dd, yyyy") : "Pick a date"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={(date) => setSelectedDate(date)}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
+
+        {/* Scrollable Log List */}
+        <div className="flex-1 overflow-y-auto">
+          {logs.length > 0 ? (
+            <div className="divide-y divide-border">
+              {logs.map((log, idx) => (
+                <div
+                  key={log.id}
+                  className="px-4 py-3 hover:bg-muted/30 transition-colors group"
+                >
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center gap-2">
+                      <div className={cn(
+                        "h-2 w-2 rounded-full",
+                        log.time_out && log.time_out !== "-" ? "bg-emerald-500" : "bg-amber-500 animate-pulse"
+                      )} />
+                      <span className="font-bold text-sm text-foreground truncate max-w-[180px]">
+                        {log.employee_name}
+                      </span>
+                    </div>
+                    {log.total_hours > 0 && (
+                      <Badge variant="outline" className="text-[10px] font-bold bg-primary/5 text-primary border-primary/20">
+                        {log.total_hours.toFixed(1)}h
+                      </Badge>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-1">
+                      <span className="font-semibold text-emerald-600">IN</span>
+                      <span className="font-medium">{log.time_in_display || "-"}</span>
+                    </div>
+                    <ChevronRight className="h-3 w-3 text-muted-foreground/40" />
+                    <div className="flex items-center gap-1">
+                      <span className="font-semibold text-red-500">OUT</span>
+                      <span className="font-medium">{log.time_out_display || "-"}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-3 p-8">
+              <Clock className="h-12 w-12 opacity-15" />
+              <p className="font-bold text-sm">No logs found</p>
+              <p className="text-xs text-center">
                 {selectedDate
-                  ? `No attendance records for ${format(selectedDate, "PPP")}`
-                  : "Select a date to view attendance records"
-                }
+                  ? `No attendance records for ${format(selectedDate, "MMM dd, yyyy")}`
+                  : "Select a date to view records"}
               </p>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+
+        {/* Panel Footer Summary */}
+        {logs.length > 0 && (
+          <div className="p-4 border-t border-border bg-muted/30 flex-shrink-0">
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Present</p>
+                <p className="text-lg font-black text-foreground">{presentCount}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Hours</p>
+                <p className="text-lg font-black text-foreground">{totalHoursWorked.toFixed(1)}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">OT</p>
+                <p className="text-lg font-black text-foreground">{totalOvertime.toFixed(1)}</p>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

@@ -29,7 +29,7 @@ export function NavMain({
               "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-200 ease-in-out",
               item.isActive
                 ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-sm ring-1 ring-sidebar-border/50"
-                : "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground hover:translate-x-1"
+                : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground hover:translate-x-1"
             )}
           >
             <Link href={item.url}>
@@ -37,7 +37,7 @@ export function NavMain({
               <div
                 className={cn(
                   "flex h-8 w-8 items-center justify-center rounded-md transition-transform duration-200 group-hover:scale-110",
-                  item.isActive ? "bg-background shadow-xs" : "bg-muted/30"
+                  item.isActive ? "bg-transparent shadow-xs" : "bg-transparent"
                 )}
                 style={{ color: item.color }}
               >
@@ -50,7 +50,7 @@ export function NavMain({
               <span className="flex-1 truncate">{item.title}</span>
 
               {item.isActive && (
-                <div className="absolute left-0 h-6 w-1 rounded-r-full bg-primary" />
+                <div className="absolute left-0 h-6 w-1 rounded-r-full bg-sidebar-primary" />
               )}
             </Link>
           </SidebarMenuButton>

@@ -5,7 +5,7 @@ export interface Employee {
     full_name: string
     position: string | null
     department: string | null
-    employment_status: "Regular" | "Probationary" | "Project-based" | "Contractual"
+    employment_status: "Regular" | "Probationary" | "Project-based" | "Contractual" | "Inactive"
     tin: string | null
     sss: string | null
     philhealth: string | null

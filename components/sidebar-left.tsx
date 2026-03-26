@@ -154,17 +154,17 @@ export function SidebarLeft({ ...props }: React.ComponentProps<typeof Sidebar>) 
 
   return (
     <Sidebar className="border-r border-sidebar-border bg-sidebar/50 backdrop-blur-xl" {...props}>
-      <SidebarHeader className="py-4">
+      <SidebarHeader className="py-4 ">
         <TeamSwitcher
           teams={[
             {
               name: "Petrosphere",
-              logo: Droplet,
+              logo: "/petrosphere.png",
               plan: "Payroll System",
             },
             {
               name: "Palawan Daily News",
-              logo: Newspaper,
+              logo: "/palawandailynews.png",
               plan: "Payroll System",
             },
           ]}
@@ -175,7 +175,7 @@ export function SidebarLeft({ ...props }: React.ComponentProps<typeof Sidebar>) 
         {navGroups.map((group) => (
           <div key={group.label} className="px-2">
             <div className="px-4 mb-2">
-              <span className="text-[10px] font-bold tracking-widest text-muted-foreground/60 uppercase">
+              <span className="text-[10px] font-bold tracking-widest text-sidebar-foreground/60 uppercase">
                 {group.label}
               </span>
             </div>
@@ -185,8 +185,8 @@ export function SidebarLeft({ ...props }: React.ComponentProps<typeof Sidebar>) 
 
         <div className="mt-auto px-4 pb-6">
           <div className="text-center group">
-            <p className="text-[10px] font-bold tracking-widest text-muted-foreground/40 ">
-              Developed by <span className="text-foreground transition-colors group-hover:text-primary/60">PetroCore</span><span className="text-red-500 transition-colors group-hover:text-red-500">X</span>
+            <p className="text-[10px] font-bold tracking-widest text-sidebar-foreground/40 ">
+              Developed by <span className="text-sidebar-foreground transition-colors">PetroCore</span><span className="text-red-500 transition-colors group-hover:text-red-500">X</span>
             </p>
           </div>
         </div>

@@ -26,7 +26,7 @@ export function TeamSwitcher({
 }: {
   teams: {
     name: string
-    logo: React.ElementType
+    logo: React.ElementType | string
     plan: string
   }[]
 }) {
@@ -82,14 +82,18 @@ export function TeamSwitcher({
               size="lg"
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground w-full justify-start px-3 py-6 rounded-xl transition-all duration-200 hover:bg-sidebar-accent/50 group"
             >
-              <div className="flex aspect-square size-10 items-center justify-center rounded-lg bg-primary/10 text-primary shadow-sm transition-transform group-hover:scale-105 group-hover:rotate-3">
-                <activeTeam.logo className="size-6 font-bold" />
+              <div className="flex aspect-square size-10 items-center justify-center rounded-lg bg-primary/10 text-primary shadow-sm transition-transform overflow-hidden group-hover:scale-105 group-hover:rotate-3">
+                {typeof activeTeam.logo === "string" ? (
+                  <img src={activeTeam.logo} alt={activeTeam.name} className="h-full w-full object-contain p-1" />
+                ) : (
+                  <activeTeam.logo className="size-6 font-bold" />
+                )}
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight ml-3">
-                <span className="truncate font-semibold text-foreground">
+                <span className="truncate font-semibold text-sidebar-foreground">
                   {activeTeam.name}
                 </span>
-                <span className="truncate text-xs text-muted-foreground">
+                <span className="truncate text-xs text-sidebar-foreground/70">
                   {activeTeam.plan}
                 </span>
               </div>
@@ -115,8 +119,12 @@ export function TeamSwitcher({
                     activeTeam.name === team.name && "bg-muted font-medium"
                   )}
                 >
-                  <div className="flex size-6 items-center justify-center rounded-xs border">
-                    <team.logo className="size-4 shrink-0" />
+                  <div className="flex size-6 items-center justify-center rounded-xs border overflow-hidden p-0.5">
+                    {typeof team.logo === "string" ? (
+                      <img src={team.logo} alt={team.name} className="h-full w-full object-contain" />
+                    ) : (
+                      <team.logo className="size-4 shrink-0" />
+                    )}
                   </div>
                   {team.name}
                   <DropdownMenuShortcut>⌘{index + 1}</DropdownMenuShortcut>

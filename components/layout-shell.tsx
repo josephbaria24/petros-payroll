@@ -9,14 +9,16 @@ import {
 } from "@/components/ui/sidebar"
 import { SidebarRight } from "@/components/sidebar-right"
 import { SidebarLeft } from "@/components/sidebar-left"
-import { ModeToggle } from "@/components/mode-toggle"
+
 import { Button } from "@/components/ui/button"
 import { LogOut } from "lucide-react"
 import { supabase } from "@/lib/supabaseClient"
+import { useOrganization } from "@/contexts/OrganizationContext"
 
 export function LayoutShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
+  const { activeOrganization } = useOrganization()
 
   const isAuthPage = ["/login", "/signup", "/forgot-password"].some((route) =>
     pathname.startsWith(route)
@@ -26,8 +28,8 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
   const backgroundClass = pathname === "/my-payroll"
     ? "bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50"
     : pathname === "/timesheet"
-        ? "bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50"
-        : "bg-white" // fallback for other pages
+      ? "bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50"
+      : "bg-white" // fallback for other pages
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -48,12 +50,21 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
         <SidebarLeft />
 
         <SidebarInset>
-          {/* Header with SidebarTrigger and ModeToggle */}
+          {/* Header with SidebarTrigger and Organization Logo */}
           <header className="sticky top-0 z-10 flex h-14 items-center justify-between gap-4 border-b bg-background/95 px-4 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/60">
-            <SidebarTrigger className="h-9 w-9" />
+            <div className="flex items-center gap-4">
+              <SidebarTrigger className="h-9 w-9" />
+              <div className="flex items-center">
+                <img
+                  src={activeOrganization === "palawan" ? "/palawandailynews.png" : "/petrosphere1.png"}
+                  alt={activeOrganization === "palawan" ? "Palawan Daily News" : "Petrosphere"}
+                  className="h-6 w-auto object-contain transition-all duration-300"
+                />
+              </div>
+            </div>
 
             <div className="flex items-center gap-2">
-              <ModeToggle />
+
               <Button
                 variant="ghost"
                 size="sm"

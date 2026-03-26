@@ -480,6 +480,7 @@ export default function EmployeesPage() {
                                 <SelectItem value="Probationary">Probationary</SelectItem>
                                 <SelectItem value="Project-based">Project-based</SelectItem>
                                 <SelectItem value="Contractual">Contractual</SelectItem>
+                                <SelectItem value="Inactive">Inactive</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>

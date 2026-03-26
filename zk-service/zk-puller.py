@@ -209,9 +209,11 @@ def fetch_logs():
             print(f"[INFO] Retrieved {len(logs)} total logs")
 
             today = date.today()
-            # Keep logs from today only to avoid historical reprocessing
-            new_logs = [log for log in logs if log.timestamp.date() >= today]
-            print(f"[INFO] Checking {len(new_logs)} logs from {today} onwards")
+            # Keep logs from the last 7 days to capture missed entries from yesterday/previous days
+            from datetime import timedelta
+            lookback_date = today - timedelta(days=7)
+            new_logs = [log for log in logs if log.timestamp.date() >= lookback_date]
+            print(f"[INFO] Checking {len(new_logs)} logs from {lookback_date} onwards")
 
             for log in new_logs:
                 emp_name = user_name_map.get(int(log.user_id), f"User {log.user_id}")
