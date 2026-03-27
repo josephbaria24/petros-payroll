@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { supabase } from "@/lib/supabaseClient"
 import { useOrganization } from "@/contexts/OrganizationContext"
 import { DataTable } from "./data-table"
@@ -22,6 +22,10 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Badge } from "@/components/ui/badge"
+import { toast } from "sonner"
 import {
   Building2,
   Briefcase,
@@ -30,9 +34,21 @@ import {
   Plus,
   Users,
   UserCheck,
-  Clock
+  Clock,
+  Filter,
 } from "lucide-react"
 import { useProtectedPage } from "../hooks/useProtectedPage"
+
+const ALL_STATUSES = ["Regular", "Probationary", "Project-based", "Contractual", "Inactive"] as const
+
+function loadSavedFilters(): string[] {
+  if (typeof window === "undefined") return [...ALL_STATUSES]
+  const stored = localStorage.getItem("employee_status_filters")
+  if (stored) {
+    try { return JSON.parse(stored) } catch { return [...ALL_STATUSES] }
+  }
+  return [...ALL_STATUSES]
+}
 
 export default function EmployeesPage() {
   useProtectedPage(["admin", "hr"])
@@ -43,6 +59,7 @@ export default function EmployeesPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState(false)
   const [emailSuggestions, setEmailSuggestions] = useState<{ full_name: string; corp_email: string }[]>([])
+  const [statusFilters, setStatusFilters] = useState<string[]>(loadSavedFilters)
 
   // form state
   const [form, setForm] = useState({
@@ -65,31 +82,76 @@ export default function EmployeesPage() {
   })
   const [open, setOpen] = useState(false)
 
+  // Toggle a status filter and persist
+  function toggleStatusFilter(status: string) {
+    setStatusFilters(prev => {
+      const next = prev.includes(status) ? prev.filter(s => s !== status) : [...prev, status]
+      localStorage.setItem("employee_status_filters", JSON.stringify(next))
+      return next
+    })
+  }
+
+  // Filtered data based on status filters
+  const filteredData = useMemo(() => {
+    if (statusFilters.length === ALL_STATUSES.length) return data
+    return data.filter(emp => statusFilters.includes(emp.employment_status))
+  }, [data, statusFilters])
+
+  const activeFilterCount = ALL_STATUSES.length - statusFilters.length
+
   useEffect(() => {
-    fetchEmployees()
-    fetchEmailSuggestions()
+    let ignore = false
+
+    async function loadData() {
+      setLoading(true)
+
+      const table = activeOrganization === "pdn" ? "pdn_employees" : "employees"
+
+      // Fetch employees
+      const { data: empData, error: empError } = await supabase.from(table).select("*")
+      if (!ignore) {
+        if (empError) {
+          console.error("Error fetching employees:", empError)
+        } else {
+          setData(empData as Employee[])
+        }
+      }
+
+      // Fetch email suggestions (only for petrosphere)
+      if (activeOrganization === "pdn") {
+        if (!ignore) setEmailSuggestions([])
+      } else {
+        const { data: emailData, error: emailError } = await supabase.from("emp_email").select("full_name, corp_email")
+        if (!ignore) {
+          if (emailError) {
+            console.error("Error fetching email suggestions:", emailError.message)
+          } else {
+            setEmailSuggestions(emailData)
+          }
+        }
+      }
+
+      if (!ignore) setLoading(false)
+    }
+
+    loadData()
+    return () => { ignore = true }
   }, [activeOrganization])
 
   async function fetchEmployees() {
     setLoading(true)
-    if (activeOrganization === "palawan") {
-      const stored = localStorage.getItem("palawan_employees")
-      setData(stored ? JSON.parse(stored) : [])
+    const table = activeOrganization === "pdn" ? "pdn_employees" : "employees"
+    const { data, error } = await supabase.from(table).select("*")
+    if (error) {
+      console.error("Error fetching employees:", error)
     } else {
-      const { data, error } = await supabase.from("employees").select("*")
-      if (error) {
-        console.error("Error fetching employees:", error)
-      } else {
-        setData(data as Employee[])
-      }
+      setData(data as Employee[])
     }
     setLoading(false)
   }
 
   async function fetchEmailSuggestions() {
-    if (activeOrganization === "palawan") {
-      // For Palawan, don't show any email suggestions from Petrosphere
-      // Palawan employees are managed separately in localStorage
+    if (activeOrganization === "pdn") {
       setEmailSuggestions([])
       return
     }
@@ -122,23 +184,128 @@ export default function EmployeesPage() {
   }
 
   async function handleDelete(id: string) {
-    const confirmDelete = window.confirm("Are you sure you want to delete this employee?")
-    if (!confirmDelete) return
-
-    if (activeOrganization === "palawan") {
-      const stored = localStorage.getItem("palawan_employees")
-      const employees = stored ? JSON.parse(stored) : []
-      const updated = employees.filter((emp: Employee) => emp.id !== id)
-      localStorage.setItem("palawan_employees", JSON.stringify(updated))
-      fetchEmployees()
+    // Delete dependent records first to avoid foreign key constraints
+    if (activeOrganization === "pdn") {
+      await supabase.from("pdn_attendance_logs").delete().eq("employee_id", id)
+      await supabase.from("pdn_payroll_records").delete().eq("employee_id", id)
+      await supabase.from("pdn_deductions").delete().eq("employee_id", id)
     } else {
-      const { error } = await supabase.from("employees").delete().eq("id", id)
-      if (error) {
-        console.error("Error deleting employee:", error.message)
-      } else {
-        fetchEmployees()
+      // Fetch attendance_log_userid and email to delete related logs
+      const { data: empData } = await supabase
+        .from("employees")
+        .select("attendance_log_userid, email")
+        .eq("id", id)
+        .single()
+
+      if (empData?.attendance_log_userid) {
+        await supabase.from("attendance_logs").delete().eq("user_id", empData.attendance_log_userid)
+      }
+
+      await supabase.from("attendance").delete().eq("employee_id", id)
+      await supabase.from("time_logs").delete().eq("employee_id", id)
+      await supabase.from("payroll_overtimes").delete().eq("employee_id", id)
+      await supabase.from("payroll_records").delete().eq("employee_id", id)
+      await supabase.from("employee_deductions").delete().eq("employee_id", id)
+      await supabase.from("deductions").delete().eq("employee_id", id)
+      await supabase.from("employee_requests").delete().eq("employee_id", id)
+      
+      // Delete from emp_email if matching
+      if (empData?.email) {
+        await supabase.from("emp_email").delete().eq("corp_email", empData.email.trim().toLowerCase())
       }
     }
+
+    const table = activeOrganization === "pdn" ? "pdn_employees" : "employees"
+    const { error } = await supabase.from(table).delete().eq("id", id)
+    if (error) {
+      console.error("Error deleting employee:", error.message)
+      toast.error(`Failed to delete: ${error.message}`)
+    } else {
+      toast.success("Employee deleted successfully")
+      fetchEmployees()
+      if (activeOrganization !== "pdn") fetchEmailSuggestions()
+    }
+  }
+
+  async function handleMove(emp: Employee) {
+    const isMovingToPDN = activeOrganization !== "pdn"
+    const targetTable = isMovingToPDN ? "pdn_employees" : "employees"
+
+    const payload: any = {
+      employee_code: emp.employee_code,
+      full_name: emp.full_name,
+      email: emp.email,
+      position: emp.position,
+      department: emp.department,
+      employment_status: emp.employment_status,
+      tin: emp.tin,
+      sss: emp.sss,
+      philhealth: emp.philhealth,
+      pagibig: emp.pagibig,
+      base_salary: emp.base_salary,
+      allowance: emp.allowance || 0,
+      pay_type: emp.pay_type,
+      shift: emp.shift,
+      hours_per_week: emp.hours_per_week,
+      leave_credits: emp.leave_credits || 0,
+      attendance_log_userid: emp.attendance_log_userid
+    }
+
+    if (!isMovingToPDN) {
+       payload.shift_id = (emp as any).shift_id || null
+    }
+
+    // Attempt to insert into target team first (and get the new ID)
+    const { data: newEmp, error: insertError } = await supabase
+      .from(targetTable)
+      .insert([payload])
+      .select()
+      .single()
+    
+    if (insertError) {
+      console.error("Error moving employee:", insertError.message)
+      toast.error(`Failed to move employee: ${insertError.message}`)
+      return
+    }
+
+    toast.info(`Successfully copied ${emp.full_name}. Now transferring timekeeping logs...`)
+
+    // Transfer Attendance Logs
+    const sourceLogTable = isMovingToPDN ? "attendance_logs" : "pdn_attendance_logs"
+    const targetLogTable = isMovingToPDN ? "pdn_attendance_logs" : "attendance_logs"
+    const sourceIdField = isMovingToPDN ? "user_id" : "employee_id"
+    const sourceIdValue = isMovingToPDN ? emp.attendance_log_userid : emp.id
+
+    if (sourceIdValue) {
+      const { data: logs, error: logsError } = await supabase
+        .from(sourceLogTable)
+        .select("*")
+        .eq(sourceIdField, sourceIdValue)
+
+      if (logs && logs.length > 0) {
+        const logsPayload = logs.map(log => {
+          const { id, created_at, ...rest } = log
+          if (isMovingToPDN) {
+            return { ...rest, employee_id: newEmp.id }
+          } else {
+            return { ...rest, user_id: newEmp.attendance_log_userid }
+          }
+        })
+
+        const { error: logsInsertError } = await supabase.from(targetLogTable).insert(logsPayload)
+        if (logsInsertError) {
+          console.error("Error transferring logs:", logsInsertError.message)
+          toast.warning("Employee moved but some timekeeping logs failed to transfer.")
+        } else {
+          toast.success(`Transferred ${logs.length} timekeeping records.`)
+        }
+      }
+    }
+
+    toast.success(`Move complete. Removing from current team...`)
+
+    // Call handleDelete to clean up from the current team (this also wipes the source logs)
+    await handleDelete(emp.id)
   }
 
   async function handleSave(e: React.FormEvent) {
@@ -163,48 +330,27 @@ export default function EmployeesPage() {
       leave_credits: form.leave_credits ? parseFloat(form.leave_credits) : 0,
     }
 
+    const table = activeOrganization === "pdn" ? "pdn_employees" : "employees"
     let error
 
-    if (activeOrganization === "palawan") {
-      const stored = localStorage.getItem("palawan_employees")
-      const employees = stored ? JSON.parse(stored) : []
-
-      if (isEditing && editingId) {
-        const updated = employees.map((emp: Employee) =>
-          emp.id === editingId ? { ...emp, ...payload } : emp
-        )
-        localStorage.setItem("palawan_employees", JSON.stringify(updated))
-      } else {
-        const newEmployee = { ...payload, id: `emp_${Date.now()}`, created_at: new Date().toISOString() }
-        employees.push(newEmployee)
-        localStorage.setItem("palawan_employees", JSON.stringify(employees))
-      }
-
-      setOpen(false)
-      setForm(initialForm)
-      setIsEditing(false)
-      setEditingId(null)
-      fetchEmployees()
+    if (isEditing && editingId) {
+      const res = await supabase.from(table).update(payload).eq("id", editingId)
+      error = res.error
     } else {
-      if (isEditing && editingId) {
-        const res = await supabase
-          .from("employees")
-          .update(payload)
-          .eq("id", editingId)
-        error = res.error
-      } else {
-        const res = await supabase.from("employees").insert([payload])
-        error = res.error
-      }
+      const res = await supabase.from(table).insert([payload])
+      error = res.error
+    }
 
-      if (error) {
-        console.error("Error saving employee:", error.message)
-      } else {
-        // Sync with emp_email table
+    if (error) {
+      console.error("Error saving employee:", error.message)
+      toast.error(`Failed to save: ${error.message}`)
+    } else {
+      toast.success(isEditing ? "Employee updated" : "Employee added")
+
+      // Sync with emp_email table (only for petrosphere)
+      if (activeOrganization !== "pdn") {
         const { full_name, email } = form
         const emailLower = email.trim().toLowerCase()
-
-        // Check if it already exists
         const { data: existing } = await supabase
           .from("emp_email")
           .select("id")
@@ -212,19 +358,16 @@ export default function EmployeesPage() {
           .maybeSingle()
 
         if (!existing && full_name && emailLower) {
-          await supabase.from("emp_email").insert([{
-            full_name: full_name,
-            corp_email: emailLower
-          }])
+          await supabase.from("emp_email").insert([{ full_name, corp_email: emailLower }])
           fetchEmailSuggestions()
         }
-
-        setOpen(false)
-        setForm(initialForm)
-        setIsEditing(false)
-        setEditingId(null)
-        fetchEmployees()
       }
+
+      setOpen(false)
+      setForm(initialForm)
+      setIsEditing(false)
+      setEditingId(null)
+      fetchEmployees()
     }
   }
 
@@ -266,12 +409,10 @@ export default function EmployeesPage() {
     adjustedSalary = adjustedSalary / 2
   }
 
-  // Calculate metrics
+  // Calculate metrics from full data (not filtered)
   const totalEmployees = data.length
   const regularEmployees = data.filter(emp => emp.employment_status === "Regular").length
   const probationaryEmployees = data.filter(emp => emp.employment_status === "Probationary").length
-
-  // Calculate unique departments
   const uniqueDepartments = new Set(data.map(emp => emp.department).filter(Boolean)).size
 
 
@@ -325,13 +466,63 @@ export default function EmployeesPage() {
 
       {/* Data Table with Integrated Controls */}
       <DataTable
-        data={data}
+        data={filteredData}
         columns={columns}
         onEdit={(emp) => handleRowClick(emp, "edit")}
         onDelete={handleDelete}
+        onMove={handleMove}
         onRowClick={(emp) => handleRowClick(emp, "view")}
         initialSorting={[{ id: "full_name", desc: false }]}
       >
+        {/* Status Filters Popover */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="h-9 gap-2 font-semibold relative">
+              <Filter className="w-4 h-4" />
+              Filters
+              {activeFilterCount > 0 && (
+                <Badge className="h-5 w-5 p-0 flex items-center justify-center text-[10px] rounded-full absolute -top-1.5 -right-1.5 bg-primary text-primary-foreground">
+                  {activeFilterCount}
+                </Badge>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-56 p-0" align="end">
+            <div className="p-3 border-b border-border">
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Employment Status</p>
+            </div>
+            <div className="p-2 space-y-1">
+              {ALL_STATUSES.map(status => (
+                <label
+                  key={status}
+                  className="flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-muted/50 cursor-pointer transition-colors"
+                >
+                  <Checkbox
+                    checked={statusFilters.includes(status)}
+                    onCheckedChange={() => toggleStatusFilter(status)}
+                  />
+                  <span className="text-sm font-medium">{status}</span>
+                </label>
+              ))}
+            </div>
+            {activeFilterCount > 0 && (
+              <div className="p-2 border-t border-border">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full text-xs font-semibold"
+                  onClick={() => {
+                    setStatusFilters([...ALL_STATUSES])
+                    localStorage.setItem("employee_status_filters", JSON.stringify([...ALL_STATUSES]))
+                  }}
+                >
+                  Clear all filters
+                </Button>
+              </div>
+            )}
+          </PopoverContent>
+        </Popover>
+
         <Dialog open={open} onOpenChange={(v) => {
           setOpen(v)
           if (!v) resetForm()

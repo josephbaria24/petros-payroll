@@ -8,7 +8,7 @@ export function ThemeWrapper({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Remove existing themes
-    document.body.classList.remove("theme-petrosphere", "theme-palawan")
+    document.body.classList.remove("theme-petrosphere", "theme-pdn")
     
     // Apply current theme
     if (activeOrganization) {

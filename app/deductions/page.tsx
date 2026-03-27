@@ -111,9 +111,9 @@ export default function DeductionsPage() {
   }, [activeOrganization])
 
   async function fetchDeductionTypes() {
-    if (activeOrganization === "palawan") {
-      const stored = localStorage.getItem("palawan_deduction_types")
-      setDeductionTypes(stored ? JSON.parse(stored) : [
+    if (activeOrganization === "pdn") {
+      // PDN uses a simple default list for now (can be extended with a pdn_deduction_types table later)
+      setDeductionTypes([
         { id: "1", name: "SSS", is_mandatory: true, default_amount: 0 },
         { id: "2", name: "PhilHealth", is_mandatory: true, default_amount: 0 },
         { id: "3", name: "Pag-ibig", is_mandatory: true, default_amount: 0 },
@@ -142,9 +142,28 @@ export default function DeductionsPage() {
   }
 
   async function fetchDeductions() {
-    if (activeOrganization === "palawan") {
-      const stored = localStorage.getItem("palawan_deductions")
-      setDeductions(stored ? JSON.parse(stored) : [])
+    if (activeOrganization === "pdn") {
+      const { data, error } = await supabase
+        .from("pdn_deductions")
+        .select("id, employee_id, type, amount, notes, pdn_employees(full_name, employee_code)")
+        .order("id", { ascending: false })
+
+      if (error) {
+        console.error("Error fetching PDN deductions:", error)
+        return
+      }
+
+      setDeductions(
+        data.map((d: any) => ({
+          id: d.id,
+          employee_id: d.employee_id,
+          employee_name: d.pdn_employees?.full_name,
+          employee_code: d.pdn_employees?.employee_code,
+          type: d.type,
+          amount: d.amount,
+          notes: d.notes,
+        }))
+      )
       return
     }
 
@@ -172,9 +191,13 @@ export default function DeductionsPage() {
   }
 
   async function fetchEmployees() {
-    if (activeOrganization === "palawan") {
-      const stored = localStorage.getItem("palawan_employees")
-      setEmployees(stored ? JSON.parse(stored) : [])
+    if (activeOrganization === "pdn") {
+      const { data, error } = await supabase.from("pdn_employees").select("id, full_name, employee_code")
+      if (error) {
+        console.error("Error fetching PDN employees:", error)
+        return
+      }
+      setEmployees(data || [])
       return
     }
 
@@ -221,7 +244,7 @@ export default function DeductionsPage() {
 
   async function applyDeductionsToExistingPayroll(employeeId: string, deductionsList: Array<{ type: string, amount: number }>) {
     try {
-      if (activeOrganization === "palawan") {
+      if (activeOrganization === "pdn") {
         // ... handled in handleSubmit usually or similar
         return
       }
@@ -315,22 +338,17 @@ export default function DeductionsPage() {
       // Filtering out zero amounts if we want, or keep them to represent explicit zero
       // For now, let's only save non-zero or existing records that are being zeroed
 
-      if (activeOrganization === "palawan") {
-        const stored = localStorage.getItem("palawan_deductions")
-        let palawanDeductions = stored ? JSON.parse(stored) : []
-
+      if (activeOrganization === "pdn") {
         // Remove old records for this employee
-        palawanDeductions = palawanDeductions.filter((d: any) => d.employee_id !== employeeId)
+        await supabase.from("pdn_deductions").delete().eq("employee_id", employeeId)
 
-        // Add new ones
-        const newRecords = recordsToInsert.filter(r => r.amount > 0).map(r => ({
-          ...r,
-          id: `palawan_ded_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
-          created_at: new Date().toISOString()
-        }))
+        // Insert new ones
+        const newRecords = recordsToInsert.filter(r => r.amount > 0)
+        if (newRecords.length > 0) {
+          const { error } = await supabase.from("pdn_deductions").insert(newRecords)
+          if (error) throw error
+        }
 
-        palawanDeductions.push(...newRecords)
-        localStorage.setItem("palawan_deductions", JSON.stringify(palawanDeductions))
         toast.success("Deductions updated!", { id: toastId })
         setOpen(false)
         fetchDeductions()
@@ -367,19 +385,11 @@ export default function DeductionsPage() {
       default_amount: parseFloat(formData.get("default_amount") as string || "0"),
     }
 
-    if (activeOrganization === "palawan") {
-      const stored = localStorage.getItem("palawan_deduction_types")
-      let types = stored ? JSON.parse(stored) : []
-      if (editType) {
-        types = types.map((t: any) => t.id === editType.id ? { ...t, ...payload } : t)
-      } else {
-        types.push({ ...payload, id: Date.now().toString() })
-      }
-      localStorage.setItem("palawan_deduction_types", JSON.stringify(types))
-      toast.success("Type saved!", { id: toastId })
+    if (activeOrganization === "pdn") {
+      // PDN uses static deduction types for now
+      toast.info("PDN deduction types are managed from the default list.", { id: toastId })
       setTypeDialogOpen(false)
       setEditType(null)
-      fetchDeductionTypes()
       return
     }
 
@@ -406,15 +416,14 @@ export default function DeductionsPage() {
     if (!deleteId) return
     const toastId = toast.loading("Deleting deduction...")
 
-    if (activeOrganization === "palawan") {
-      const stored = localStorage.getItem("palawan_deductions")
-      const palawanDeductions = stored ? JSON.parse(stored) : []
-
-      const updatedDeductions = palawanDeductions.filter((d: any) => d.id !== deleteId)
-      localStorage.setItem("palawan_deductions", JSON.stringify(updatedDeductions))
-
-      toast.success("Deduction deleted from localStorage!", { id: toastId })
-      fetchDeductions()
+    if (activeOrganization === "pdn") {
+      const { error } = await supabase.from("pdn_deductions").delete().eq("id", deleteId)
+      if (error) {
+        toast.error("Error deleting deduction", { id: toastId })
+      } else {
+        toast.success("Deduction deleted!", { id: toastId })
+        fetchDeductions()
+      }
       setDeleteId(null)
       return
     }
@@ -548,11 +557,9 @@ export default function DeductionsPage() {
                           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditType(t)}><Edit className="h-3 w-3" /></Button>
                           <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={async () => {
                             if (confirm(`Delete ${t.name}?`)) {
-                              if (activeOrganization === "palawan") {
-                                const stored = localStorage.getItem("palawan_deduction_types")
-                                const updated = (stored ? JSON.parse(stored) : []).filter((it: any) => it.id !== t.id)
-                                localStorage.setItem("palawan_deduction_types", JSON.stringify(updated))
-                                fetchDeductionTypes()
+                              if (activeOrganization === "pdn") {
+                                // PDN deduction types are static defaults
+                                toast.info("Cannot delete default PDN deduction types.")
                               } else {
                                 await supabase.from("deduction_types").delete().eq("id", t.id)
                                 fetchDeductionTypes()

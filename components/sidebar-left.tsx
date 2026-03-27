@@ -41,7 +41,7 @@ export function SidebarLeft({ ...props }: React.ComponentProps<typeof Sidebar>) 
 
 
   const fetchPendingRequests = async () => {
-    if (activeOrganization === "palawan") {
+    if (activeOrganization === "pdn") {
       const stored = localStorage.getItem("palawan_requests")
       const requests = stored ? JSON.parse(stored) : []
       const pending = requests.filter((req: any) => req.status === "Pending").length

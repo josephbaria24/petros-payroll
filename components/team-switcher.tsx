@@ -39,16 +39,17 @@ export function TeamSwitcher({
 
     // For each team in the list, check if its "orgId" (derived from name) is in the allowed list
     return teams.filter(team => {
-      const orgId = team.name.toLowerCase().includes("palawan") ? "palawan" : "petrosphere"
+      const orgId = team.name.toLowerCase().includes("palawan") ? "pdn" : "petrosphere"
       return allowedOrganizations.includes(orgId as any)
     })
   }, [teams, allowedOrganizations]) // Removed 'loading' and 'role' from dependencies
 
   // Determine active team based on organization context
   const activeTeam = React.useMemo(() => {
-    const found = filteredTeams.find(team =>
-      team.name.toLowerCase().includes(activeOrganization)
-    )
+    const found = filteredTeams.find(team => {
+      const orgId = team.name.toLowerCase().includes("palawan") ? "pdn" : "petrosphere"
+      return orgId === activeOrganization
+    })
 
     // If active org is restricted (not in filtered list), fallback to first available
     if (!found && filteredTeams.length > 0) {
@@ -62,7 +63,7 @@ export function TeamSwitcher({
 
   const handleTeamChange = (team: typeof teams[0]) => {
     // Map team name to organization ID
-    const orgId = team.name.toLowerCase().includes("palawan") ? "palawan" : "petrosphere"
+    const orgId = team.name.toLowerCase().includes("palawan") ? "pdn" : "petrosphere"
     setActiveOrganization(orgId as any)
   }
 

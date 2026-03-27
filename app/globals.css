@@ -138,7 +138,7 @@
   --sidebar-border: #0f172a;
 }
 
-.theme-palawan {
+.theme-pdn {
   --primary: #f97316;
   --primary-foreground: #1e3a8a;
   --sidebar-primary: #f97316;
@@ -150,9 +150,9 @@
   --sidebar-border: #0f172a;
 }
 
-.dark.theme-palawan,
-.theme-palawan.dark,
-.dark .theme-palawan {
+.dark.theme-pdn,
+.theme-pdn.dark,
+.dark .theme-pdn {
   --primary: #f97316;
   --primary-foreground: #1e3a8a;
   --sidebar-primary: #f97316;

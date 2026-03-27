@@ -81,6 +81,8 @@ type TimeLog = {
   total_hours: number
   overtime_hours: number
   status: string
+  in_id?: string
+  out_id?: string
 }
 
 // Helper function to extract Philippine time from ZKT timestamp
@@ -113,6 +115,9 @@ export default function TimekeepingPage() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
   const [loading, setLoading] = useState(true)
   const [panelOpen, setPanelOpen] = useState(true)
+  const [editOpen, setEditOpen] = useState(false)
+  const [selectedLog, setSelectedLog] = useState<TimeLog | null>(null)
+  const [showTardinessNames, setShowTardinessNames] = useState(false)
 
   const [form, setForm] = useState({
     employee_id: "",
@@ -136,10 +141,56 @@ export default function TimekeepingPage() {
   }, [selectedDate, activeOrganization])
 
   async function fetchLogs(date: Date = new Date()) {
-    if (activeOrganization === "palawan") {
-      const stored = localStorage.getItem("palawan_time_logs")
-      const palawanLogs = stored ? JSON.parse(stored) : []
-      setLogs(palawanLogs)
+    if (activeOrganization === "pdn") {
+      const selectedDateStr = format(date, "yyyy-MM-dd")
+
+      const { data: logsData, error: logsError } = await supabase
+        .from("pdn_attendance_logs")
+        .select("id, employee_id, timestamp, status, work_date")
+        .eq("work_date", selectedDateStr)
+        .order("timestamp", { ascending: true })
+
+      if (logsError) {
+        console.error("Error fetching PDN logs:", logsError)
+        return
+      }
+
+      const { data: employeesData, error: empError } = await supabase
+        .from("pdn_employees")
+        .select("id, full_name")
+
+      if (empError) {
+        console.error("Error fetching PDN employees:", empError)
+        return
+      }
+
+      // Simple mapping for PDN logs
+      const enrichedLogs: TimeLog[] = (logsData || []).map((log: any) => {
+        const emp = employeesData?.find((e: any) => e.id === log.employee_id)
+        const timeIn = log.timestamp ? extractPhilippineTime(log.timestamp) : null
+        const timeOut = log.timeout ? extractPhilippineTime(log.timeout) : null
+        const timeInUTC = log.timestamp ? new Date(log.timestamp) : null
+        const timeOutUTC = log.timeout ? new Date(log.timeout) : null
+        const totalHours = timeInUTC && timeOutUTC ? (timeOutUTC.getTime() - timeInUTC.getTime()) / (1000 * 60 * 60) : 0
+
+        return {
+          id: log.id.toString(),
+          employee_id: log.employee_id || "",
+          employee_name: emp?.full_name || log.full_name || "Unknown",
+          date: log.work_date || selectedDateStr,
+          time_in: timeIn,
+          time_out: timeOut,
+          time_in_display: formatTo12Hour(timeIn),
+          time_out_display: formatTo12Hour(timeOut),
+          total_hours: Math.round(totalHours * 100) / 100,
+          overtime_hours: totalHours > 8 ? Math.round((totalHours - 8) * 100) / 100 : 0,
+          status: log.status || "time_in",
+          in_id: log.id.toString(),
+          out_id: log.id.toString(), // For PDN, both point to same row
+        }
+      })
+
+      setLogs(enrichedLogs)
       return
     }
 
@@ -210,6 +261,8 @@ export default function TimekeepingPage() {
           total_hours: Math.round(totalHours * 100) / 100,
           overtime_hours: totalHours > 8 ? Math.round((totalHours - 8) * 100) / 100 : 0,
           status: outEvent ? "time_out" : "time_in",
+          in_id: inEvent?.id?.toString(),
+          out_id: outEvent?.id?.toString(),
         })
       }
 
@@ -244,10 +297,13 @@ export default function TimekeepingPage() {
   }
 
   async function fetchEmployees() {
-    if (activeOrganization === "palawan") {
-      const stored = localStorage.getItem("palawan_employees")
-      const palawanEmployees = stored ? JSON.parse(stored) : []
-      setEmployees(palawanEmployees)
+    if (activeOrganization === "pdn") {
+      const { data, error } = await supabase.from("pdn_employees").select("id, full_name")
+      if (error) {
+        console.error("Error fetching PDN employees:", error)
+        return
+      }
+      setEmployees(data || [])
       return
     }
 
@@ -263,28 +319,25 @@ export default function TimekeepingPage() {
     e.preventDefault()
     const toastId = toast.loading("Saving time log...")
 
-    if (activeOrganization === "palawan") {
-      const newLog = {
-        id: `palawan_log_${Date.now()}`,
+    if (activeOrganization === "pdn") {
+      const toastId2 = toast.loading("Saving time log...")
+      const { error } = await supabase.from("pdn_attendance_logs").insert({
         employee_id: form.employee_id,
-        date: form.date,
-        time_in: form.time_in || null,
-        time_out: form.time_out || null,
-        status: form.status,
-        user_id: employees.find(emp => emp.id === form.employee_id)?.attendance_log_userid || null,
-        timestamp: form.time_in ? `${form.date}T${form.time_in}:00+08:00` : null,
+        work_date: form.date,
+        timestamp: form.time_in ? `${form.date}T${form.time_in}:00+08:00` : new Date().toISOString(),
         timeout: form.time_out ? `${form.date}T${form.time_out}:00+08:00` : null,
+        status: form.status,
+        full_name: employees.find(emp => emp.id === form.employee_id)?.full_name || "",
+      })
+
+      if (error) {
+        toast.error("Error saving log", { id: toastId2 })
+      } else {
+        toast.success(`Time log saved: ${formatTo12Hour(form.time_in)} - ${formatTo12Hour(form.time_out)}`, { id: toastId2 })
+        setOpen(false)
+        resetForm()
+        fetchLogs(selectedDate)
       }
-
-      const stored = localStorage.getItem("palawan_time_logs")
-      const palawanLogs = stored ? JSON.parse(stored) : []
-      palawanLogs.push(newLog)
-      localStorage.setItem("palawan_time_logs", JSON.stringify(palawanLogs))
-
-      toast.success("Time log saved to localStorage!", { id: toastId })
-      setOpen(false)
-      resetForm()
-      fetchLogs(selectedDate)
       return
     }
 
@@ -299,10 +352,86 @@ export default function TimekeepingPage() {
     if (error) {
       toast.error("Error saving log", { id: toastId })
     } else {
-      toast.success("Time log saved!", { id: toastId })
+      toast.success(`Time log saved: ${formatTo12Hour(form.time_in)} - ${formatTo12Hour(form.time_out)}`, { id: toastId })
       setOpen(false)
       resetForm()
       fetchLogs(selectedDate)
+    }
+  }
+
+  async function handleEditSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!selectedLog) return
+
+    const toastId = toast.loading("Updating time log...")
+
+    try {
+      if (activeOrganization === "pdn") {
+        const { error } = await supabase
+          .from("pdn_attendance_logs")
+          .update({
+            timestamp: form.time_in ? `${form.date}T${form.time_in}:00+08:00` : null,
+            timeout: form.time_out ? `${form.date}T${form.time_out}:00+08:00` : null,
+            work_date: form.date,
+            status: form.time_out ? "time_out" : "time_in"
+          })
+          .eq("id", selectedLog.in_id)
+
+        if (error) throw error
+      } else {
+        // Petrosphere: Might need to update up to two rows
+        if (selectedLog.in_id) {
+          const { error: inErr } = await supabase
+            .from("attendance_logs")
+            .update({
+              timestamp: form.time_in ? `${form.date}T${form.time_in}:00+08:00` : null,
+              work_date: form.date
+            })
+            .eq("id", selectedLog.in_id)
+          if (inErr) throw inErr
+        }
+
+        if (selectedLog.out_id && selectedLog.out_id !== selectedLog.in_id) {
+          if (form.time_out) {
+            const { error: outErr } = await supabase
+              .from("attendance_logs")
+              .update({
+                timestamp: `${form.date}T${form.time_out}:00+08:00`,
+                work_date: form.date
+              })
+              .eq("id", selectedLog.out_id)
+            if (outErr) throw outErr
+          } else {
+            // User cleared the OUT time, delete the OUT row
+            const { error: delErr } = await supabase
+              .from("attendance_logs")
+              .delete()
+              .eq("id", selectedLog.out_id)
+            if (delErr) throw delErr
+          }
+        } else if (form.time_out && !selectedLog.out_id) {
+          // If editing a log that only had IN and now has OUT, we need to find the user_id and insert a new OUT row
+          const { data: empData } = await supabase.from("employees").select("attendance_log_userid").eq("id", form.employee_id).single()
+          if (empData?.attendance_log_userid) {
+            const { error: insertErr } = await supabase.from("attendance_logs").insert({
+              user_id: empData.attendance_log_userid,
+              timestamp: `${form.date}T${form.time_out}:00+08:00`,
+              status: "time_out",
+              work_date: form.date,
+              full_name: employees.find(e => e.id === form.employee_id)?.full_name || ""
+            })
+            if (insertErr) throw insertErr
+          }
+        }
+      }
+
+      toast.success(`Time log updated: ${formatTo12Hour(form.time_in)} - ${formatTo12Hour(form.time_out)}`, { id: toastId })
+      setEditOpen(false)
+      resetForm()
+      fetchLogs(selectedDate)
+    } catch (err: any) {
+      console.error("Error updating log:", err)
+      toast.error(err.message || "Error updating log", { id: toastId })
     }
   }
 
@@ -361,6 +490,36 @@ export default function TimekeepingPage() {
       }
     })
     return Object.entries(buckets).map(([time, count]) => ({ time, count }))
+  }, [logs])
+
+  // Average Tardiness by employee (for bar chart)
+  const tardinessByEmployee = useMemo(() => {
+    const map = new Map<string, { totalLateMinutes: number, count: number }>()
+    logs.forEach(log => {
+      if (log.time_in && log.time_in !== "-") {
+        const [h, m] = log.time_in.split(':').map(Number)
+        const totalMinutes = h * 60 + m
+        const standardStart = 8 * 60 // 08:00 AM standard start
+        if (totalMinutes > standardStart) {
+          const lateMinutes = totalMinutes - standardStart
+          const name = log.employee_name || "Unknown"
+          const current = map.get(name) || { totalLateMinutes: 0, count: 0 }
+          map.set(name, { 
+            totalLateMinutes: current.totalLateMinutes + lateMinutes, 
+            count: current.count + 1 
+          })
+        }
+      }
+    })
+    return Array.from(map)
+      .map(([name, data], idx) => ({ 
+        full_name: name,
+        name: name.split(' ')[0], 
+        mask: `Staff ${idx + 1}`,
+        avgMinutes: Math.round(data.totalLateMinutes / data.count) 
+      }))
+      .sort((a, b) => b.avgMinutes - a.avgMinutes)
+      .slice(0, 10)
   }, [logs])
 
   if (loading) {
@@ -492,6 +651,77 @@ export default function TimekeepingPage() {
 
                   <Button type="submit" className="w-full">
                     Save Time Log
+                  </Button>
+                </form>
+              </DialogContent>
+            </Dialog>
+
+            {/* Edit Log Dialog */}
+            <Dialog open={editOpen} onOpenChange={(v) => {
+              setEditOpen(v)
+              if (!v) {
+                resetForm()
+                setSelectedLog(null)
+              }
+            }}>
+              <DialogContent className="lg:w-[30vw] w-[90vw]">
+                <DialogHeader>
+                  <DialogTitle>Edit Time Log</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleEditSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Employee</Label>
+                    <Select
+                      value={form.employee_id}
+                      onValueChange={(value) => setForm({ ...form, employee_id: value })}
+                      required
+                      disabled
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select employee" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {employees.map((emp) => (
+                          <SelectItem key={emp.id} value={emp.id}>
+                            {emp.full_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Date</Label>
+                    <Input
+                      type="date"
+                      value={form.date}
+                      onChange={(e) => setForm({ ...form, date: e.target.value })}
+                      required
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Time In</Label>
+                      <Input
+                        type="time"
+                        value={form.time_in || ""}
+                        onChange={(e) => setForm({ ...form, time_in: e.target.value })}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Time Out</Label>
+                      <Input
+                        type="time"
+                        value={form.time_out || ""}
+                        onChange={(e) => setForm({ ...form, time_out: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <Button type="submit" className="w-full">
+                    Update Time Log
                   </Button>
                 </form>
               </DialogContent>
@@ -697,6 +927,80 @@ export default function TimekeepingPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Tardiness Analytics */}
+        <Card className="border border-border shadow-sm bg-card">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-base font-bold text-foreground flex items-center gap-2">
+                  <Activity className="h-4 w-4 text-amber-500" />
+                  Average Tardiness (Minutes)
+                </CardTitle>
+                <p className="text-xs text-muted-foreground mt-1">Average minutes late from 08:00 AM</p>
+              </div>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="text-[10px] h-7 font-bold uppercase tracking-tight"
+                onClick={() => setShowTardinessNames(!showTardinessNames)}
+              >
+                {showTardinessNames ? "Hide Names" : "Show Names"}
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[220px] w-full">
+              {tardinessByEmployee.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={tardinessByEmployee} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorTardiness" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.15} />
+                        <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                    <XAxis 
+                      dataKey={showTardinessNames ? "name" : "mask"} 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fill: 'var(--muted-foreground)', fontSize: 9, fontWeight: 600 }}
+                    />
+                    <YAxis 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fill: 'var(--muted-foreground)', fontSize: 9 }}
+                    />
+                    <RechartsTooltip
+                      contentStyle={{ backgroundColor: 'var(--card)', borderRadius: '10px', border: '1px solid var(--border)', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', fontSize: '11px', color: 'var(--foreground)' }}
+                      itemStyle={{ color: 'var(--foreground)' }}
+                      formatter={(value: any) => [`${value}m`, 'Avg Late']}
+                      labelFormatter={(label, payload) => {
+                        if (showTardinessNames) return label;
+                        const item = payload[0]?.payload;
+                        return item ? `Late Session (${item.mask})` : label;
+                      }}
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="avgMinutes" 
+                      stroke="#f59e0b" 
+                      strokeWidth={2.5}
+                      fillOpacity={1} 
+                      fill="url(#colorTardiness)" 
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex flex-col items-center justify-center text-muted-foreground gap-2">
+                  <Activity className="h-10 w-10 opacity-20" />
+                  <p className="text-sm font-medium">No tardiness data for this date</p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* ===== Floating Right Panel ===== */}
@@ -761,6 +1065,24 @@ export default function TimekeepingPage() {
                         {log.total_hours.toFixed(1)}h
                       </Badge>
                     )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => {
+                        setSelectedLog(log)
+                        setForm({
+                          employee_id: log.employee_id,
+                          date: log.date,
+                          time_in: log.time_in || "",
+                          time_out: log.time_out || "",
+                          status: log.status
+                        })
+                        setEditOpen(true)
+                      }}
+                    >
+                      <Clock className="h-3 w-3 text-muted-foreground hover:text-primary" />
+                    </Button>
                   </div>
 
                   <div className="flex items-center gap-4 text-xs text-muted-foreground">

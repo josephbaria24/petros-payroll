@@ -39,7 +39,7 @@ export function TeamTransition() {
 
   if (state === "hidden") return null
 
-  const isPalawan = animatingOrg === "palawan"
+  const isPalawan = animatingOrg === "pdn"
   const orgName = isPalawan ? "Palawan Daily News" : "Petrosphere"
   const imageSrc = isPalawan ? "/palawandailynews.png" : "/petrosphere.png"
   

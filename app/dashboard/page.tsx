@@ -198,25 +198,32 @@ export default function DashboardPage() {
   }, [periodStart, periodEnd])
 
   async function fetchPayroll() {
-    if (activeOrganization === "palawan") {
-      const stored = localStorage.getItem("palawan_payroll_records")
-      const palawanRecords = stored ? JSON.parse(stored) : []
+    if (activeOrganization === "pdn") {
+      const { data, error } = await supabase
+        .from("pdn_payroll_records")
+        .select(`
+          id,
+          employee_id,
+          period_end,
+          net_pay,
+          status,
+          pdn_employees ( full_name, employee_code, pay_type )
+        `)
 
-      const storedEmployees = localStorage.getItem("palawan_employees")
-      const palawanEmployees = storedEmployees ? JSON.parse(storedEmployees) : []
+      if (error) {
+        console.error("Error fetching PDN payroll:", error)
+        return
+      }
 
-      const transformed = palawanRecords.map((rec: any) => {
-        const emp = palawanEmployees.find((e: any) => e.id === rec.employee_id)
-        return {
-          id: rec.id,
-          employee_code: emp?.employee_code || "N/A",
-          full_name: emp?.full_name || "Unknown",
-          pay_type: emp?.pay_type || "N/A",
-          period_end: rec.period_end,
-          net_pay: rec.net_pay,
-          status: rec.status,
-        }
-      })
+      const transformed = data.map((rec: any) => ({
+        id: rec.id,
+        employee_code: rec.pdn_employees?.employee_code || "N/A",
+        full_name: rec.pdn_employees?.full_name || "Unknown",
+        pay_type: rec.pdn_employees?.pay_type || "N/A",
+        period_end: rec.period_end,
+        net_pay: rec.net_pay,
+        status: rec.status,
+      }))
 
       setRecords(transformed)
       return
@@ -252,10 +259,13 @@ export default function DashboardPage() {
   }
 
   async function fetchEmployees() {
-    if (activeOrganization === "palawan") {
-      const stored = localStorage.getItem("palawan_employees")
-      const palawanEmployees = stored ? JSON.parse(stored) : []
-      setEmployees(palawanEmployees)
+    if (activeOrganization === "pdn") {
+      const { data, error } = await supabase.from("pdn_employees").select("id, full_name, employee_code, base_salary")
+      if (error) {
+        console.error("Error fetching PDN employees:", error)
+        return
+      }
+      setEmployees(data || [])
       return
     }
 
@@ -274,29 +284,33 @@ export default function DashboardPage() {
     setPayday(date)
     const formatted = date.toISOString().split("T")[0]
 
-    if (activeOrganization === "palawan") {
-      const stored = localStorage.getItem("palawan_payroll_records")
-      const palawanRecords = stored ? JSON.parse(stored) : []
+    if (activeOrganization === "pdn") {
+      const { data, error } = await supabase
+        .from("pdn_payroll_records")
+        .select(`
+          id,
+          employee_id,
+          period_end,
+          net_pay,
+          status,
+          pdn_employees ( full_name, employee_code, pay_type )
+        `)
+        .eq("period_end", formatted)
 
-      const storedEmployees = localStorage.getItem("palawan_employees")
-      const palawanEmployees = storedEmployees ? JSON.parse(storedEmployees) : []
-
-      const filtered = palawanRecords.filter((rec: any) => rec.period_end === formatted)
-
-      const transformed = filtered.map((rec: any) => {
-        const emp = palawanEmployees.find((e: any) => e.id === rec.employee_id)
-        return {
+      if (error) {
+        console.error("Error filtering PDN by payday:", error)
+      } else {
+        const transformed = data.map((rec: any) => ({
           id: rec.id,
-          employee_code: emp?.employee_code || "N/A",
-          full_name: emp?.full_name || "Unknown",
-          pay_type: emp?.pay_type || "N/A",
+          employee_code: rec.pdn_employees?.employee_code || "N/A",
+          full_name: rec.pdn_employees?.full_name || "Unknown",
+          pay_type: rec.pdn_employees?.pay_type || "N/A",
           period_end: rec.period_end,
           net_pay: rec.net_pay,
           status: rec.status,
-        }
-      })
-
-      setRecords(transformed)
+        }))
+        setRecords(transformed)
+      }
       return
     }
 

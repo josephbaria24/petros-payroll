@@ -56,8 +56,8 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
               <SidebarTrigger className="h-9 w-9" />
               <div className="flex items-center">
                 <img
-                  src={activeOrganization === "palawan" ? "/palawandailynews.png" : "/petrosphere1.png"}
-                  alt={activeOrganization === "palawan" ? "Palawan Daily News" : "Petrosphere"}
+                  src={activeOrganization === "pdn" ? "/palawandailynews.png" : "/petrosphere1.png"}
+                  alt={activeOrganization === "pdn" ? "Palawan Daily News" : "Petrosphere"}
                   className="h-6 w-auto object-contain transition-all duration-300"
                 />
               </div>

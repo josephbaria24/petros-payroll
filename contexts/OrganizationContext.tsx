@@ -4,7 +4,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
 import { useUserRole } from "@/lib/useUseRole"
 import { supabase } from "@/lib/supabaseClient"
 
-type Organization = "petrosphere" | "palawan"
+type Organization = "petrosphere" | "pdn"
 
 interface OrganizationContextType {
     activeOrganization: Organization
@@ -16,15 +16,17 @@ const OrganizationContext = createContext<OrganizationContextType | undefined>(u
 
 export function OrganizationProvider({ children }: { children: ReactNode }) {
     const [activeOrganization, setActiveOrganizationState] = useState<Organization>("petrosphere")
-    const [allowedOrganizations, setAllowedOrganizations] = useState<Organization[]>(["petrosphere", "palawan"])
+    const [allowedOrganizations, setAllowedOrganizations] = useState<Organization[]>(["petrosphere", "pdn"])
+    const [isInitialized, setIsInitialized] = useState(false)
     const { role, loading } = useUserRole()
 
     // Load from localStorage on mount
     useEffect(() => {
         const stored = localStorage.getItem("activeOrganization")
-        if (stored === "petrosphere" || stored === "palawan") {
+        if (stored === "petrosphere" || stored === "pdn") {
             setActiveOrganizationState(stored)
         }
+        setIsInitialized(true)
     }, [])
 
     // Enforce access control and detect allowed organizations
@@ -36,7 +38,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
             // Admins and HR see everything
             const normalizedRole = role?.toLowerCase()
             if (normalizedRole === 'admin' || normalizedRole === 'super_admin' || normalizedRole === 'hr') {
-                setAllowedOrganizations(["petrosphere", "palawan"])
+                setAllowedOrganizations(["petrosphere", "pdn"])
                 return
             }
 
@@ -55,14 +57,16 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
                 .ilike("email", user.email)
                 .maybeSingle()
 
-            // Check Palawan membership (LocalStorage)
-            const storedPalawan = localStorage.getItem("palawan_employees")
-            const palawanEmps = storedPalawan ? JSON.parse(storedPalawan) : []
-            const palawanEmp = palawanEmps.find((e: any) => e.email?.toLowerCase() === user.email?.toLowerCase())
+            // Check PDN membership (Supabase)
+            const { data: pdnEmp } = await supabase
+                .from("pdn_employees")
+                .select("id")
+                .ilike("email", user.email)
+                .maybeSingle()
 
             const allowed: Organization[] = []
             if (petroEmp) allowed.push("petrosphere")
-            if (palawanEmp) allowed.push("palawan")
+            if (pdnEmp) allowed.push("pdn")
 
             // Fallback to petrosphere if not found in either
             if (allowed.length === 0) allowed.push("petrosphere")
@@ -92,6 +96,10 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
 
         setActiveOrganizationState(org)
         localStorage.setItem("activeOrganization", org)
+    }
+
+    if (!isInitialized) {
+        return null // Delay rendering until activeOrganization is loaded from localStorage to prevent race conditions
     }
 
     return (

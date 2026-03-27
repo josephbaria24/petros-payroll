@@ -48,12 +48,15 @@ export type Employee = {
   hours_per_week: number | null
   leave_credits: number
   created_at: string
+  attendance_log_userid?: number | null
+  shift_id?: string | null
 }
 
 declare module '@tanstack/react-table' {
   interface TableMeta<TData extends unknown> {
     onEdit?: (emp: Employee) => void;
     onDelete?: (id: string) => void;
+    onMove?: (emp: Employee) => void;
   }
 }
 
@@ -228,7 +231,12 @@ export const columns: ColumnDef<Employee>[] = [
       const emp = row.original
       const onEdit = table.options.meta?.onEdit
       const onDelete = table.options.meta?.onDelete
-      return <EmployeeActions emp={emp} onEdit={onEdit} onDelete={onDelete} />
+      const onMove = table.options.meta?.onMove
+      return (
+        <div onClick={(e) => e.stopPropagation()}>
+          <EmployeeActions emp={emp} onEdit={onEdit} onDelete={onDelete} onMove={onMove} />
+        </div>
+      )
     },
   }
 ]
@@ -237,12 +245,15 @@ function EmployeeActions({
   emp,
   onEdit,
   onDelete,
+  onMove,
 }: {
   emp: Employee
   onEdit?: (emp: Employee) => void
   onDelete?: (id: string) => void
+  onMove?: (emp: Employee) => void
 }) {
   const [open, setOpen] = React.useState(false)
+  const [moveOpen, setMoveOpen] = React.useState(false)
 
   return (
     <>
@@ -271,6 +282,11 @@ function EmployeeActions({
             Edit Profile
           </DropdownMenuItem>
           <DropdownMenuItem
+            onClick={() => setMoveOpen(true)}
+          >
+            Move to other Team
+          </DropdownMenuItem>
+          <DropdownMenuItem
             className="text-destructive focus:text-destructive focus:bg-destructive/10"
             onClick={() => setOpen(true)}
           >
@@ -278,6 +294,30 @@ function EmployeeActions({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <AlertDialog open={moveOpen} onOpenChange={setMoveOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Move Employee</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to move <span className="font-semibold text-foreground">{emp.full_name}</span> to the other team? 
+              This will safely transfer their basic information and remove them from the current team.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
+              onClick={() => {
+                onMove?.(emp)
+                setMoveOpen(false)
+              }}
+            >
+              Confirm Move
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={open} onOpenChange={setOpen}>
         <AlertDialogContent>

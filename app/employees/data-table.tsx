@@ -31,6 +31,7 @@ interface DataTableProps<TData, TValue> {
   data: TData[]
   onEdit?: (row: TData) => void
   onDelete?: (id: string) => void
+  onMove?: (row: TData) => void
   onRowClick?: (row: TData) => void
   initialSorting?: SortingState
   children?: React.ReactNode // For Add Employee button or other toolbar actions
@@ -41,6 +42,7 @@ export function DataTable<TData, TValue>({
   data,
   onEdit,
   onDelete,
+  onMove,
   onRowClick,
   initialSorting = [],
   children,
@@ -70,6 +72,7 @@ export function DataTable<TData, TValue>({
     meta: {
       onEdit: onEdit as (val: any) => void,
       onDelete,
+      onMove: onMove as (val: any) => void,
     },
   })
 

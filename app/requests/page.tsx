@@ -80,7 +80,7 @@ export default function MyRequestsPage() {
       return
     }
 
-    if (activeOrganization === "palawan") {
+    if (activeOrganization === "pdn") {
       // Fetch Palawan employee from localStorage
       const storedEmployees = localStorage.getItem("palawan_employees")
       const palawanEmployees = storedEmployees ? JSON.parse(storedEmployees) : []
@@ -199,7 +199,7 @@ export default function MyRequestsPage() {
       return
     }
 
-    if (activeOrganization === "palawan") {
+    if (activeOrganization === "pdn") {
       // Get Palawan employee from localStorage
       const storedEmployees = localStorage.getItem("palawan_employees")
       const palawanEmployees = storedEmployees ? JSON.parse(storedEmployees) : []

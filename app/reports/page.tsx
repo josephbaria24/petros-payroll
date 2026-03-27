@@ -295,26 +295,43 @@ export default function ReportsPage() {
 
   async function fetchReports() {
     try {
-      if (activeOrganization === "palawan") {
-        // Load Palawan data from localStorage
-        const storedPayroll = localStorage.getItem("palawan_payroll_records")
-        const storedDeductions = localStorage.getItem("palawan_deductions")
-        const storedEmployees = localStorage.getItem("palawan_employees")
+      if (activeOrganization === "pdn") {
+        // Load PDN data from Supabase
+        const { data: pdnPayroll, error: payErr } = await supabase
+          .from("pdn_payroll_records")
+          .select(`
+            id, employee_id, period_start, period_end, basic_salary,
+            allowances, overtime_pay, holiday_pay, gross_pay, absences,
+            cash_advance, total_deductions, net_pay, sss, philhealth,
+            pagibig, withholding_tax, loans, uniform, tardiness,
+            night_diff, bonuses, commission, status,
+            pdn_employees(employee_code, full_name, pay_type)
+          `)
+          .order("period_end", { ascending: false })
 
-        const palawanPayroll = storedPayroll ? JSON.parse(storedPayroll) : []
-        const palawanDeductions = storedDeductions ? JSON.parse(storedDeductions) : []
-        const palawanEmployees = storedEmployees ? JSON.parse(storedEmployees) : []
+        if (payErr) {
+          console.error("Error fetching PDN payroll:", payErr)
+          return
+        }
 
-        const enrichedPayroll = palawanPayroll.map((rec: any) => {
-          const emp = palawanEmployees.find((e: any) => e.id === rec.employee_id)
+        const { data: pdnDeductions, error: dedErr } = await supabase
+          .from("pdn_deductions")
+          .select("id, employee_id, type, amount, created_at, pdn_employees(full_name)")
+          .order("created_at", { ascending: false })
+
+        if (dedErr) {
+          console.error("Error fetching PDN deductions:", dedErr)
+        }
+
+        const enrichedPayroll = (pdnPayroll || []).map((rec: any) => {
           const periodEndDate = new Date(rec.period_end)
           const monthYear = `${periodEndDate.toLocaleDateString('en-US', { month: 'long' })} ${periodEndDate.getFullYear()}`
 
           return {
             ...rec,
-            full_name: emp?.full_name || 'Unknown',
-            employee_code: emp?.employee_code || 'N/A',
-            pay_type: emp?.pay_type || 'N/A',
+            full_name: rec.pdn_employees?.full_name || 'Unknown',
+            employee_code: rec.pdn_employees?.employee_code || 'N/A',
+            pay_type: rec.pdn_employees?.pay_type || 'N/A',
             month_year: monthYear,
             withholding_tax: rec.withholding_tax || 0,
             uniform: rec.uniform || 0,
@@ -323,9 +340,18 @@ export default function ReportsPage() {
         })
 
         setEmployeePayrollDetails(enrichedPayroll)
-        setDeductions(palawanDeductions)
+        setDeductions(
+          (pdnDeductions || []).map((d: any) => ({
+            id: d.id,
+            employee_id: d.employee_id,
+            employee_name: d.pdn_employees?.full_name || 'Unknown',
+            type: d.type,
+            amount: d.amount,
+            created_at: d.created_at,
+          }))
+        )
 
-        // Calculate summary from localStorage data
+        // Calculate summary
         const totalGross = enrichedPayroll.reduce((sum: number, r: any) => sum + (r.gross_pay || 0), 0)
         const totalDeductions = enrichedPayroll.reduce((sum: number, r: any) => sum + (r.total_deductions || 0), 0)
         const totalNetPay = enrichedPayroll.reduce((sum: number, r: any) => sum + (r.net_pay || 0), 0)

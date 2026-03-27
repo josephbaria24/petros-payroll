@@ -385,8 +385,9 @@ export default function PayrollPage() {
 
     const toastId = toast.loading("Deleting selected records...")
 
+    const table = activeOrganization === "pdn" ? "pdn_payroll_records" : "payroll_records"
     const { error } = await supabase
-      .from("payroll_records")
+      .from(table)
       .delete()
       .in("id", selectedIds)
 
@@ -408,8 +409,9 @@ export default function PayrollPage() {
     const period = periods.find(p => p.period_key === periodKey)
     if (!period) return
 
+    const table = activeOrganization === "pdn" ? "pdn_payroll_records" : "payroll_records"
     const { error } = await supabase
-      .from("payroll_records")
+      .from(table)
       .delete()
       .eq("period_start", period.period_start)
       .eq("period_end", period.period_end)
@@ -423,47 +425,94 @@ export default function PayrollPage() {
   }
 
   async function fetchPayrollPeriods() {
-    if (activeOrganization === "palawan") {
-      const stored = localStorage.getItem("palawan_payroll_records")
-      const palawanRecords = stored ? JSON.parse(stored) : []
+    if (activeOrganization === "pdn") {
+      const { data: payroll, error } = await supabase
+        .from("pdn_payroll_records")
+        .select(`
+          id, employee_id, period_start, period_end, basic_salary,
+          overtime_pay, holiday_pay, night_diff, allowances, absences,
+          cash_advance, sss, philhealth, pagibig, withholding_tax, loans,
+          total_deductions, net_pay, status, created_at, updated_at, creator_id,
+          pdn_employees(full_name, pay_type)
+        `)
+        .order("period_end", { ascending: false })
+
+      if (error) {
+        console.error("Error fetching PDN payroll:", error)
+        return
+      }
+
+      const processedRecords = payroll.map((rec: any) => {
+        const grossPay = (rec.basic_salary || 0) + (rec.overtime_pay || 0) + (rec.holiday_pay || 0) + (rec.night_diff || 0) + (rec.allowances || 0)
+        const totalDeductions = rec.total_deductions || 0
+        const netAfterDeductions = grossPay - totalDeductions
+
+        return {
+          id: rec.id,
+          employee_id: rec.employee_id,
+          employee_name: rec.pdn_employees?.full_name,
+          pay_type: rec.pdn_employees?.pay_type,
+          period_start: rec.period_start,
+          period_end: rec.period_end,
+          basic_salary: rec.basic_salary || 0,
+          overtime_pay: rec.overtime_pay || 0,
+          holiday_pay: rec.holiday_pay || 0,
+          allowances: rec.allowances || 0,
+          status: rec.status,
+          absences: rec.absences || 0,
+          cash_advance: rec.cash_advance || 0,
+          sss: rec.sss || 0,
+          philhealth: rec.philhealth || 0,
+          pagibig: rec.pagibig || 0,
+          withholding_tax: rec.withholding_tax || 0,
+          loans: rec.loans || 0,
+          total_deductions: totalDeductions,
+          net_after_deductions: netAfterDeductions,
+          total_net: netAfterDeductions,
+          created_at: rec.created_at,
+          updated_at: rec.updated_at || rec.created_at,
+        }
+      })
 
       // Group by period
       const periodMap = new Map<string, PayrollPeriod>()
 
-      palawanRecords.forEach((rec: any) => {
-        const periodKey = `${rec.period_start}_${rec.period_end}`
+      processedRecords.forEach((record: any) => {
+        const periodKey = `${record.period_start}_${record.period_end}`
 
         if (!periodMap.has(periodKey)) {
-          const periodEndDate = new Date(rec.period_end)
-          const displayName = `${periodEndDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${periodEndDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+          const startDate = new Date(record.period_start)
+          const endDate = new Date(record.period_end)
+          const monthName = startDate.toLocaleDateString('en-US', { month: 'long' })
+          const year = startDate.getFullYear()
+          const displayName = `${monthName} ${startDate.getDate()}-${endDate.getDate()}, ${year}`
 
           periodMap.set(periodKey, {
             period_key: periodKey,
-            period_start: rec.period_start,
-            period_end: rec.period_end,
+            period_start: record.period_start,
+            period_end: record.period_end,
             display_name: displayName,
             total_employees: 0,
             total_basic_salary: 0,
             total_overtime: 0,
-            total_holiday_pay: 0,
             total_deductions: 0,
             total_net_after_deductions: 0,
             records: [],
-            status: rec.status || "Pending",
-            created_at: rec.created_at || new Date().toISOString(),
-            updated_at: rec.updated_at || rec.created_at || new Date().toISOString(),
+            status: record.status || "Pending",
+            created_at: record.created_at,
+            updated_at: record.updated_at || record.created_at,
             creator: "System Admin"
           })
         }
 
         const period = periodMap.get(periodKey)!
-        period.records.push(rec)
+        period.records.push(record)
         period.total_employees = period.records.length
-        period.total_basic_salary += rec.basic_salary || 0
-        period.total_overtime += rec.overtime_pay || 0
-        period.total_holiday_pay = (period.total_holiday_pay || 0) + (rec.holiday_pay || 0)
-        period.total_deductions += rec.total_deductions || 0
-        period.total_net_after_deductions += rec.total_net || 0
+        period.total_basic_salary += record.basic_salary || 0
+        period.total_overtime += record.overtime_pay || 0
+        period.total_holiday_pay = (period.total_holiday_pay || 0) + (record.holiday_pay || 0)
+        period.total_deductions += record.total_deductions || 0
+        period.total_net_after_deductions += record.total_net || 0
       })
 
       setPeriods(Array.from(periodMap.values()))
@@ -592,9 +641,13 @@ export default function PayrollPage() {
   }
 
   async function fetchEmployees() {
-    if (activeOrganization === "palawan") {
-      const stored = localStorage.getItem("palawan_employees")
-      setEmployees(stored ? JSON.parse(stored) : [])
+    if (activeOrganization === "pdn") {
+      const { data, error } = await supabase.from("pdn_employees").select("id, full_name, pay_type")
+      if (error) {
+        console.error("Error fetching PDN employees:", error)
+        return
+      }
+      setEmployees(data || [])
       return
     }
 
@@ -648,8 +701,10 @@ export default function PayrollPage() {
     const creatorId = user?.id || "7229a103-7f3e-464c-8032-970b9df6220b"
 
     try {
+      const payrollTable = activeOrganization === "pdn" ? "pdn_payroll_records" : "payroll_records"
+
       const { data: existingPayroll } = await supabase
-        .from("payroll_records")
+        .from(payrollTable)
         .select("id")
         .eq("period_start", format(periodStart, "yyyy-MM-dd"))
         .eq("period_end", format(periodEnd, "yyyy-MM-dd"))
@@ -665,19 +720,29 @@ export default function PayrollPage() {
         }
 
         await supabase
-          .from("payroll_records")
+          .from(payrollTable)
           .delete()
           .eq("period_start", format(periodStart, "yyyy-MM-dd"))
           .eq("period_end", format(periodEnd, "yyyy-MM-dd"))
       }
 
-      if (activeOrganization === "palawan") {
-        // Fetch Palawan data from localStorage
-        const storedEmployees = localStorage.getItem("palawan_employees")
-        const allEmployees = storedEmployees ? JSON.parse(storedEmployees) : []
+      if (activeOrganization === "pdn") {
+        // Fetch PDN data from Supabase
+        const { data: allEmployees, error: empErr } = await supabase
+          .from("pdn_employees")
+          .select("id, base_salary, allowance, full_name")
 
-        const storedDeductions = localStorage.getItem("palawan_deductions")
-        const allDeductions = storedDeductions ? JSON.parse(storedDeductions) : []
+        if (empErr || !allEmployees) {
+          throw new Error("Failed to fetch PDN employees.")
+        }
+
+        const { data: allDeductions, error: deductionError } = await supabase
+          .from("pdn_deductions")
+          .select("employee_id, type, amount")
+
+        if (deductionError) {
+          throw new Error("Failed to fetch PDN deductions.")
+        }
 
         const recordsToInsert = []
 
@@ -686,7 +751,7 @@ export default function PayrollPage() {
 
           if (!base_salary) continue
 
-          const employeeDeductions = allDeductions.filter((d: any) => d.employee_id === employee_id)
+          const employeeDeductions = (allDeductions || []).filter((d: any) => d.employee_id === employee_id)
           let sss = 0, philhealth = 0, pagibig = 0, loans = 0
 
           employeeDeductions.forEach((d: any) => {
@@ -713,7 +778,6 @@ export default function PayrollPage() {
           const netPay = grossPay - totalDeductions
 
           recordsToInsert.push({
-            id: `palawan_payroll_${Date.now()}_${employee_id}`,
             employee_id,
             period_start: format(periodStart, "yyyy-MM-dd"),
             period_end: format(periodEnd, "yyyy-MM-dd"),
@@ -731,25 +795,20 @@ export default function PayrollPage() {
             total_deductions: totalDeductions,
             net_pay: netPay,
             status: "Pending Payment",
-            created_at: new Date().toISOString(),
             creator_id: creatorId
           })
         }
 
         if (recordsToInsert.length > 0) {
-          const storedPayroll = localStorage.getItem("palawan_payroll_records")
-          const palawanPayroll = storedPayroll ? JSON.parse(storedPayroll) : []
+          const { error: insertError } = await supabase
+            .from("pdn_payroll_records")
+            .insert(recordsToInsert)
 
-          // Remove existing records for same period if regeneration
-          const filteredPayroll = palawanPayroll.filter((rec: any) =>
-            rec.period_start !== format(periodStart, "yyyy-MM-dd") ||
-            rec.period_end !== format(periodEnd, "yyyy-MM-dd")
-          )
+          if (insertError) {
+            throw new Error(`Failed to insert PDN payroll: ${insertError.message}`)
+          }
 
-          const updatedPayroll = [...filteredPayroll, ...recordsToInsert]
-          localStorage.setItem("palawan_payroll_records", JSON.stringify(updatedPayroll))
-
-          toast.success("Payroll generated and saved to localStorage!", { id: toastId })
+          toast.success("Payroll generated!", { id: toastId })
           await fetchPayrollPeriods()
         }
         return
@@ -972,8 +1031,9 @@ export default function PayrollPage() {
 
     const toastId = toast.loading("Updating payment status...")
 
+    const table = activeOrganization === "pdn" ? "pdn_payroll_records" : "payroll_records"
     const { error } = await supabase
-      .from("payroll_records")
+      .from(table)
       .update({
         status: "Paid",
         updated_at: new Date().toISOString()
@@ -1002,8 +1062,9 @@ export default function PayrollPage() {
   async function handleMarkAsPaid(recordId: string) {
     const toastId = toast.loading("Marking as paid...")
 
+    const table = activeOrganization === "pdn" ? "pdn_payroll_records" : "payroll_records"
     const { error } = await supabase
-      .from("payroll_records")
+      .from(table)
       .update({
         status: "Paid",
         updated_at: new Date().toISOString()
@@ -1030,8 +1091,9 @@ export default function PayrollPage() {
   async function handleUpdatePeriodStatus(period: PayrollPeriod, newStatus: string) {
     const toastId = toast.loading(`Updating status to ${newStatus}...`)
 
+    const table = activeOrganization === "pdn" ? "pdn_payroll_records" : "payroll_records"
     const { error } = await supabase
-      .from("payroll_records")
+      .from(table)
       .update({
         status: newStatus,
         updated_at: new Date().toISOString()
@@ -2103,8 +2165,9 @@ export default function PayrollPage() {
                 const grossPay = (editRecord.basic_salary || 0) + (editRecord.overtime_pay || 0) + (editRecord.holiday_pay || 0) + (editRecord.allowances || 0)
                 const netPay = grossPay - totalDeductions
 
+                const table = activeOrganization === "pdn" ? "pdn_payroll_records" : "payroll_records"
                 const { error } = await supabase
-                  .from("payroll_records")
+                  .from(table)
                   .update({
                     basic_salary: editRecord.basic_salary,
                     overtime_pay: editRecord.overtime_pay,

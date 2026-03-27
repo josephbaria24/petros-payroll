@@ -68,7 +68,7 @@ export default function AdminRequestsPage() {
   const [isProcessing, setIsProcessing] = useState(false)
 
   const fetchRequests = async () => {
-    if (activeOrganization === "palawan") {
+    if (activeOrganization === "pdn") {
       // Load Palawan data from localStorage
       const stored = localStorage.getItem("palawan_requests")
       const palawanRequests = stored ? JSON.parse(stored) : []
@@ -131,7 +131,7 @@ export default function AdminRequestsPage() {
 
     setIsProcessing(true)
 
-    if (activeOrganization === "palawan") {
+    if (activeOrganization === "pdn") {
       // Update Palawan data in localStorage
       const stored = localStorage.getItem("palawan_requests")
       const palawanRequests = stored ? JSON.parse(stored) : []

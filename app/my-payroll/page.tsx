@@ -50,28 +50,41 @@ export default function MyPayrollPage() {
 
       setUserEmail(user.email || "")
 
-      if (activeOrganization === "palawan") {
-        // Fetch Palawan employee data from localStorage
-        const storedEmployees = localStorage.getItem("palawan_employees")
-        const palawanEmployees = storedEmployees ? JSON.parse(storedEmployees) : []
+      if (activeOrganization === "pdn") {
+        // Fetch PDN employee data from Supabase
+        const { data: pdnEmp, error: pdnEmpErr } = await supabase
+          .from("pdn_employees")
+          .select("id, employee_code, full_name, department, position")
+          .ilike("email", user.email || "")
+          .maybeSingle()
 
-        const employee = palawanEmployees.find((emp: any) => emp.email === user.email)
-
-        if (!employee) {
+        if (pdnEmpErr || !pdnEmp) {
           setError("No employee record found for Palawan Daily News.")
           setLoading(false)
           return
         }
 
-        setEmployeeDetails(employee)
+        setEmployeeDetails(pdnEmp)
 
-        // Fetch payroll records from localStorage
-        const storedPayroll = localStorage.getItem("palawan_payroll_records")
-        const palawanPayroll = storedPayroll ? JSON.parse(storedPayroll) : []
+        // Fetch payroll records from Supabase
+        const { data: pdnPayroll, error: pdnPayErr } = await supabase
+          .from("pdn_payroll_records")
+          .select(`
+            id, period_start, period_end, status, net_pay, gross_pay,
+            basic_salary, overtime_pay, holiday_pay, night_diff, allowances,
+            bonuses, commission, sss, philhealth, pagibig, withholding_tax,
+            absences, tardiness, loans, uniform, total_deductions
+          `)
+          .eq("employee_id", pdnEmp.id)
+          .order("period_end", { ascending: false })
 
-        const employeePayroll = palawanPayroll.filter((rec: any) => rec.employee_id === employee.id)
+        if (pdnPayErr) {
+          setError("Error fetching PDN payroll records.")
+          setLoading(false)
+          return
+        }
 
-        const merged = employeePayroll.map((rec: any) => ({
+        const merged = (pdnPayroll || []).map((rec: any) => ({
           ...rec,
           additional_deductions: 0,
           calculated_total_deductions: rec.total_deductions || 0,
