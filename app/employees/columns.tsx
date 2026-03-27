@@ -7,6 +7,7 @@ import { ArrowUpDown, MoreHorizontal, User } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import React from "react"
+import { Input } from "@/components/ui/input"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -61,7 +62,7 @@ export const columns: ColumnDef<Employee>[] = [
   {
     accessorKey: "employee_code",
     header: "ID",
-    cell: ({ row }) => <span className="text-xs font-mono text-muted-foreground">{row.getValue("employee_code")}</span>
+    cell: ({ row }) => <span className="text-xs font-mono text-muted-foreground group-hover:text-primary/70 transition-colors">{row.getValue("employee_code")}</span>
   },
   {
     accessorKey: "full_name",
@@ -78,10 +79,10 @@ export const columns: ColumnDef<Employee>[] = [
       const name = row.getValue("full_name") as string
       return (
         <div className="flex items-center gap-2.5">
-          <div className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-[10px] font-bold text-muted-foreground border border-border">
+          <div className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-[10px] font-bold text-muted-foreground border border-border group-hover:bg-primary/10 group-hover:text-primary group-hover:border-primary/30 transition-colors">
             {name?.charAt(0) || "E"}
           </div>
-          <span className="font-medium text-foreground">{name}</span>
+          <span className="font-medium text-foreground group-hover:text-primary transition-colors">{name}</span>
         </div>
       )
     }
@@ -90,7 +91,7 @@ export const columns: ColumnDef<Employee>[] = [
     accessorKey: "email",
     header: "Email",
     cell: ({ row }) => (
-      <span className="text-xs text-muted-foreground truncate max-w-[180px] block">
+      <span className="text-xs text-muted-foreground group-hover:text-primary/80 transition-colors truncate max-w-[180px] block">
         {row.getValue("email")}
       </span>
     ),
@@ -99,17 +100,88 @@ export const columns: ColumnDef<Employee>[] = [
     accessorKey: "position",
     header: "Position",
     cell: ({ row }) => (
-      <span className="text-xs text-muted-foreground">{row.getValue("position") || "—"}</span>
+      <span className="text-xs text-muted-foreground group-hover:text-primary/80 transition-colors">{row.getValue("position") || "—"}</span>
     ),
   },
   {
     accessorKey: "department",
-    header: "Department",
-    cell: ({ row }) => <span className="text-xs text-muted-foreground">{row.getValue("department") || "—"}</span>
+    header: ({ column }) => (
+      <div className="flex items-center gap-2">
+        <span>Department</span>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="h-6 w-6 p-0 hover:bg-primary/10">
+              <MoreHorizontal className="h-3.5 w-3.5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-48">
+            <DropdownMenuLabel>Filter Department</DropdownMenuLabel>
+            <div className="p-2">
+              <Input
+                placeholder="Filter..."
+                value={(column.getFilterValue() as string) ?? ""}
+                onChange={(event: React.ChangeEvent<HTMLInputElement>) => column.setFilterValue(event.target.value)}
+                className="h-8 text-xs"
+              />
+            </div>
+            {typeof column.getFilterValue() === 'string' && column.getFilterValue() !== "" && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => column.setFilterValue("")}
+                  className="text-xs justify-center font-medium"
+                >
+                  Clear Filter
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    ),
+    cell: ({ row }) => <span className="text-xs text-muted-foreground group-hover:text-primary/80 transition-colors font-medium">{row.getValue("department") || "—"}</span>
   },
   {
     accessorKey: "employment_status",
-    header: "Status",
+    header: ({ column }) => (
+      <div className="flex items-center gap-2">
+        <span>Status</span>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="h-6 w-6 p-0 hover:bg-primary/10">
+              <MoreHorizontal className="h-3.5 w-3.5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-40">
+            <DropdownMenuLabel>Filter Status</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {["Regular", "Probationary", "Contractual", "Project-based", "Inactive"].map((status) => (
+              <DropdownMenuItem
+                key={status}
+                onClick={() => column.setFilterValue(status)}
+                className={cn(
+                  "text-xs",
+                  column.getFilterValue() === status && "bg-primary/10 font-bold text-primary"
+                )}
+              >
+                {status}
+              </DropdownMenuItem>
+            ))}
+            {typeof column.getFilterValue() === 'string' && column.getFilterValue() !== "" && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => column.setFilterValue("")}
+                  className="text-xs justify-center font-medium"
+                >
+                  Clear Filter
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    ),
     cell: ({ row }) => {
       const status = row.getValue("employment_status") as string
       const variants: Record<string, string> = {
@@ -120,7 +192,7 @@ export const columns: ColumnDef<Employee>[] = [
         "Inactive": "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20 hover:bg-rose-500/15",
       }
       return (
-        <Badge variant="outline" className={cn("font-medium px-2 py-0.5 rounded-full text-[10px]", variants[status] || "bg-muted text-muted-foreground")}>
+        <Badge variant="outline" className={cn("font-bold px-2.5 py-0.5 rounded-full text-[10px] tracking-tight", variants[status] || "bg-muted text-muted-foreground")}>
           {status}
         </Badge>
       )
@@ -131,7 +203,7 @@ export const columns: ColumnDef<Employee>[] = [
     header: "Base Salary",
     cell: ({ row }) => {
       const amount = parseFloat(row.getValue("base_salary") || "0")
-      return <div className="text-xs font-semibold text-foreground">₱{amount.toLocaleString()}</div>
+      return <div className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors">₱{amount.toLocaleString()}</div>
     },
   },
   {
@@ -139,7 +211,7 @@ export const columns: ColumnDef<Employee>[] = [
     header: "Allowance",
     cell: ({ row }) => {
       const amount = parseFloat(row.getValue("allowance") || "0")
-      return <div className="text-xs text-muted-foreground">₱{amount.toLocaleString()}</div>
+      return <div className="text-xs text-muted-foreground group-hover:text-primary/80 transition-colors">₱{amount.toLocaleString()}</div>
     },
   },
   {
@@ -147,7 +219,7 @@ export const columns: ColumnDef<Employee>[] = [
     header: "Leave Credits",
     cell: ({ row }) => {
       const credits = parseFloat(row.getValue("leave_credits") || "0")
-      return <div className="text-xs font-medium text-muted-foreground">{credits.toFixed(1)} days</div>
+      return <div className="text-xs font-medium text-muted-foreground group-hover:text-primary/80 transition-colors">{credits.toFixed(1)} days</div>
     },
   },
   {
@@ -176,8 +248,12 @@ function EmployeeActions({
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="h-8 w-8 p-0">
-            <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+          <Button 
+            variant="ghost" 
+            className="h-8 w-8 p-0 hover:bg-primary/10 group-hover:text-primary" 
+            onClick={(e) => e.stopPropagation()}
+          >
+            <MoreHorizontal className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-40">

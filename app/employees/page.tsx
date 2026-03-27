@@ -9,8 +9,6 @@ import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card"
 import {
   Dialog,
@@ -23,10 +21,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
-import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage } from "@/components/ui/breadcrumb"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import {
-  Search,
   Building2,
   Briefcase,
   Edit,
@@ -47,7 +43,6 @@ export default function EmployeesPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState(false)
   const [emailSuggestions, setEmailSuggestions] = useState<{ full_name: string; corp_email: string }[]>([])
-  const [searchTerm, setSearchTerm] = useState("")
 
   // form state
   const [form, setForm] = useState({
@@ -233,7 +228,7 @@ export default function EmployeesPage() {
     }
   }
 
-  function handleRowClick(emp: Employee) {
+  function handleRowClick(emp: Employee, mode: "view" | "edit" = "view") {
     setForm({
       employee_code: emp.employee_code || "",
       full_name: emp.full_name || "",
@@ -254,7 +249,7 @@ export default function EmployeesPage() {
     })
     setEditingId(emp.id)
     setIsEditing(true)
-    setViewMode(true)
+    setViewMode(mode === "view")
     setOpen(true)
   }
 
@@ -279,13 +274,6 @@ export default function EmployeesPage() {
   // Calculate unique departments
   const uniqueDepartments = new Set(data.map(emp => emp.department).filter(Boolean)).size
 
-  // Filter data based on search
-  const filteredData = data.filter(emp =>
-    emp.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    emp.employee_code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    emp.position?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    emp.department?.toLowerCase().includes(searchTerm.toLowerCase())
-  )
 
   if (loading) {
     return (
@@ -335,405 +323,377 @@ export default function EmployeesPage() {
         </div>
       </div>
 
-      {/* Controls & Table Container */}
-      <Card className="border-0 shadow-sm overflow-hidden">
-        <CardContent className="p-0">
-          <div className="p-4 bg-card border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            {/* Search */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search employees..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 h-9 w-full sm:w-64 bg-muted/50 border-border focus:bg-background transition-all"
-              />
-            </div>
-
-            {/* Add Employee Button */}
-            <Dialog open={open} onOpenChange={(v) => {
-              setOpen(v)
-              if (!v) resetForm()
-            }}>
-              <DialogTrigger asChild>
-                <Button className="h-9 gap-2 shadow-sm">
-                  <Plus className="w-4 h-4" />
-                  Add Employee
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="lg:w-[50vw] max-h-[90vh]  overflow-hidden flex flex-col p-0 border-none shadow-2xl">
-                <DialogHeader className="p-6 bg-muted/30 border-b border-border space-y-1">
-                  <div className="flex items-center justify-between w-full">
-                    <div>
-                      <DialogTitle className="text-2xl font-bold text-foreground">
-                        {!isEditing ? "New Employee" : (viewMode ? (
-                          <div className="flex items-center gap-2 text-foreground">
-                            <span className="text-muted-foreground/50 text-sm font-normal">#{form.employee_code}</span>
-                            <span>{form.full_name}</span>
-                          </div>
-                        ) : "Edit Employee")}
-                      </DialogTitle>
-                      {viewMode && isEditing && (
-                        <p className="text-muted-foreground text-sm font-medium">{form.position} • {form.department}</p>
-                      )}
-                    </div>
-                    {isEditing && viewMode && (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => setViewMode(false)}
-                        className="gap-2 rounded-full px-4 h-9 shadow-sm hover:translate-y-[-1px] transition-all"
-                      >
-                        <Edit className="h-3.5 w-3.5" />
-                        Edit Details
-                      </Button>
-                    )}
-                  </div>
-                </DialogHeader>
-
-                <div className="flex-1 overflow-y-auto p-6 space-y-8">
-                  {viewMode && isEditing ? (
-                    <div className="grid gap-8 pb-4">
-                      {/* View Sections */}
-                      <div>
-                        <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                          <Briefcase className="h-3 w-3" /> Professional
-                        </h4>
-                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-                          <div className="space-y-1">
-                            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">Status</p>
-                            <div className="flex">
-                              <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-black uppercase ring-1 ring-inset ring-primary/20">{form.employment_status}</span>
-                            </div>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">Corporate Email</p>
-                            <p className="text-sm font-semibold truncate">{form.email}</p>
-                          </div>
-                        </div>
+      {/* Data Table with Integrated Controls */}
+      <DataTable
+        data={data}
+        columns={columns}
+        onEdit={(emp) => handleRowClick(emp, "edit")}
+        onDelete={handleDelete}
+        onRowClick={(emp) => handleRowClick(emp, "view")}
+        initialSorting={[{ id: "full_name", desc: false }]}
+      >
+        <Dialog open={open} onOpenChange={(v) => {
+          setOpen(v)
+          if (!v) resetForm()
+        }}>
+          <DialogTrigger asChild>
+            <Button className="h-9 gap-2 shadow-sm font-semibold">
+              <Plus className="w-4 h-4" />
+              Add Employee
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="lg:w-[50vw] max-h-[90vh] overflow-hidden flex flex-col p-0 border-none shadow-2xl">
+            <DialogHeader className="p-6 bg-muted/30 border-b border-border space-y-1">
+              <div className="flex items-center justify-between w-full">
+                <div>
+                  <DialogTitle className="text-2xl font-bold text-foreground">
+                    {!isEditing ? "New Employee" : (viewMode ? (
+                      <div className="flex items-center gap-2 text-foreground">
+                        <span className="text-muted-foreground/50 text-sm font-normal">#{form.employee_code}</span>
+                        <span>{form.full_name}</span>
                       </div>
-
-                      <Separator className="bg-border/50" />
-
-                      <div>
-                        <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                          <Calculator className="h-3 w-3" /> Compensation
-                        </h4>
-                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-                          <div className="space-y-1">
-                            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">Base Salary</p>
-                            <p className="text-sm font-bold">₱{parseFloat(form.base_salary || "0").toLocaleString()}</p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">Shift</p>
-                            <p className="text-sm font-semibold">{form.shift}</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <Separator className="bg-border/50" />
-
-                      <div>
-                        <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                          <Users className="h-3 w-3" /> Identification
-                        </h4>
-                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-                          <div className="space-y-1">
-                            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">SSS</p>
-                            <p className="text-sm font-medium">{form.sss || "—"}</p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">PhilHealth</p>
-                            <p className="text-sm font-medium">{form.philhealth || "—"}</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <form onSubmit={handleSave} className="space-y-6">
-                      {/* Basic Information */}
-                      <div className="space-y-4">
-                        <h3 className="text-lg font-medium text-foreground">Basic Information</h3>
-
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="employee_code">Employee Code</Label>
-                            <Input
-                              id="employee_code"
-                              value={form.employee_code}
-                              onChange={(e) => setForm({ ...form, employee_code: e.target.value })}
-                              placeholder="e.g., EMP001"
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label htmlFor="employment_status">Employment Status</Label>
-                            <Select
-                              value={form.employment_status}
-                              onValueChange={(v: string) => setForm({ ...form, employment_status: v })}
-                            >
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="Regular">Regular</SelectItem>
-                                <SelectItem value="Probationary">Probationary</SelectItem>
-                                <SelectItem value="Project-based">Project-based</SelectItem>
-                                <SelectItem value="Contractual">Contractual</SelectItem>
-                                <SelectItem value="Inactive">Inactive</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-
-                        <div className="space-y-4 p-4 bg-muted/30 rounded-lg border border-border/50">
-                          <div className="space-y-2">
-                            <Label htmlFor="full_name_lookup" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Directory Lookup (Optional Helper)</Label>
-                            <Select
-                              onValueChange={(v) => {
-                                const [name, email] = v.split("|||")
-                                setForm({ ...form, full_name: name, email: email })
-                              }}
-                            >
-                              <SelectTrigger id="full_name_lookup">
-                                <SelectValue placeholder="Select from directory..." />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {emailSuggestions.map((entry) => (
-                                  <SelectItem key={entry.corp_email} value={`${entry.full_name}|||${entry.corp_email}`}>
-                                    {entry.full_name} ({entry.corp_email})
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <p className="text-[10px] text-muted-foreground">Selecting an identity will pre-fill the name and email fields below.</p>
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                              <Label htmlFor="full_name">Full Name</Label>
-                              <Input
-                                id="full_name"
-                                required
-                                value={form.full_name}
-                                onChange={(e) => setForm({ ...form, full_name: e.target.value })}
-                                placeholder="e.g. Juan Dela Cruz"
-                              />
-                            </div>
-
-                            <div className="space-y-2">
-                              <Label htmlFor="email">Corporate Email</Label>
-                              <Input
-                                id="email"
-                                type="email"
-                                required
-                                value={form.email}
-                                onChange={(e) => setForm({ ...form, email: e.target.value })}
-                                placeholder="e.g. juan@petrosphere.com.ph"
-                              />
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="position">Position</Label>
-                            <Input
-                              id="position"
-                              value={form.position}
-                              onChange={(e) => setForm({ ...form, position: e.target.value })}
-                              placeholder="Job title"
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label htmlFor="department">Department</Label>
-                            <Input
-                              id="department"
-                              value={form.department}
-                              onChange={(e) => setForm({ ...form, department: e.target.value })}
-                              placeholder="Department name"
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      <Separator />
-
-                      {/* Government IDs */}
-                      <div className="space-y-4">
-                        <h3 className="text-lg font-medium text-foreground">Government IDs</h3>
-
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="tin">TIN</Label>
-                            <Input
-                              id="tin"
-                              value={form.tin}
-                              onChange={(e) => setForm({ ...form, tin: e.target.value })}
-                              placeholder="Tax Identification Number"
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label htmlFor="sss">SSS</Label>
-                            <Input
-                              id="sss"
-                              value={form.sss}
-                              onChange={(e) => setForm({ ...form, sss: e.target.value })}
-                              placeholder="Social Security System"
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label htmlFor="philhealth">PhilHealth</Label>
-                            <Input
-                              id="philhealth"
-                              value={form.philhealth}
-                              onChange={(e) => setForm({ ...form, philhealth: e.target.value })}
-                              placeholder="PhilHealth Number"
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label htmlFor="pagibig">Pag-IBIG</Label>
-                            <Input
-                              id="pagibig"
-                              value={form.pagibig}
-                              onChange={(e) => setForm({ ...form, pagibig: e.target.value })}
-                              placeholder="Pag-IBIG Number"
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      <Separator />
-
-                      {/* Compensation */}
-                      <div className="space-y-4">
-                        <h3 className="text-lg font-medium text-foreground">Compensation & Schedule</h3>
-
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="base_salary">Base Salary</Label>
-                            <Input
-                              id="base_salary"
-                              type="number"
-                              value={form.base_salary}
-                              onChange={(e) => setForm({ ...form, base_salary: e.target.value })}
-                              placeholder="0.00"
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label htmlFor="allowance">Allowance</Label>
-                            <Input
-                              id="allowance"
-                              type="number"
-                              value={form.allowance}
-                              onChange={(e) => setForm({ ...form, allowance: e.target.value })}
-                              placeholder="0.00"
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label htmlFor="pay_type">Pay Type</Label>
-                            <Select
-                              value={form.pay_type}
-                              onValueChange={(v: string) => setForm({ ...form, pay_type: v })}
-                            >
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="monthly">Monthly</SelectItem>
-                                <SelectItem value="semi-monthly">15 Days</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label htmlFor="shift">Shift</Label>
-                            <Select
-                              value={form.shift}
-                              onValueChange={(v: string) => setForm({ ...form, shift: v })}
-                            >
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="Regular Day">Regular Day</SelectItem>
-                                <SelectItem value="Night Shift">Night Shift</SelectItem>
-                                <SelectItem value="Graveyard">Graveyard</SelectItem>
-                                <SelectItem value="Split Shift">Split Shift</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label htmlFor="hours_per_week">Hours per Week</Label>
-                            <Input
-                              id="hours_per_week"
-                              type="number"
-                              value={form.hours_per_week}
-                              onChange={(e) => setForm({ ...form, hours_per_week: e.target.value })}
-                              placeholder="40"
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label htmlFor="leave_credits">Leave Credits</Label>
-                            <Input
-                              id="leave_credits"
-                              type="number"
-                              value={form.leave_credits}
-                              onChange={(e) => setForm({ ...form, leave_credits: e.target.value })}
-                              placeholder="0"
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      <Button type="submit" className="w-full">
-                        {isEditing ? "Update Employee" : "Add Employee"}
-                      </Button>
-                    </form>
+                    ) : "Edit Employee")}
+                  </DialogTitle>
+                  {viewMode && isEditing && (
+                    <p className="text-muted-foreground text-sm font-medium">{form.position} • {form.department}</p>
                   )}
                 </div>
-              </DialogContent>
-            </Dialog>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Data Table */}
-      <Card className="border-0 shadow-sm">
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <DataTable
-              data={filteredData}
-              columns={columns}
-              onEdit={handleRowClick}
-              onDelete={handleDelete}
-            />
-          </div>
-
-          {filteredData.length === 0 && !loading && (
-            <div className="text-center py-12">
-              <div className="text-muted-foreground mb-2">
-                <Users className="h-12 w-12 mx-auto" />
+                {isEditing && viewMode && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setViewMode(false)}
+                    className="gap-2 rounded-full px-4 h-9 shadow-sm hover:translate-y-[-1px] transition-all"
+                  >
+                    <Edit className="h-3.5 w-3.5" />
+                    Edit Details
+                  </Button>
+                )}
               </div>
-              <h3 className="text-lg font-medium text-foreground mb-1">No employees found</h3>
-              <p className="text-muted-foreground">
-                {searchTerm
-                  ? "Try adjusting your search criteria"
-                  : "Get started by adding your first employee"
-                }
-              </p>
+            </DialogHeader>
+
+            <div className="flex-1 overflow-y-auto p-6 space-y-8">
+              {viewMode && isEditing ? (
+                <div className="grid gap-8 pb-4">
+                  {/* View Sections */}
+                  <div>
+                    <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                      <Briefcase className="h-3 w-3" /> Professional
+                    </h4>
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+                      <div className="space-y-1">
+                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">Status</p>
+                        <div className="flex">
+                          <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-black uppercase ring-1 ring-inset ring-primary/20">{form.employment_status}</span>
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">Corporate Email</p>
+                        <p className="text-sm font-semibold truncate">{form.email}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator className="bg-border/50" />
+
+                  <div>
+                    <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                      <Calculator className="h-3 w-3" /> Compensation
+                    </h4>
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+                      <div className="space-y-1">
+                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">Base Salary</p>
+                        <p className="text-sm font-bold">₱{parseFloat(form.base_salary || "0").toLocaleString()}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">Shift</p>
+                        <p className="text-sm font-semibold">{form.shift}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator className="bg-border/50" />
+
+                  <div>
+                    <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                      <Users className="h-3 w-3" /> Identification
+                    </h4>
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+                      <div className="space-y-1">
+                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">SSS</p>
+                        <p className="text-sm font-medium">{form.sss || "—"}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">PhilHealth</p>
+                        <p className="text-sm font-medium">{form.philhealth || "—"}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <form onSubmit={handleSave} className="space-y-6">
+                  {/* Basic Information */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium text-foreground">Basic Information</h3>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="employee_code">Employee Code</Label>
+                        <Input
+                          id="employee_code"
+                          value={form.employee_code}
+                          onChange={(e) => setForm({ ...form, employee_code: e.target.value })}
+                          placeholder="e.g., EMP001"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="employment_status">Employment Status</Label>
+                        <Select
+                          value={form.employment_status}
+                          onValueChange={(v: string) => setForm({ ...form, employment_status: v })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Regular">Regular</SelectItem>
+                            <SelectItem value="Probationary">Probationary</SelectItem>
+                            <SelectItem value="Project-based">Project-based</SelectItem>
+                            <SelectItem value="Contractual">Contractual</SelectItem>
+                            <SelectItem value="Inactive">Inactive</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4 p-4 bg-muted/30 rounded-lg border border-border/50">
+                      <div className="space-y-2">
+                        <Label htmlFor="full_name_lookup" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Directory Lookup (Optional Helper)</Label>
+                        <Select
+                          onValueChange={(v) => {
+                            const [name, email] = v.split("|||")
+                            setForm({ ...form, full_name: name, email: email })
+                          }}
+                        >
+                          <SelectTrigger id="full_name_lookup">
+                            <SelectValue placeholder="Select from directory..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {emailSuggestions.map((entry) => (
+                              <SelectItem key={entry.corp_email} value={`${entry.full_name}|||${entry.corp_email}`}>
+                                {entry.full_name} ({entry.corp_email})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <p className="text-[10px] text-muted-foreground">Selecting an identity will pre-fill the name and email fields below.</p>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="full_name">Full Name</Label>
+                          <Input
+                            id="full_name"
+                            required
+                            value={form.full_name}
+                            onChange={(e) => setForm({ ...form, full_name: e.target.value })}
+                            placeholder="e.g. Juan Dela Cruz"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="email">Corporate Email</Label>
+                          <Input
+                            id="email"
+                            type="email"
+                            required
+                            value={form.email}
+                            onChange={(e) => setForm({ ...form, email: e.target.value })}
+                            placeholder="e.g. juan@petrosphere.com.ph"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="position">Position</Label>
+                        <Input
+                          id="position"
+                          value={form.position}
+                          onChange={(e) => setForm({ ...form, position: e.target.value })}
+                          placeholder="Job title"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="department">Department</Label>
+                        <Input
+                          id="department"
+                          value={form.department}
+                          onChange={(e) => setForm({ ...form, department: e.target.value })}
+                          placeholder="Department name"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Government IDs */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium text-foreground">Government IDs</h3>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="tin">TIN</Label>
+                        <Input
+                          id="tin"
+                          value={form.tin}
+                          onChange={(e) => setForm({ ...form, tin: e.target.value })}
+                          placeholder="Tax Identification Number"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="sss">SSS</Label>
+                        <Input
+                          id="sss"
+                          value={form.sss}
+                          onChange={(e) => setForm({ ...form, sss: e.target.value })}
+                          placeholder="Social Security System"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="philhealth">PhilHealth</Label>
+                        <Input
+                          id="philhealth"
+                          value={form.philhealth}
+                          onChange={(e) => setForm({ ...form, philhealth: e.target.value })}
+                          placeholder="PhilHealth Number"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="pagibig">Pag-IBIG</Label>
+                        <Input
+                          id="pagibig"
+                          value={form.pagibig}
+                          onChange={(e) => setForm({ ...form, pagibig: e.target.value })}
+                          placeholder="Pag-IBIG Number"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Compensation */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium text-foreground">Compensation & Schedule</h3>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="base_salary">Base Salary</Label>
+                        <Input
+                          id="base_salary"
+                          type="number"
+                          value={form.base_salary}
+                          onChange={(e) => setForm({ ...form, base_salary: e.target.value })}
+                          placeholder="0.00"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="allowance">Allowance</Label>
+                        <Input
+                          id="allowance"
+                          type="number"
+                          value={form.allowance}
+                          onChange={(e) => setForm({ ...form, allowance: e.target.value })}
+                          placeholder="0.00"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="pay_type">Pay Type</Label>
+                        <Select
+                          value={form.pay_type}
+                          onValueChange={(v: string) => setForm({ ...form, pay_type: v })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="monthly">Monthly</SelectItem>
+                            <SelectItem value="semi-monthly">15 Days</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="shift">Shift</Label>
+                        <Select
+                          value={form.shift}
+                          onValueChange={(v: string) => setForm({ ...form, shift: v })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Regular Day">Regular Day</SelectItem>
+                            <SelectItem value="Night Shift">Night Shift</SelectItem>
+                            <SelectItem value="Graveyard">Graveyard</SelectItem>
+                            <SelectItem value="Split Shift">Split Shift</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="hours_per_week">Hours per Week</Label>
+                        <Input
+                          id="hours_per_week"
+                          type="number"
+                          value={form.hours_per_week}
+                          onChange={(e) => setForm({ ...form, hours_per_week: e.target.value })}
+                          placeholder="40"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="leave_credits">Leave Credits</Label>
+                        <Input
+                          id="leave_credits"
+                          type="number"
+                          value={form.leave_credits}
+                          onChange={(e) => setForm({ ...form, leave_credits: e.target.value })}
+                          placeholder="0"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <Button type="submit" className="w-full">
+                    {isEditing ? "Update Employee" : "Add Employee"}
+                  </Button>
+                </form>
+              )}
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </DialogContent>
+        </Dialog>
+      </DataTable>
+
+      {data.length === 0 && !loading && (
+        <div className="text-center py-12">
+          <div className="text-muted-foreground mb-2">
+            <Users className="h-12 w-12 mx-auto" />
+          </div>
+          <h3 className="text-lg font-medium text-foreground mb-1">No employees found</h3>
+          <p className="text-muted-foreground"> Get started by adding your first employee </p>
+        </div>
+      )}
     </div>
   )
 }
