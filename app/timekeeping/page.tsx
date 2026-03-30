@@ -65,10 +65,27 @@ import {
   PieChart,
   Pie,
 } from "recharts"
-import { format } from "date-fns"
+import {
+  format,
+  startOfWeek,
+  endOfWeek,
+  startOfMonth,
+  endOfMonth,
+  startOfYear,
+  endOfYear
+} from "date-fns"
 import { cn } from "@/lib/utils"
 import { useProtectedPage } from "../hooks/useProtectedPage"
 import confetti from "canvas-confetti"
+import jsPDF from "jspdf"
+import html2canvas from "html2canvas-pro"
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs"
+import { utils, writeFile } from "xlsx"
 
 type TimeLog = {
   id: string
@@ -129,11 +146,26 @@ export default function TimekeepingPage() {
   })
   const [employees, setEmployees] = useState<{ id: string; full_name: string; attendance_log_userid?: number | null }[]>([])
 
+  // PDF Export States
+  const [exportOpen, setExportOpen] = useState(false)
+  const [exportLoading, setExportLoading] = useState(false)
+  const [exportSections, setExportSections] = useState({
+    summary: true,
+    activity: true,
+    hours: true,
+    status: true,
+    tardiness: true,
+    logs: true,
+    achievement: true
+  })
+  const [exportFormat, setExportFormat] = useState<"pdf" | "excel">("pdf")
+  const [exportTimeframe, setExportTimeframe] = useState<"day" | "week" | "month" | "year">("day")
+
   useEffect(() => {
     const loadData = async () => {
       setLoading(true)
       await Promise.all([
-        fetchLogs(selectedDate),
+        fetchLogs(selectedDate || new Date()),
         fetchEmployees()
       ])
       setLoading(false)
@@ -141,160 +173,105 @@ export default function TimekeepingPage() {
     loadData()
   }, [selectedDate, activeOrganization])
 
-  async function fetchLogs(date: Date = new Date()) {
-    if (activeOrganization === "pdn") {
-      const selectedDateStr = format(date, "yyyy-MM-dd")
-
-      const { data: logsData, error: logsError } = await supabase
-        .from("pdn_attendance_logs")
-        .select("id, employee_id, timestamp, status, work_date")
-        .eq("work_date", selectedDateStr)
-        .order("timestamp", { ascending: true })
-
-      if (logsError) {
-        console.error("Error fetching PDN logs:", logsError)
-        return
-      }
-
-      const { data: employeesData, error: empError } = await supabase
-        .from("pdn_employees")
-        .select("id, full_name")
-
-      if (empError) {
-        console.error("Error fetching PDN employees:", empError)
-        return
-      }
-
-      // Simple mapping for PDN logs
-      const enrichedLogs: TimeLog[] = (logsData || []).map((log: any) => {
+  // Helper functions for logic reuse (Range Exports & Daily View)
+  function processRawLogsForOrg(org: string, logsData: any[], employeesData: any[], fallbackDateStr: string) {
+    if (org === "pdn") {
+      return (logsData || []).map((log: any) => {
         const emp = employeesData?.find((e: any) => e.id === log.employee_id)
-        const timeIn = log.timestamp ? extractPhilippineTime(log.timestamp) : null
-        const timeOut = log.timeout ? extractPhilippineTime(log.timeout) : null
         const timeInUTC = log.timestamp ? new Date(log.timestamp) : null
         const timeOutUTC = log.timeout ? new Date(log.timeout) : null
+        const timeInPH = log.timestamp ? extractPhilippineTime(log.timestamp) : null
+        const timeOutPH = log.timeout ? extractPhilippineTime(log.timeout) : null
         const totalHours = timeInUTC && timeOutUTC ? (timeOutUTC.getTime() - timeInUTC.getTime()) / (1000 * 60 * 60) : 0
 
         return {
           id: log.id.toString(),
           employee_id: log.employee_id || "",
           employee_name: emp?.full_name || log.full_name || "Unknown",
-          date: log.work_date || selectedDateStr,
-          time_in: timeIn,
-          time_out: timeOut,
-          time_in_display: formatTo12Hour(timeIn),
-          time_out_display: formatTo12Hour(timeOut),
-          total_hours: Math.round(totalHours * 100) / 100,
-          overtime_hours: totalHours > 8 ? Math.round((totalHours - 8) * 100) / 100 : 0,
-          status: log.status || "time_in",
-          in_id: log.id.toString(),
-          out_id: log.id.toString(), // For PDN, both point to same row
-        }
-      })
-
-      setLogs(enrichedLogs)
-      return
-    }
-
-    const selectedDateStr = format(date, "yyyy-MM-dd")
-
-    // Use work_date column (plain date, represents the Philippine date) to avoid timezone bleeding
-    const { data: logsData, error: logsError } = await supabase
-      .from("attendance_logs")
-      .select("id, user_id, timestamp, status, work_date")
-      .eq("work_date", selectedDateStr)
-      .order("timestamp", { ascending: true })
-
-    if (logsError) {
-      console.error("Error fetching logs:", logsError)
-      return
-    }
-
-    const { data: employeesData, error: empError } = await supabase
-      .from("employees")
-      .select("id, full_name, attendance_log_userid")
-
-    if (empError) {
-      console.error("Error fetching employees:", empError)
-      return
-    }
-
-    // --- Grouping Logic: Pair time_in and time_out ---
-    const userGroups: Record<number, any[]> = {}
-    logsData.forEach((log) => {
-      if (!userGroups[log.user_id]) userGroups[log.user_id] = []
-      userGroups[log.user_id].push(log)
-    })
-
-    const enrichedLogs: TimeLog[] = []
-
-    for (const userIdStr in userGroups) {
-      const userId = parseInt(userIdStr)
-      const userLogs = userGroups[userId]
-      const matchedEmp = employeesData.find((emp) => emp.attendance_log_userid === userId)
-      const empName = matchedEmp?.full_name || "Unknown"
-      const empId = matchedEmp?.id || ""
-
-      let currentIn: any = null
-
-      const processSession = (inEvent: any | null, outEvent: any | null) => {
-        const timeInUTC = inEvent ? new Date(inEvent.timestamp) : null
-        const timeOutUTC = outEvent ? new Date(outEvent.timestamp) : null
-
-        const timeInPH = inEvent ? extractPhilippineTime(inEvent.timestamp) : null
-        const timeOutPH = outEvent ? extractPhilippineTime(outEvent.timestamp) : null
-        // Use work_date (plain Philippine date) instead of extracting from UTC timestamp
-        const datePH = (inEvent || outEvent)?.work_date || selectedDateStr
-
-        const totalHours =
-          timeInUTC && timeOutUTC
-            ? (timeOutUTC.getTime() - timeInUTC.getTime()) / (1000 * 60 * 60)
-            : 0
-
-        enrichedLogs.push({
-          id: (inEvent || outEvent).id.toString(),
-          employee_id: empId,
-          employee_name: empName,
-          date: datePH,
+          date: log.work_date || fallbackDateStr,
           time_in: timeInPH,
           time_out: timeOutPH,
           time_in_display: formatTo12Hour(timeInPH),
           time_out_display: formatTo12Hour(timeOutPH),
           total_hours: Math.round(totalHours * 100) / 100,
           overtime_hours: totalHours > 8 ? Math.round((totalHours - 8) * 100) / 100 : 0,
-          status: outEvent ? "time_out" : "time_in",
-          in_id: inEvent?.id?.toString(),
-          out_id: outEvent?.id?.toString(),
-        })
-      }
-
-      userLogs.forEach((log) => {
-        if (log.status === "time_in") {
-          if (currentIn) {
-            processSession(currentIn, null)
-          }
-          currentIn = log
-        } else if (log.status === "time_out") {
-          if (currentIn) {
-            processSession(currentIn, log)
-            currentIn = null
-          } else {
-            processSession(null, log)
-          }
+          status: log.status || "time_in",
+          in_id: log.id.toString(),
+          out_id: log.id.toString(),
         }
       })
+    } else {
+      const userGroups: Record<number, any[]> = {}
+      logsData.forEach((log) => {
+        if (!userGroups[log.user_id]) userGroups[log.user_id] = []
+        userGroups[log.user_id].push(log)
+      })
 
-      if (currentIn) {
-        processSession(currentIn, null)
+      const enrichedLogs: TimeLog[] = []
+      for (const userIdStr in userGroups) {
+        const userId = parseInt(userIdStr)
+        const userLogs = userGroups[userId]
+        const matchedEmp = employeesData.find((emp) => emp.attendance_log_userid === userId)
+        const empName = matchedEmp?.full_name || "Unknown"
+        const empId = matchedEmp?.id || ""
+
+        let currentIn: any = null
+        const processSession = (inEv: any | null, outEv: any | null) => {
+          const tInUTC = inEv ? new Date(inEv.timestamp) : null
+          const tOutUTC = outEv ? new Date(outEv.timestamp) : null
+          const tInPH = inEv ? extractPhilippineTime(inEv.timestamp) : null
+          const tOutPH = outEv ? extractPhilippineTime(outEv.timestamp) : null
+          const dPH = (inEv || outEv)?.work_date || fallbackDateStr
+          const tHours = tInUTC && tOutUTC ? (tOutUTC.getTime() - tInUTC.getTime()) / (1000 * 60 * 60) : 0
+
+          enrichedLogs.push({
+            id: (inEv || outEv).id.toString(),
+            employee_id: empId,
+            employee_name: empName,
+            date: dPH,
+            time_in: tInPH,
+            time_out: tOutPH,
+            time_in_display: formatTo12Hour(tInPH),
+            time_out_display: formatTo12Hour(tOutPH),
+            total_hours: Math.round(tHours * 100) / 100,
+            overtime_hours: tHours > 8 ? Math.round((tHours - 8) * 100) / 100 : 0,
+            status: outEv ? "time_out" : "time_in",
+            in_id: inEv?.id?.toString(),
+            out_id: outEv?.id?.toString(),
+          })
+        }
+
+        userLogs.forEach((log) => {
+          if (log.status === "time_in") {
+            if (currentIn) processSession(currentIn, null)
+            currentIn = log
+          } else if (log.status === "time_out") {
+            if (currentIn) { processSession(currentIn, log); currentIn = null }
+            else processSession(null, log)
+          }
+        })
+        if (currentIn) processSession(currentIn, null)
       }
+      return enrichedLogs
     }
+  }
 
-    enrichedLogs.sort((a, b) => {
-      const timeA = a.time_in || a.time_out || "00:00"
-      const timeB = b.time_in || b.time_out || "00:00"
-      return timeB.localeCompare(timeA)
-    })
+  async function fetchLogsInRange(start: string, end: string) {
+    if (activeOrganization === "pdn") {
+      const { data: logsData } = await supabase.from("pdn_attendance_logs").select("*").gte("work_date", start).lte("work_date", end).order("timestamp", { ascending: true })
+      const { data: empData } = await supabase.from("pdn_employees").select("id, full_name")
+      return processRawLogsForOrg("pdn", logsData || [], empData || [], start)
+    } else {
+      const { data: logsData } = await supabase.from("attendance_logs").select("*").gte("work_date", start).lte("work_date", end).order("timestamp", { ascending: true })
+      const { data: empData } = await supabase.from("employees").select("id, full_name, attendance_log_userid")
+      return processRawLogsForOrg("petrosphere", logsData || [], empData || [], start)
+    }
+  }
 
-    setLogs(enrichedLogs)
+  async function fetchLogs(date: Date = new Date()) {
+    const dateStr = format(date, "yyyy-MM-dd")
+    const logsData = await fetchLogsInRange(dateStr, dateStr)
+    setLogs(logsData.sort((a, b) => (b.time_in || b.time_out || "00:00").localeCompare(a.time_in || a.time_out || "00:00")))
   }
 
   async function fetchEmployees() {
@@ -505,19 +482,19 @@ export default function TimekeepingPage() {
           const lateMinutes = totalMinutes - standardStart
           const name = log.employee_name || "Unknown"
           const current = map.get(name) || { totalLateMinutes: 0, count: 0 }
-          map.set(name, { 
-            totalLateMinutes: current.totalLateMinutes + lateMinutes, 
-            count: current.count + 1 
+          map.set(name, {
+            totalLateMinutes: current.totalLateMinutes + lateMinutes,
+            count: current.count + 1
           })
         }
       }
     })
     return Array.from(map)
-      .map(([name, data], idx) => ({ 
+      .map(([name, data], idx) => ({
         full_name: name,
-        name: name.split(' ')[0], 
+        name: name.split(' ')[0],
         mask: `Staff ${idx + 1}`,
-        avgMinutes: Math.round(data.totalLateMinutes / data.count) 
+        avgMinutes: Math.round(data.totalLateMinutes / data.count)
       }))
       .sort((a, b) => b.avgMinutes - a.avgMinutes)
       .slice(0, 10)
@@ -564,6 +541,132 @@ export default function TimekeepingPage() {
     }
   }, [earliestLog?.id, selectedDate]);
 
+  // PDF Export Logic
+  async function handleExportPDF() {
+    setExportLoading(true)
+    const toastId = toast.loading("Generating PDF Report...")
+
+    try {
+      const doc = new jsPDF('p', 'mm', 'a4')
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const margin = 10
+      const contentWidth = pageWidth - (margin * 2)
+      let currentY = 20
+
+      // Add Header
+      doc.setFontSize(22)
+      doc.setTextColor(14, 165, 233) // primary color
+      doc.text("PETROSPHERE", margin, currentY)
+      currentY += 8
+      doc.setFontSize(14)
+      doc.setTextColor(100, 116, 139) // muted foreground
+      doc.text("Timekeeping & Attendance Report", margin, currentY)
+      currentY += 6
+      doc.setFontSize(10)
+      doc.text(`Report Date: ${selectedDate ? format(selectedDate, "MMMM dd, yyyy") : "-"}`, margin, currentY)
+      currentY += 10
+      doc.setDrawColor(226, 232, 240)
+      doc.line(margin, currentY, pageWidth - margin, currentY)
+      currentY += 15
+
+      const sections = [
+        { id: 'earliest-bird-banner', enabled: exportSections.achievement },
+        { id: 'summary-metrics', enabled: exportSections.summary },
+        { id: 'activity-chart', enabled: exportSections.activity },
+        { id: 'status-chart', enabled: exportSections.status },
+        { id: 'hours-chart', enabled: exportSections.hours },
+        { id: 'tardiness-chart', enabled: exportSections.tardiness },
+        { id: 'attendance-logs-list', enabled: exportSections.logs },
+      ]
+
+      for (const section of sections) {
+        if (!section.enabled) continue
+
+        const element = document.getElementById(section.id)
+        if (!element) continue
+
+        // Capture element
+        const canvas = await html2canvas(element, { scale: 2, backgroundColor: '#ffffff', useCORS: true })
+        const imgData = canvas.toDataURL('image/png')
+
+        const pdfImgHeight = (canvas.height * contentWidth) / canvas.width
+
+        // Check if we need a new page
+        if (currentY + pdfImgHeight > doc.internal.pageSize.getHeight() - margin) {
+          doc.addPage()
+          currentY = 20
+        }
+
+        doc.addImage(imgData, 'PNG', margin, currentY, contentWidth, pdfImgHeight)
+        currentY += pdfImgHeight + 10
+      }
+
+      doc.save(`Petrosphere_Report_${format(selectedDate || new Date(), "yyyy-MM-dd")}.pdf`)
+      toast.success("PDF Report generated successfully!", { id: toastId })
+      setExportOpen(false)
+    } catch (error) {
+      console.error("PDF Export Error:", error)
+      toast.error("Failed to generate PDF Report", { id: toastId })
+    } finally {
+      setExportLoading(false)
+    }
+  }
+
+  async function handleExportExcel() {
+    setExportLoading(true)
+    const toastId = toast.loading("Generating Excel Report...")
+
+    try {
+      // Data to show in report
+      let reportLogs = logs
+      if (exportTimeframe !== "day" && selectedDate) {
+        let start = selectedDate, end = selectedDate
+        if (exportTimeframe === "week") { start = startOfWeek(selectedDate); end = endOfWeek(selectedDate) }
+        else if (exportTimeframe === "month") { start = startOfMonth(selectedDate); end = endOfMonth(selectedDate) }
+        else if (exportTimeframe === "year") { start = startOfYear(selectedDate); end = endOfYear(selectedDate) }
+        reportLogs = await fetchLogsInRange(format(start, "yyyy-MM-dd"), format(end, "yyyy-MM-dd"))
+      }
+
+      // Prepare data for Excel
+      const excelData = reportLogs.map(log => ({
+        "Employee Name": log.employee_name || "Unknown",
+        "Date": log.date,
+        "Time In": log.time_in_display || "-",
+        "Time Out": log.time_out_display || "-",
+        "Total Hours": log.total_hours,
+        "Overtime Hours": log.overtime_hours,
+        "Status": log.status
+      }))
+
+      // Create Worksheet
+      const ws = utils.json_to_sheet(excelData)
+      const wb = utils.book_new()
+      utils.book_append_sheet(wb, ws, "Attendance Logs")
+
+      // Auto-size columns
+      const maxWidths = excelData.reduce((acc: any, row) => {
+        Object.keys(row).forEach((key, i) => {
+          const val = row[key as keyof typeof row]?.toString() || ""
+          acc[i] = Math.max(acc[i] || 10, val.length + 2)
+        })
+        return acc
+      }, [])
+      ws["!cols"] = maxWidths.map((w: number) => ({ wch: w }))
+
+      // Download
+      const fileName = `Petrosphere_Attendance_${format(selectedDate || new Date(), "yyyy-MM-dd")}.xlsx`
+      writeFile(wb, fileName)
+
+      toast.success("Excel Report generated successfully!", { id: toastId })
+      setExportOpen(false)
+    } catch (error) {
+      console.error("Excel Export Error:", error)
+      toast.error("Failed to generate Excel Report", { id: toastId })
+    } finally {
+      setExportLoading(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-background text-foreground">
@@ -581,7 +684,7 @@ export default function TimekeepingPage() {
       <div className={cn("transition-all duration-300 ease-in-out p-6 space-y-6", panelOpen ? "mr-[420px]" : "mr-0")}>
         {/* Earliest Bird Banner */}
         {earliestLog && (
-          <div className="relative group bg-gradient-to-r from-amber-500/10 via-yellow-500/5 to-transparent border border-amber-500/20 rounded-2xl p-6 mb-6 overflow-hidden transition-all hover:shadow-lg hover:shadow-amber-500/5 border-l-4 border-l-amber-500">
+          <div id="earliest-bird-banner" className="relative group bg-gradient-to-r from-amber-500/10 via-yellow-500/5 to-transparent border border-amber-500/20 rounded-2xl p-6 mb-6 overflow-hidden transition-all hover:shadow-lg hover:shadow-amber-500/5 border-l-4 border-l-amber-500">
             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
               <Plus className="w-24 h-24 text-amber-500 rotate-12" />
             </div>
@@ -603,8 +706,8 @@ export default function TimekeepingPage() {
                 </div>
               </div>
               <div className="flex items-center gap-2 bg-background/50 backdrop-blur-sm border border-border px-4 py-2 rounded-xl">
-                 <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                 <span className="text-xs font-bold text-muted-foreground uppercase tracking-tight">Active Achievement</span>
+                <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-tight">Active Achievement</span>
               </div>
             </div>
           </div>
@@ -637,6 +740,102 @@ export default function TimekeepingPage() {
                 />
               </PopoverContent>
             </Popover>
+
+            {/* Export Report Dialog */}
+            <Dialog open={exportOpen} onOpenChange={setExportOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2 font-semibold border-primary/20 hover:bg-primary/5">
+                  <BarChart3 className="w-4 h-4 text-primary" />
+                  Export Report
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="lg:w-[40vw] w-[90vw]">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <BarChart3 className="w-5 h-5 text-primary" />
+                    Export Report Options
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <Tabs value={exportFormat} onValueChange={(v) => setExportFormat(v as any)} className="w-full">
+                    <TabsList className="grid w-full grid-cols-2 mb-4">
+                      <TabsTrigger value="pdf" className="text-xs font-bold">PDF (Visual)</TabsTrigger>
+                      <TabsTrigger value="excel" className="text-xs font-bold">Excel (Data)</TabsTrigger>
+                    </TabsList>
+                    
+                    <div className="space-y-4 pt-0">
+                      <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider mb-1">Timeframe:</p>
+                      <Select value={exportTimeframe} onValueChange={(v) => setExportTimeframe(v as any)}>
+                        <SelectTrigger className="text-xs font-bold">
+                          <SelectValue placeholder="Select timeframe" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="day">Full Day ({selectedDate ? format(selectedDate, "MMM dd") : "Today"})</SelectItem>
+                          <SelectItem value="week">Weekly Report (Past 7 Days)</SelectItem>
+                          <SelectItem value="month">Monthly Report ({selectedDate ? format(selectedDate, "MMMM") : "Current Month"})</SelectItem>
+                          <SelectItem value="year">Full Annual Report ({selectedDate ? format(selectedDate, "yyyy") : "Current Year"})</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <TabsContent value="pdf" className="space-y-4 pt-4">
+                      <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider mb-2">Sections to include:</p>
+                      <div className="space-y-2 border border-border rounded-xl p-3 bg-muted/20">
+                        {Object.entries({
+                          achievement: "🏆 Early Bird Achievement",
+                          summary: "📊 Summary Statistics",
+                          activity: "📈 Check-in Activity Chart",
+                          status: "⭕ Session Status Distribution",
+                          hours: "👤 Hours by Employee Chart",
+                          tardiness: "📉 Tardiness Analytics",
+                          logs: "📄 Detailed Attendance Logs"
+                        }).map(([key, label]) => (
+                          <div key={key} className="flex items-center justify-between p-1.5 rounded-lg hover:bg-muted/50 transition-colors">
+                            <Label htmlFor={`export-${key}`} className="text-xs font-semibold cursor-pointer flex-1">
+                              {label}
+                            </Label>
+                            <Input
+                              id={`export-${key}`}
+                              type="checkbox"
+                              className="h-3.5 w-3.5 rounded border-primary"
+                              checked={exportSections[key as keyof typeof exportSections]}
+                              onChange={(e) => setExportSections({ ...exportSections, [key]: e.target.checked })}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </TabsContent>
+                    
+                    <TabsContent value="excel" className="space-y-4 pt-0">
+                      <div className="flex flex-col items-center justify-center p-8 border border-dashed border-border rounded-xl bg-muted/10 text-center space-y-3">
+                        <div className="h-12 w-12 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                          <BarChart3 className="h-6 w-6 text-emerald-600" />
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-sm font-bold">Excel Log Export</p>
+                          <p className="text-xs text-muted-foreground leading-relaxed">
+                            Generates a structured spreadsheet containing all detailed attendance records for {selectedDate ? format(selectedDate, "MMM dd") : "today"}.
+                          </p>
+                        </div>
+                      </div>
+                    </TabsContent>
+                  </Tabs>
+                </div>
+                
+                <Button
+                  onClick={exportFormat === "pdf" ? handleExportPDF : handleExportExcel}
+                  className="w-full gap-2 py-6 rounded-xl font-bold text-sm shadow-lg shadow-primary/10"
+                  disabled={exportLoading || (exportFormat === "pdf" && !Object.values(exportSections).some(v => v))}
+                >
+                  {exportLoading ? (
+                    <div className="h-4 w-4 border-2 border-background border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    exportFormat === "pdf" ? <BarChart3 className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />
+                  )}
+                  {exportFormat === "pdf" ? "Generate Professional PDF" : "Download Excel Spreadsheet"}
+                </Button>
+              </DialogContent>
+            </Dialog>
 
             {/* Add Log Dialog */}
             <Dialog open={open} onOpenChange={(v) => {
@@ -814,7 +1013,7 @@ export default function TimekeepingPage() {
         </div>
 
         {/* Summary Metric Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div id="summary-metrics" className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
             { label: "Present Today", value: presentCount.toString(), icon: Users, accent: "text-emerald-600", bg: "bg-emerald-500/10" },
             { label: "Total Hours", value: totalHoursWorked.toFixed(1) + "h", icon: Clock, accent: "text-blue-600", bg: "bg-blue-500/10" },
@@ -838,7 +1037,7 @@ export default function TimekeepingPage() {
         {/* Charts Row 1 */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Check-in Activity (Area Chart) */}
-          <Card className="lg:col-span-2 border border-border shadow-sm bg-card">
+          <Card id="activity-chart" className="lg:col-span-2 border border-border shadow-sm bg-card">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <div>
@@ -900,7 +1099,7 @@ export default function TimekeepingPage() {
           </Card>
 
           {/* Attendance Status (Pie Chart) */}
-          <Card className="border border-border shadow-sm bg-card">
+          <Card id="status-chart" className="border border-border shadow-sm bg-card">
             <CardHeader className="pb-0">
               <CardTitle className="text-base font-bold text-foreground">Session Status</CardTitle>
               <p className="text-xs text-muted-foreground mt-1">Completed vs In Progress</p>
@@ -951,8 +1150,8 @@ export default function TimekeepingPage() {
           </Card>
         </div>
 
-        {/* Charts Row 2 */}
-        <Card className="border border-border shadow-sm bg-card">
+        {/* Hours by Employee Chart */}
+        <Card id="hours-chart" className="border border-border shadow-sm bg-card">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <div>
@@ -1002,7 +1201,7 @@ export default function TimekeepingPage() {
         </Card>
 
         {/* Tardiness Analytics */}
-        <Card className="border border-border shadow-sm bg-card">
+        <Card id="tardiness-chart" className="border border-border shadow-sm bg-card">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <div>
@@ -1012,9 +1211,9 @@ export default function TimekeepingPage() {
                 </CardTitle>
                 <p className="text-xs text-muted-foreground mt-1">Average minutes late from 08:00 AM</p>
               </div>
-              <Button 
-                variant="ghost" 
-                size="sm" 
+              <Button
+                variant="ghost"
+                size="sm"
                 className="text-[10px] h-7 font-bold uppercase tracking-tight"
                 onClick={() => setShowTardinessNames(!showTardinessNames)}
               >
@@ -1034,15 +1233,15 @@ export default function TimekeepingPage() {
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
-                    <XAxis 
-                      dataKey={showTardinessNames ? "name" : "mask"} 
-                      axisLine={false} 
-                      tickLine={false} 
+                    <XAxis
+                      dataKey={showTardinessNames ? "name" : "mask"}
+                      axisLine={false}
+                      tickLine={false}
                       tick={{ fill: 'var(--muted-foreground)', fontSize: 9, fontWeight: 600 }}
                     />
-                    <YAxis 
-                      axisLine={false} 
-                      tickLine={false} 
+                    <YAxis
+                      axisLine={false}
+                      tickLine={false}
                       tick={{ fill: 'var(--muted-foreground)', fontSize: 9 }}
                     />
                     <RechartsTooltip
@@ -1055,13 +1254,13 @@ export default function TimekeepingPage() {
                         return item ? `Late Session (${item.mask})` : label;
                       }}
                     />
-                    <Area 
-                      type="monotone" 
-                      dataKey="avgMinutes" 
-                      stroke="#f59e0b" 
+                    <Area
+                      type="monotone"
+                      dataKey="avgMinutes"
+                      stroke="#f59e0b"
                       strokeWidth={2.5}
-                      fillOpacity={1} 
-                      fill="url(#colorTardiness)" 
+                      fillOpacity={1}
+                      fill="url(#colorTardiness)"
                     />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -1115,7 +1314,7 @@ export default function TimekeepingPage() {
         </div>
 
         {/* Scrollable Log List */}
-        <div className="flex-1 overflow-y-auto">
+        <div id="attendance-logs-list" className="flex-1 overflow-y-auto">
           {logs.length > 0 ? (
             <div className="divide-y divide-border">
               {logs.map((log, idx) => (

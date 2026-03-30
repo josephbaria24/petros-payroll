@@ -275,5 +275,5 @@ if __name__ == "__main__":
         except Exception as e:
             print(f"[CRITICAL ERROR] {e}")
         
-        # Sync every 5 minutes (300 seconds)
-        time.sleep(300)
+        # Sync every 3 minutes (180 seconds)
+        time.sleep(180)
