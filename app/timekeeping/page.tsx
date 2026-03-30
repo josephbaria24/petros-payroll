@@ -68,6 +68,7 @@ import {
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 import { useProtectedPage } from "../hooks/useProtectedPage"
+import confetti from "canvas-confetti"
 
 type TimeLog = {
   id: string
@@ -522,6 +523,47 @@ export default function TimekeepingPage() {
       .slice(0, 10)
   }, [logs])
 
+  // Find the earliest log of the day (Earliest Bird)
+  const earliestLog = useMemo(() => {
+    const presentLogs = logs.filter(log => log.time_in && log.time_in !== "-");
+    if (presentLogs.length === 0) return null;
+    return presentLogs.reduce((earliest, current) => {
+      const timeA = earliest.time_in || "99:99"
+      const timeB = current.time_in || "99:99"
+      return timeB < timeA ? current : earliest;
+    });
+  }, [logs]);
+
+  // Trigger confetti when earliest bird is found
+  useEffect(() => {
+    if (earliestLog) {
+      const duration = 2 * 1000;
+      const end = Date.now() + duration;
+
+      const frame = () => {
+        confetti({
+          particleCount: 2,
+          angle: 60,
+          spread: 55,
+          origin: { x: 0 },
+          colors: ['#f59e0b', '#fbbf24', '#fcd34d']
+        });
+        confetti({
+          particleCount: 2,
+          angle: 120,
+          spread: 55,
+          origin: { x: 1 },
+          colors: ['#f59e0b', '#fbbf24', '#fcd34d']
+        });
+
+        if (Date.now() < end) {
+          requestAnimationFrame(frame);
+        }
+      };
+      frame();
+    }
+  }, [earliestLog?.id, selectedDate]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-background text-foreground">
@@ -537,6 +579,37 @@ export default function TimekeepingPage() {
     <div className="relative min-h-screen bg-background text-foreground">
       {/* Main Content */}
       <div className={cn("transition-all duration-300 ease-in-out p-6 space-y-6", panelOpen ? "mr-[420px]" : "mr-0")}>
+        {/* Earliest Bird Banner */}
+        {earliestLog && (
+          <div className="relative group bg-gradient-to-r from-amber-500/10 via-yellow-500/5 to-transparent border border-amber-500/20 rounded-2xl p-6 mb-6 overflow-hidden transition-all hover:shadow-lg hover:shadow-amber-500/5 border-l-4 border-l-amber-500">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <Plus className="w-24 h-24 text-amber-500 rotate-12" />
+            </div>
+            <div className="relative flex flex-col md:flex-row items-center justify-between gap-6">
+              <div className="flex items-center gap-4">
+                <div className="h-16 w-16 rounded-2xl bg-amber-500 flex items-center justify-center shadow-lg shadow-amber-500/20 shrink-0">
+                  <span className="text-3xl">🏆</span>
+                </div>
+                <div className="space-y-1">
+                  <h2 className="text-xl font-black text-foreground tracking-tight flex items-center gap-3">
+                    Early Bird Achievement!
+                    <Badge variant="outline" className="bg-amber-500/20 text-amber-600 border-amber-500/30 font-bold uppercase tracking-widest text-[10px]">
+                      TOP PERFORMER
+                    </Badge>
+                  </h2>
+                  <p className="text-muted-foreground text-sm">
+                    <span className="font-bold text-foreground">{earliestLog.employee_name}</span> timed in at <span className="font-bold text-amber-600 underline underline-offset-4 decoration-amber-500/30">{earliestLog.time_in_display}</span>. Good job! 🎉
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 bg-background/50 backdrop-blur-sm border border-border px-4 py-2 rounded-xl">
+                 <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                 <span className="text-xs font-bold text-muted-foreground uppercase tracking-tight">Active Achievement</span>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1">
