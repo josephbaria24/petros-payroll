@@ -238,14 +238,14 @@ def fetch_logs():
                 if is_pdn:
                     # PDN special handling: timestamp and timeout in one record
                     if log_type == 'time_in':
-                        data = { "employee_id": emp_uuid, "timestamp": log.timestamp.isoformat() + "+08:00", "work_date": str(log.timestamp.date()), "full_name": emp_name, "status": "Present" }
+                        data = { "employee_id": emp_uuid, "timestamp": log.timestamp.isoformat(), "work_date": str(log.timestamp.date()), "full_name": emp_name, "status": "Present" }
                         supabase_request("pdn_attendance_logs", method="POST", data=data)
                     else: # time_out
-                        supabase_request("pdn_attendance_logs", method="PATCH", params={"employee_id": f"eq.{emp_uuid}", "work_date": f"eq.{log.timestamp.date()}"}, data={"timeout": log.timestamp.isoformat() + "+08:00"})
+                        supabase_request("pdn_attendance_logs", method="PATCH", params={"employee_id": f"eq.{emp_uuid}", "work_date": f"eq.{log.timestamp.date()}"}, data={"timeout": log.timestamp.isoformat()})
                     print(f"[OK] {org.upper()} {log_type} log for {emp_name} at {log.timestamp.time()}")
                 else:
                     # Petrosphere standard handling
-                    data = { "user_id": u_id, "timestamp": log.timestamp.isoformat() + "+08:00", "status": log_type, "work_date": str(log.timestamp.date()), "full_name": emp_name }
+                    data = { "user_id": u_id, "timestamp": log.timestamp.isoformat(), "status": log_type, "work_date": str(log.timestamp.date()), "full_name": emp_name }
                     supabase_request("attendance_logs", method="POST", data=data)
                     print(f"[OK] {org.upper()} {log_type} log for {emp_name} at {log.timestamp.time()}")
                     
