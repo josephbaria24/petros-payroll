@@ -385,8 +385,13 @@ export default function EmployeesPage() {
     const formData = new FormData()
     formData.append("file", file)
     if (form.profile_picture_url) {
-        // Send just the file name to the api
+      // Send just the file name to the api
       formData.append("oldFileName", form.profile_picture_url.split('/').pop() || "")
+    }
+
+    if (editingId) {
+      formData.append("employeeId", editingId)
+      formData.append("org", activeOrganization || "petrosphere")
     }
 
     try {

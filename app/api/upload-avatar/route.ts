@@ -1,16 +1,17 @@
 //app\api\upload-avatar\route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { IncomingForm, Files, Fields } from "formidable";
+import formidable from "formidable";
 import { Readable } from "stream";
 import * as ftp from "basic-ftp";
 import { randomUUID } from "crypto";
+import { supabaseServer } from "@/lib/supabaseServer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 function toNodeRequest(req: NextRequest): any {
-  const readable = new Readable({ read() {} });
+  const readable = new Readable({ read() { } });
 
   req.arrayBuffer().then((buffer) => {
     readable.push(Buffer.from(buffer));
@@ -26,10 +27,10 @@ function toNodeRequest(req: NextRequest): any {
 
 export async function POST(req: NextRequest) {
   return new Promise<NextResponse>((resolve) => {
-    const form = new IncomingForm({ multiples: false });
+    const form = formidable({ multiples: false });
     const nodeReq = toNodeRequest(req);
 
-    form.parse(nodeReq, async (err: any, fields: Fields, files: Files) => {
+    form.parse(nodeReq, async (err: any, fields: any, files: any) => {
       if (err) {
         resolve(NextResponse.json({ error: err.message }, { status: 500 }));
         return;
@@ -64,60 +65,60 @@ export async function POST(req: NextRequest) {
         const ext = imageFile.originalFilename?.split(".").pop()?.toLowerCase();
         const newFileName = `${randomUUID()}.${ext}`;
 
-        // Attempt to create an avatars directory if the FTP user root allows it
-        // Or if the FTP is jailed to public_html, we can use avatars directly.
-        // Assuming we want to drop it in public_html/avatars or just avatars
-        const targetDir = "public_html/avatars"
-        
+        // 1. Reset to FTP root to avoid relative path nesting issues
+        await client.cd("/");
+
+        // 1. Hostinger jailed users often start inside "public_html/payroll_system/"
+        // Let's try to reach the target subdirectory directly from wherever we landed
+        let reachedTarget = false;
         try {
-          await client.ensureDir(targetDir)
-        } catch (dirErr) {
-          console.log("Could not ensure dir public_html/avatars, attempting just 'avatars' or root", dirErr)
-          // If we can't create it, we might be jailed to a specific folder, let's try 'avatars'
+          // Try to just reach "uploads" relative to the current folder (if jailed)
+          await client.ensureDir("payroll_system");
+          reachedTarget = true;
+        } catch (e) {
+          // If that failed, reset to absolute root and try the full path
           try {
-             await client.ensureDir("avatars")
-          } catch(e) { }
+            await client.cd("/");
+            await client.ensureDir("public_html/payroll_system/uploads");
+            reachedTarget = true;
+          } catch (e2) {
+            // Last resort: just try root
+            await client.cd("/");
+          }
         }
 
+        // 3. Handle old file removal if reachable
         if (oldFileName && typeof oldFileName === 'string') {
           try {
-            await client.remove(oldFileName)
+            // oldFileName was likely a full path or just a name from previous iterations
+            const oldFileBase = oldFileName.split('/').pop() || oldFileName;
+            await client.remove(oldFileBase);
           } catch (e) { }
         }
 
-        // Identify the best path for Hostinger based on common setups
-        const pathsToTry = [
-          `public_html/avatars/${newFileName}`,
-          `domains/petrosphere.com.ph/public_html/avatars/${newFileName}`,
-          `avatars/${newFileName}`,
-          newFileName
-        ];
-        
-        // Ensure standard destination exists if it happens to be the root.
-        try { await client.ensureDir("public_html/avatars"); } catch (e) {}
-
-        let uploadSuccess = false;
-        let finalPathUsed = newFileName;
-        for (const ftpPath of pathsToTry) {
-           try {
-             await client.uploadFrom(imageFile.filepath, ftpPath);
-             uploadSuccess = true;
-             finalPathUsed = ftpPath;
-             break;
-           } catch (e) {
-             // Try next route
-           }
-        }
-        
-        if (!uploadSuccess) {
-           throw new Error("Could not find a valid writable directory in FTP server.");
-        }
+        // 4. Upload the file using JUST the filename (since we are now in the correct dir)
+        await client.uploadFrom(imageFile.filepath, newFileName);
 
         client.close();
 
-        // The exact final public URL might vary depending on where it stuck,
-        // but normally if we used `public_html/avatars/...` we can assume the web route is:
-        const publicUrl = `https://petrosphere.com.ph/avatars/${newFileName}`;
+        // Based on the provided path, the web route should be:
+        const publicUrl = `https://petrosphere.com.ph/payroll_system/uploads/payroll_system/${newFileName}`;
+
+        // Sync with Supabase if employeeId is provided
+        const employeeId = fields.employeeId?.[0] || fields.employeeId;
+        const org = fields.org?.[0] || fields.org;
+
+        if (employeeId && publicUrl) {
+          const table = org === "pdn" ? "pdn_employees" : "employees";
+          const { error: dbError } = await supabaseServer
+            .from(table)
+            .update({ profile_picture_url: publicUrl })
+            .eq("id", employeeId);
+
+          if (dbError) {
+            console.error("Supabase update error:", dbError);
+          }
+        }
 
         resolve(NextResponse.json({ url: publicUrl }));
       } catch (uploadErr: any) {
