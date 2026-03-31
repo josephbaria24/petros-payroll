@@ -50,6 +50,7 @@ export type Employee = {
   created_at: string
   attendance_log_userid?: number | null
   shift_id?: string | null
+  profile_picture_url?: string | null
 }
 
 declare module '@tanstack/react-table' {
@@ -80,11 +81,16 @@ export const columns: ColumnDef<Employee>[] = [
     ),
     cell: ({ row }) => {
       const name = row.getValue("full_name") as string
+      const avatarUrl = row.original.profile_picture_url
       return (
         <div className="flex items-center gap-2.5">
-          <div className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-[10px] font-bold text-muted-foreground border border-border group-hover:bg-primary/10 group-hover:text-primary group-hover:border-primary/30 transition-colors">
-            {name?.charAt(0) || "E"}
-          </div>
+          {avatarUrl ? (
+            <img src={avatarUrl} alt={name || "Employee"} className="h-7 w-7 rounded-full object-cover border border-border group-hover:border-primary/30 transition-colors" />
+          ) : (
+            <div className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-[10px] font-bold text-muted-foreground border border-border group-hover:bg-primary/10 group-hover:text-primary group-hover:border-primary/30 transition-colors">
+              {name?.charAt(0) || "E"}
+            </div>
+          )}
           <span className="font-medium text-foreground group-hover:text-primary transition-colors">{name}</span>
         </div>
       )

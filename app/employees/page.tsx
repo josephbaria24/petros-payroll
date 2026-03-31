@@ -6,6 +6,7 @@ import { useOrganization } from "@/contexts/OrganizationContext"
 import { DataTable } from "./data-table"
 import { columns, Employee } from "./columns"
 import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 import {
   Card,
   CardContent,
@@ -36,6 +37,7 @@ import {
   UserCheck,
   Clock,
   Filter,
+  Camera,
 } from "lucide-react"
 import { useProtectedPage } from "../hooks/useProtectedPage"
 
@@ -60,6 +62,7 @@ export default function EmployeesPage() {
   const [viewMode, setViewMode] = useState(false)
   const [emailSuggestions, setEmailSuggestions] = useState<{ full_name: string; corp_email: string }[]>([])
   const [statusFilters, setStatusFilters] = useState<string[]>(loadSavedFilters)
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
 
   // form state
   const [form, setForm] = useState({
@@ -79,6 +82,7 @@ export default function EmployeesPage() {
     shift: "Regular Day",
     hours_per_week: "",
     leave_credits: "0",
+    profile_picture_url: "",
   })
   const [open, setOpen] = useState(false)
 
@@ -181,6 +185,7 @@ export default function EmployeesPage() {
     shift: "Regular Day",
     hours_per_week: "",
     leave_credits: "0",
+    profile_picture_url: "",
   }
 
   async function handleDelete(id: string) {
@@ -328,6 +333,7 @@ export default function EmployeesPage() {
       shift: form.shift,
       hours_per_week: form.hours_per_week ? parseInt(form.hours_per_week) : null,
       leave_credits: form.leave_credits ? parseFloat(form.leave_credits) : 0,
+      profile_picture_url: form.profile_picture_url || null,
     }
 
     const table = activeOrganization === "pdn" ? "pdn_employees" : "employees"
@@ -371,6 +377,37 @@ export default function EmployeesPage() {
     }
   }
 
+  async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setIsUploadingAvatar(true)
+    const formData = new FormData()
+    formData.append("file", file)
+    if (form.profile_picture_url) {
+        // Send just the file name to the api
+      formData.append("oldFileName", form.profile_picture_url.split('/').pop() || "")
+    }
+
+    try {
+      const res = await fetch("/api/upload-avatar", {
+        method: "POST",
+        body: formData
+      })
+      const data = await res.json()
+      if (res.ok && data.url) {
+        setForm(prev => ({ ...prev, profile_picture_url: data.url }))
+        toast.success("Avatar uploaded!")
+      } else {
+        throw new Error(data.error || "Upload failed")
+      }
+    } catch (err: any) {
+      toast.error(err.message)
+    } finally {
+      setIsUploadingAvatar(false)
+    }
+  }
+
   function handleRowClick(emp: Employee, mode: "view" | "edit" = "view") {
     setForm({
       employee_code: emp.employee_code || "",
@@ -389,6 +426,7 @@ export default function EmployeesPage() {
       shift: emp.shift || "",
       hours_per_week: emp.hours_per_week?.toString() || "",
       leave_credits: emp.leave_credits.toString() || "0",
+      profile_picture_url: emp.profile_picture_url || "",
     })
     setEditingId(emp.id)
     setIsEditing(true)
@@ -536,18 +574,38 @@ export default function EmployeesPage() {
           <DialogContent className="lg:w-[50vw] max-h-[90vh] overflow-hidden flex flex-col p-0 border-none shadow-2xl">
             <DialogHeader className="p-6 bg-muted/30 border-b border-border space-y-1">
               <div className="flex items-center justify-between w-full">
-                <div>
-                  <DialogTitle className="text-2xl font-bold text-foreground">
-                    {!isEditing ? "New Employee" : (viewMode ? (
-                      <div className="flex items-center gap-2 text-foreground">
-                        <span className="text-muted-foreground/50 text-sm font-normal">#{form.employee_code}</span>
-                        <span>{form.full_name}</span>
-                      </div>
-                    ) : "Edit Employee")}
-                  </DialogTitle>
-                  {viewMode && isEditing && (
-                    <p className="text-muted-foreground text-sm font-medium">{form.position} • {form.department}</p>
-                  )}
+                <div className="flex items-center gap-4">
+                  <div className="relative group">
+                    <div className={cn(
+                        "h-16 w-16 rounded-full overflow-hidden border-2 border-border/50 flex items-center justify-center bg-muted shrink-0 text-xl font-bold text-muted-foreground",
+                        isUploadingAvatar && "opacity-50"
+                      )}>
+                      {form.profile_picture_url ? (
+                        <img src={form.profile_picture_url} className="h-full w-full object-cover" alt="Profile" />
+                      ) : (
+                        form.full_name?.charAt(0) || "E"
+                      )}
+                    </div>
+                    {(!viewMode || (viewMode && !isEditing)) && (
+                      <label className="absolute inset-0 flex items-center justify-center bg-black/40 text-white opacity-0 group-hover:opacity-100 transition-opacity rounded-full cursor-pointer backdrop-blur-sm">
+                        <Camera className="h-5 w-5" />
+                        <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} disabled={isUploadingAvatar} />
+                      </label>
+                    )}
+                  </div>
+                  <div>
+                    <DialogTitle className="text-2xl font-bold text-foreground">
+                      {!isEditing ? "New Employee" : (viewMode ? (
+                        <div className="flex items-center gap-2 text-foreground">
+                          <span className="text-muted-foreground/50 text-sm font-normal">#{form.employee_code}</span>
+                          <span>{form.full_name}</span>
+                        </div>
+                      ) : "Edit Employee")}
+                    </DialogTitle>
+                    {viewMode && isEditing && (
+                      <p className="text-muted-foreground text-sm font-medium">{form.position} • {form.department}</p>
+                    )}
+                  </div>
                 </div>
                 {isEditing && viewMode && (
                   <Button

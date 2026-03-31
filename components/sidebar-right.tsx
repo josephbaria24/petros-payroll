@@ -46,10 +46,17 @@ export function SidebarRight(props: React.ComponentProps<typeof Sidebar>) {
       }
 
       const u = data.user
+      
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("avatar_url")
+        .eq("id", u.id)
+        .single()
+        
       setUser({
         name: u.user_metadata?.name || u.email,
         email: u.email,
-        avatar: u.user_metadata?.avatar_url || "/default-avatar.png",
+        avatar: profile?.avatar_url || u.user_metadata?.avatar_url || u.user_metadata?.picture || "/default-avatar.png",
       })
     }
 

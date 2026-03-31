@@ -754,11 +754,22 @@ export default function PayrollPage() {
           const employeeDeductions = (allDeductions || []).filter((d: any) => d.employee_id === employee_id)
           let sss = 0, philhealth = 0, pagibig = 0, loans = 0
 
+          const deductionMap: Record<string, string> = {
+            sss: "sss",
+            philhealth: "philhealth",
+            pagibig: "pagibig",
+            "pag-ibig": "pagibig",
+            hdmf: "pagibig",
+            other: "loans"
+          }
+
           employeeDeductions.forEach((d: any) => {
-            if (d.type === 'sss') sss += d.amount
-            else if (d.type === 'philhealth') philhealth += d.amount
-            else if (d.type === 'pagibig') pagibig += d.amount
-            else if (d.type === 'other') loans += d.amount
+            const type = d.type.toLowerCase()
+            const target = deductionMap[type] || 'loans'
+            if (target === 'sss') sss += d.amount
+            else if (target === 'philhealth') philhealth += d.amount
+            else if (target === 'pagibig') pagibig += d.amount
+            else loans += d.amount 
           })
 
           const adjustment = employeeAdjustments.find(a => a.employee_id === employee_id)
@@ -773,8 +784,11 @@ export default function PayrollPage() {
           const basicSalary = base_salary
           const cashAdvance = adjustment?.cashAdvance || 0
           const holidayPay = adjustment?.holidayPay || 0
-          const totalDeductions = sss + philhealth + pagibig + loans + absenceDeduction + cashAdvance
-          const grossPay = basicSalary + overtimePay + holidayPay
+          const otherDeductions = adjustment?.otherDeductions || 0
+          const withholdingTax = adjustment?.withholdingTax || 0
+          const currentAllowance = allowance || 0
+          const totalDeductions = sss + philhealth + pagibig + loans + absenceDeduction + cashAdvance + otherDeductions + withholdingTax
+          const grossPay = basicSalary + overtimePay + holidayPay + currentAllowance
           const netPay = grossPay - totalDeductions
 
           recordsToInsert.push({
@@ -789,7 +803,8 @@ export default function PayrollPage() {
             sss,
             philhealth,
             pagibig,
-            loans,
+            loans: loans + otherDeductions,
+            withholding_tax: withholdingTax,
             cash_advance: cashAdvance,
             gross_pay: grossPay,
             total_deductions: totalDeductions,
@@ -825,7 +840,6 @@ export default function PayrollPage() {
       const { data: allDeductions, error: deductionError } = await supabase
         .from("deductions")
         .select("employee_id, type, amount, created_at")
-        .lte("created_at", format(periodEnd, "yyyy-MM-dd"))
 
       if (deductionError) {
         throw new Error("Failed to fetch deductions.")
@@ -849,6 +863,7 @@ export default function PayrollPage() {
           sss: "sss",
           philhealth: "philhealth",
           pagibig: "pagibig",
+          "pag-ibig": "pagibig",
           sss_loan: "loans",
           pagibig_loan: "loans",
           salary_loan: "loans",
@@ -857,14 +872,11 @@ export default function PayrollPage() {
 
         employeeDeductions.forEach(d => {
           const type = d.type.toLowerCase()
-          if (type === 'sss') sss += d.amount
-          else if (type === 'philhealth') philhealth += d.amount
-          else if (type === 'pagibig') pagibig += d.amount
-          else if (columnMap[type] === 'loans') loans += d.amount
-          else {
-            // Default any other custom types to loans
-            loans += d.amount
-          }
+          const target = columnMap[type] || 'loans'
+          if (target === 'sss') sss += d.amount
+          else if (target === 'philhealth') philhealth += d.amount
+          else if (target === 'pagibig') pagibig += d.amount
+          else loans += d.amount
         })
 
         const adjustment = employeeAdjustments.find(a => a.employee_id === employee_id)
@@ -2012,7 +2024,7 @@ export default function PayrollPage() {
             </DialogTitle>
           </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto space-y-4">
+          <div className="flex-1 flex flex-col min-h-0 space-y-4 pt-4">
 
 
             {selectedIds.length > 0 && (
@@ -2043,32 +2055,38 @@ export default function PayrollPage() {
             )}
 
 
-            <div className="border border-border rounded-lg overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-b border-border bg-muted/30">
-                    <TableHead className="w-12">
-                      <input
-                        type="checkbox"
-                        checked={
-                          selectedIds.length === selectedPeriodRecords.length &&
-                          selectedPeriodRecords.length > 0
-                        }
-                        onChange={handleSelectAll}
-                        className="rounded"
-                        title="Select all"
-                      />
-                    </TableHead>
+            <div className="flex-1 min-h-0 relative">
+              <div className="absolute inset-0 border border-border rounded-lg overflow-auto shadow-inner [&_[data-slot=table-container]]:overflow-visible">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-b border-border bg-muted/30">
+                      <TableHead className="w-12 sticky top-0 bg-muted/30 z-10 backdrop-blur-sm">
+                        <input
+                          type="checkbox"
+                          checked={
+                            selectedIds.length === selectedPeriodRecords.length &&
+                            selectedPeriodRecords.length > 0
+                          }
+                          onChange={handleSelectAll}
+                          className="rounded"
+                          title="Select all"
+                        />
+                      </TableHead>
 
-                    <TableHead className="font-medium text-foreground">Employee</TableHead>
-                    <TableHead className="font-medium text-foreground">Pay Type</TableHead>
-                    <TableHead className="font-medium text-foreground">Basic Salary</TableHead>
-                    <TableHead className="font-medium text-foreground">Overtime Pay</TableHead>
-                    <TableHead className="font-medium text-foreground">Holiday Pay</TableHead>
-                    <TableHead className="font-medium text-foreground">Allowance</TableHead>
-                    <TableHead className="font-medium text-foreground">Absences</TableHead>
-                    <TableHead className="font-medium text-foreground">Cash Advance</TableHead>
-                    <TableHead className="font-medium text-foreground">Total Deductions</TableHead>
+                      <TableHead className="font-medium text-foreground sticky top-0 bg-muted/30 z-10 backdrop-blur-sm">Employee</TableHead>
+                      <TableHead className="font-medium text-foreground sticky top-0 bg-muted/30 z-10 backdrop-blur-sm">Pay Type</TableHead>
+                      <TableHead className="font-medium text-foreground sticky top-0 bg-muted/30 z-10 backdrop-blur-sm">Basic Salary</TableHead>
+                      <TableHead className="font-medium text-foreground sticky top-0 bg-muted/30 z-10 backdrop-blur-sm">Overtime Pay</TableHead>
+                      <TableHead className="font-medium text-foreground sticky top-0 bg-muted/30 z-10 backdrop-blur-sm">Holiday Pay</TableHead>
+                      <TableHead className="font-medium text-foreground sticky top-0 bg-muted/30 z-10 backdrop-blur-sm">Allowance</TableHead>
+                      <TableHead className="font-medium text-foreground text-red-600/70 sticky top-0 bg-muted/30 z-10 backdrop-blur-sm">SSS</TableHead>
+                      <TableHead className="font-medium text-foreground text-red-600/70 sticky top-0 bg-muted/30 z-10 backdrop-blur-sm">PhilHealth</TableHead>
+                      <TableHead className="font-medium text-foreground text-red-600/70 sticky top-0 bg-muted/30 z-10 backdrop-blur-sm">Pag-IBIG</TableHead>
+                      <TableHead className="font-medium text-foreground text-red-600/70 sticky top-0 bg-muted/30 z-10 backdrop-blur-sm">W/Tax</TableHead>
+                      <TableHead className="font-medium text-foreground text-red-600/70 sticky top-0 bg-muted/30 z-10 backdrop-blur-sm">Loans</TableHead>
+                      <TableHead className="font-medium text-foreground sticky top-0 bg-muted/30 z-10 backdrop-blur-sm">Absences</TableHead>
+                      <TableHead className="font-medium text-foreground sticky top-0 bg-muted/30 z-10 backdrop-blur-sm">Cash Advance</TableHead>
+                      <TableHead className="font-medium text-foreground sticky top-0 bg-muted/30 z-10 backdrop-blur-sm">Total Deductions</TableHead>
                     <TableHead className="font-medium text-foreground">Net After Deductions</TableHead>
                     <TableHead className="font-medium text-foreground">Total Net</TableHead>
                     <TableHead className="font-medium text-foreground">Status</TableHead>
@@ -2098,9 +2116,14 @@ export default function PayrollPage() {
                       <TableCell className="text-foreground font-medium">₱{rec.overtime_pay.toLocaleString()}</TableCell>
                       <TableCell className="text-foreground">₱{rec.holiday_pay?.toLocaleString() || 0}</TableCell>
                       <TableCell className="text-foreground">₱{rec.allowances?.toLocaleString() || 0}</TableCell>
+                      <TableCell className="text-red-600/80 font-medium">₱{rec.sss?.toLocaleString() || 0}</TableCell>
+                      <TableCell className="text-red-600/80 font-medium">₱{rec.philhealth?.toLocaleString() || 0}</TableCell>
+                      <TableCell className="text-red-600/80 font-medium">₱{rec.pagibig?.toLocaleString() || 0}</TableCell>
+                      <TableCell className="text-red-600/80 font-medium">₱{rec.withholding_tax?.toLocaleString() || 0}</TableCell>
+                      <TableCell className="text-red-600/80 font-medium">₱{rec.loans?.toLocaleString() || 0}</TableCell>
                       <TableCell className="text-foreground">₱{rec.absences?.toLocaleString() || 0}</TableCell>
                       <TableCell className="text-foreground">₱{rec.cash_advance?.toLocaleString() || 0}</TableCell>
-                      <TableCell className="text-foreground">₱{rec.total_deductions?.toLocaleString()}</TableCell>
+                      <TableCell className="text-foreground font-semibold">₱{rec.total_deductions?.toLocaleString()}</TableCell>
                       <TableCell className="text-foreground font-bold">₱{rec.net_after_deductions?.toLocaleString()}</TableCell>
                       <TableCell className="text-foreground font-bold">
                         ₱{rec.total_net?.toLocaleString() || 0}
@@ -2134,6 +2157,7 @@ export default function PayrollPage() {
                   ))}
                 </TableBody>
               </Table>
+            </div>
             </div>
           </div>
         </DialogContent>

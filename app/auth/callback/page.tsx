@@ -24,13 +24,22 @@ export default function AuthCallback() {
       // 👇 Check user role before redirect
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("role")
+        .select("role, avatar_url")
         .eq("id", session.user.id)
         .single()
 
       if (profileError || !profile) {
         router.push("/login?error=role")
         return
+      }
+
+      // Sync Azure SSO Avatar if available
+      const ssoAvatar = session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture
+      if (ssoAvatar && profile.avatar_url !== ssoAvatar) {
+        await supabase
+          .from("profiles")
+          .update({ avatar_url: ssoAvatar })
+          .eq("id", session.user.id)
       }
 
       // Refresh the router to update middleware session
