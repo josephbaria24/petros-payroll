@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { CalendarIcon, Eye, Trash2, Plus, X, Calculator, Users, PhilippinePeso, TrendingUp, FileText, Check, XCircle, Clock, CheckCircle, ChevronDown, CheckCircle2, AlertCircle, Mail } from "lucide-react"
+import { CalendarIcon, Eye, Trash2, Plus, X, Calculator, Users, PhilippinePeso, TrendingUp, FileText, Check, XCircle, Clock, CheckCircle, ChevronDown, CheckCircle2, AlertCircle, Mail, Search } from "lucide-react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 import {
@@ -74,6 +74,7 @@ type PayrollRecord = {
   total_deductions?: number
   net_after_deductions?: number
   total_net?: number
+  profile_picture_url?: string
 }
 
 type PayrollPeriod = {
@@ -140,6 +141,7 @@ export default function PayrollPage() {
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [employeeRequests, setEmployeeRequests] = useState<EmployeeRequest[]>([])
   const [selectedRequests, setSelectedRequests] = useState<string[]>([])
+  const [searchQuery, setSearchQuery] = useState("")
 
   function handleSelect(id: string) {
     setSelectedIds((prev) =>
@@ -433,7 +435,7 @@ export default function PayrollPage() {
           overtime_pay, holiday_pay, night_diff, allowances, absences,
           cash_advance, sss, philhealth, pagibig, withholding_tax, loans,
           total_deductions, net_pay, status, created_at, updated_at, creator_id,
-          pdn_employees(full_name, pay_type)
+          pdn_employees(full_name, pay_type, profile_picture_url)
         `)
         .order("period_end", { ascending: false })
 
@@ -452,6 +454,7 @@ export default function PayrollPage() {
           employee_id: rec.employee_id,
           employee_name: rec.pdn_employees?.full_name,
           pay_type: rec.pdn_employees?.pay_type,
+          profile_picture_url: rec.pdn_employees?.profile_picture_url,
           period_start: rec.period_start,
           period_end: rec.period_end,
           basic_salary: rec.basic_salary || 0,
@@ -544,7 +547,7 @@ export default function PayrollPage() {
         created_at,
         updated_at,
         creator_id,
-        employees(full_name, pay_type),
+        employees(full_name, pay_type, profile_picture_url),
         profiles(fullname)
       `)
       .order("period_end", { ascending: false })
@@ -560,7 +563,7 @@ export default function PayrollPage() {
         (rec.holiday_pay || 0) +
         (rec.night_diff || 0) +
         (rec.allowances || 0)
-      
+
       const totalDeductions = (rec.total_deductions || 0)
       const netAfterDeductions = grossPay - totalDeductions
 
@@ -569,6 +572,7 @@ export default function PayrollPage() {
         employee_id: rec.employee_id,
         employee_name: rec.employees?.full_name,
         pay_type: rec.employees?.pay_type,
+        profile_picture_url: rec.employees?.profile_picture_url,
         period_start: rec.period_start,
         period_end: rec.period_end,
         basic_salary: rec.basic_salary || 0,
@@ -769,7 +773,7 @@ export default function PayrollPage() {
             if (target === 'sss') sss += d.amount
             else if (target === 'philhealth') philhealth += d.amount
             else if (target === 'pagibig') pagibig += d.amount
-            else loans += d.amount 
+            else loans += d.amount
           })
 
           const adjustment = employeeAdjustments.find(a => a.employee_id === employee_id)
@@ -906,10 +910,10 @@ export default function PayrollPage() {
         const cashAdvance = adjustment?.cashAdvance || 0
         const otherDeductions = adjustment?.otherDeductions || 0
         const withholdingTax = adjustment?.withholdingTax || 0
-        
+
         const totalDeductions = sss + philhealth + pagibig + loans + absenceDeduction + cashAdvance + otherDeductions + withholdingTax
         const currentAllowance = allowance || 0
-        
+
         let holidayPay = 0
         if (adjustment?.holidayPay && adjustment.holidayPay > 0) {
           holidayPay = adjustment.holidayPay
@@ -1206,7 +1210,7 @@ export default function PayrollPage() {
                       {periods[0].period_start} to {periods[0].period_end}
                     </p>
                   </div>
-                  
+
                   <div className="flex flex-wrap gap-4 pt-2">
                     <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-muted/50 border border-border">
                       <Users className="h-4 w-4 text-muted-foreground" />
@@ -1215,7 +1219,7 @@ export default function PayrollPage() {
                         <span className="text-xs font-semibold">{periods[0].total_employees} Total</span>
                       </div>
                     </div>
-                    
+
                     <div className="flex flex-col items-start gap-1">
                       <span className="text-[10px] text-muted-foreground font-bold uppercase leading-none">Status</span>
                       <Badge className={cn("cursor-pointer border-transparent shadow-none", statusVariants[periods[0].status] || statusVariants["Pending"])}>
@@ -1226,7 +1230,7 @@ export default function PayrollPage() {
                 </div>
 
                 <div className="flex flex-col gap-3 w-full md:w-auto">
-                  <Button 
+                  <Button
                     className="w-full md:w-48 h-12 text-base font-bold shadow-lg shadow-primary/20 group-hover:scale-[1.02] transition-transform"
                     onClick={() => handleViewPeriodRecords(periods[0])}
                   >
@@ -1631,7 +1635,7 @@ export default function PayrollPage() {
                             </div>
                           </div>
 
-                          {( (adjustment.otherDeductions && adjustment.otherDeductions > 0) || (adjustment.withholdingTax && adjustment.withholdingTax > 0) ) && (
+                          {((adjustment.otherDeductions && adjustment.otherDeductions > 0) || (adjustment.withholdingTax && adjustment.withholdingTax > 0)) && (
                             <div className="text-sm text-foreground bg-muted p-3 rounded mt-3">
                               <span className="font-medium">Adjustment Total:</span>{" "}
                               -₱{((adjustment.otherDeductions || 0) + (adjustment.withholdingTax || 0)).toLocaleString()}
@@ -1849,7 +1853,11 @@ export default function PayrollPage() {
                 </TableHeader>
                 <TableBody>
                   {paginatedPeriods.map((period) => (
-                    <TableRow key={period.period_key} className="hover:bg-muted/30 border-b border-border last:border-0 transition-colors">
+                    <TableRow 
+                      key={period.period_key} 
+                      className="hover:bg-muted/30 border-b border-border last:border-0 transition-colors cursor-pointer"
+                      onClick={() => handleViewPeriodRecords(period)}
+                    >
                       <TableCell className="py-4">
                         <div className="flex flex-col">
                           <span className="font-medium text-foreground truncate">{period.display_name}</span>
@@ -1892,7 +1900,7 @@ export default function PayrollPage() {
                       </TableCell>
                       <TableCell>
                         <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
+                          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                             <Button variant="ghost" className="h-8 w-fit px-2 gap-2 hover:bg-transparent p-0">
                               <Badge className={cn("cursor-pointer border-transparent shadow-none", statusVariants[period.status] || statusVariants["Pending"])}>
                                 {period.status}
@@ -1921,7 +1929,10 @@ export default function PayrollPage() {
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                            onClick={() => handleViewPeriodRecords(period)}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleViewPeriodRecords(period)
+                            }}
                             title="View Details"
                           >
                             <Eye className="h-4 w-4" />
@@ -1930,7 +1941,8 @@ export default function PayrollPage() {
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8 text-muted-foreground hover:text-primary"
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation()
                               setNotificationRecords(period.records)
                               setNotificationPeriodName(period.display_name)
                               setIsNotifyDialogOpen(true)
@@ -1943,7 +1955,10 @@ export default function PayrollPage() {
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                            onClick={() => handleDeletePeriod(period.period_key)}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleDeletePeriod(period.period_key)
+                            }}
                             title="Delete"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -2018,10 +2033,27 @@ export default function PayrollPage() {
   "
         >
 
-          <DialogHeader className="pb-4 border-b border-border">
+          <DialogHeader className="pb-4 border-b border-border flex flex-row items-center justify-between gap-4">
             <DialogTitle className="text-xl font-semibold text-foreground">
               Payroll Details - {selectedPeriodName}
             </DialogTitle>
+            <div className="relative w-70 pr-5">
+              <Input
+                placeholder="Search employee by name..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 h-9 border-primary/20 focus-visible:ring-primary/30"
+              />
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
           </DialogHeader>
 
           <div className="flex-1 flex flex-col min-h-0 space-y-4 pt-4">
@@ -2059,8 +2091,8 @@ export default function PayrollPage() {
               <div className="absolute inset-0 border border-border rounded-lg overflow-auto shadow-inner [&_[data-slot=table-container]]:overflow-visible">
                 <Table>
                   <TableHeader>
-                    <TableRow className="border-b border-border bg-muted/30">
-                      <TableHead className="w-12 sticky top-0 bg-muted/30 z-10 backdrop-blur-sm">
+                    <TableRow className="border-b border-border bg-primary hover:bg-primary">
+                      <TableHead className="w-12 sticky top-0 bg-primary text-primary-foreground z-10 backdrop-blur-sm">
                         <input
                           type="checkbox"
                           checked={
@@ -2073,91 +2105,106 @@ export default function PayrollPage() {
                         />
                       </TableHead>
 
-                      <TableHead className="font-medium text-foreground sticky top-0 bg-muted/30 z-10 backdrop-blur-sm">Employee</TableHead>
-                      <TableHead className="font-medium text-foreground sticky top-0 bg-muted/30 z-10 backdrop-blur-sm">Pay Type</TableHead>
-                      <TableHead className="font-medium text-foreground sticky top-0 bg-muted/30 z-10 backdrop-blur-sm">Basic Salary</TableHead>
-                      <TableHead className="font-medium text-foreground sticky top-0 bg-muted/30 z-10 backdrop-blur-sm">Overtime Pay</TableHead>
-                      <TableHead className="font-medium text-foreground sticky top-0 bg-muted/30 z-10 backdrop-blur-sm">Holiday Pay</TableHead>
-                      <TableHead className="font-medium text-foreground sticky top-0 bg-muted/30 z-10 backdrop-blur-sm">Allowance</TableHead>
-                      <TableHead className="font-medium text-foreground text-red-600/70 sticky top-0 bg-muted/30 z-10 backdrop-blur-sm">SSS</TableHead>
-                      <TableHead className="font-medium text-foreground text-red-600/70 sticky top-0 bg-muted/30 z-10 backdrop-blur-sm">PhilHealth</TableHead>
-                      <TableHead className="font-medium text-foreground text-red-600/70 sticky top-0 bg-muted/30 z-10 backdrop-blur-sm">Pag-IBIG</TableHead>
-                      <TableHead className="font-medium text-foreground text-red-600/70 sticky top-0 bg-muted/30 z-10 backdrop-blur-sm">W/Tax</TableHead>
-                      <TableHead className="font-medium text-foreground text-red-600/70 sticky top-0 bg-muted/30 z-10 backdrop-blur-sm">Loans</TableHead>
-                      <TableHead className="font-medium text-foreground sticky top-0 bg-muted/30 z-10 backdrop-blur-sm">Absences</TableHead>
-                      <TableHead className="font-medium text-foreground sticky top-0 bg-muted/30 z-10 backdrop-blur-sm">Cash Advance</TableHead>
-                      <TableHead className="font-medium text-foreground sticky top-0 bg-muted/30 z-10 backdrop-blur-sm">Total Deductions</TableHead>
-                    <TableHead className="font-medium text-foreground">Net After Deductions</TableHead>
-                    <TableHead className="font-medium text-foreground">Total Net</TableHead>
-                    <TableHead className="font-medium text-foreground">Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {selectedPeriodRecords.map((rec) => (
-                    <TableRow
-                      key={rec.id}
-                      onClick={() => {
-                        setEditRecord(rec)
-                        setEditDialogOpen(true)
-                      }}
-                      className="cursor-pointer hover:bg-muted/30 transition border-b border-border"
-                    >
-                      <TableCell onClick={(e) => e.stopPropagation()}>
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.includes(rec.id)}
-                          onChange={() => handleSelect(rec.id)}
-                          className="rounded"
-                        />
-                      </TableCell>
-                      <TableCell className="font-medium text-foreground">{rec.employee_name}</TableCell>
-                      <TableCell className="text-muted-foreground">{rec.pay_type}</TableCell>
-                      <TableCell className="text-foreground">₱{rec.basic_salary.toLocaleString()}</TableCell>
-                      <TableCell className="text-foreground font-medium">₱{rec.overtime_pay.toLocaleString()}</TableCell>
-                      <TableCell className="text-foreground">₱{rec.holiday_pay?.toLocaleString() || 0}</TableCell>
-                      <TableCell className="text-foreground">₱{rec.allowances?.toLocaleString() || 0}</TableCell>
-                      <TableCell className="text-red-600/80 font-medium">₱{rec.sss?.toLocaleString() || 0}</TableCell>
-                      <TableCell className="text-red-600/80 font-medium">₱{rec.philhealth?.toLocaleString() || 0}</TableCell>
-                      <TableCell className="text-red-600/80 font-medium">₱{rec.pagibig?.toLocaleString() || 0}</TableCell>
-                      <TableCell className="text-red-600/80 font-medium">₱{rec.withholding_tax?.toLocaleString() || 0}</TableCell>
-                      <TableCell className="text-red-600/80 font-medium">₱{rec.loans?.toLocaleString() || 0}</TableCell>
-                      <TableCell className="text-foreground">₱{rec.absences?.toLocaleString() || 0}</TableCell>
-                      <TableCell className="text-foreground">₱{rec.cash_advance?.toLocaleString() || 0}</TableCell>
-                      <TableCell className="text-foreground font-semibold">₱{rec.total_deductions?.toLocaleString()}</TableCell>
-                      <TableCell className="text-foreground font-bold">₱{rec.net_after_deductions?.toLocaleString()}</TableCell>
-                      <TableCell className="text-foreground font-bold">
-                        ₱{rec.total_net?.toLocaleString() || 0}
-                      </TableCell>
-                      <TableCell>
-                        <span className={cn(
-                          "px-2 py-1 rounded-full text-xs font-medium border",
-                          statusVariants[rec.status] || "bg-muted text-muted-foreground border-border"
-                        )}>
-                          {rec.status}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {rec.status !== "Paid" && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleMarkAsPaid(rec.id)
-                            }}
-                            className="text-green-600 hover:bg-green-50"
-                          >
-                            <CheckCircle className="h-4 w-4 mr-1" />
-                            Mark Paid
-                          </Button>
-                        )}
-                      </TableCell>
-
+                      <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Employee</TableHead>
+                      <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Pay Type</TableHead>
+                      <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Basic Salary</TableHead>
+                      <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Overtime Pay</TableHead>
+                      <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Holiday Pay</TableHead>
+                      <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Allowance</TableHead>
+                      <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">SSS</TableHead>
+                      <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">PhilHealth</TableHead>
+                      <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Pag-IBIG</TableHead>
+                      <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">W/Tax</TableHead>
+                      <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Loans</TableHead>
+                      <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Absences</TableHead>
+                      <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Cash Advance</TableHead>
+                      <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Total Deductions</TableHead>
+                      <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Net After Deductions</TableHead>
+                      <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Total Net</TableHead>
+                      <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Status</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                  </TableHeader>
+                  <TableBody>
+                    {selectedPeriodRecords
+                      .filter(rec =>
+                        rec.employee_name?.toLowerCase().includes(searchQuery.toLowerCase())
+                      )
+                      .map((rec) => (
+                        <TableRow
+                          key={rec.id}
+                          onClick={() => {
+                            setEditRecord(rec)
+                            setEditDialogOpen(true)
+                          }}
+                          className="cursor-pointer hover:bg-muted/30 transition border-b border-border"
+                        >
+                          <TableCell onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="checkbox"
+                              checked={selectedIds.includes(rec.id)}
+                              onChange={() => handleSelect(rec.id)}
+                              className="rounded"
+                            />
+                          </TableCell>
+                          <TableCell className="font-medium text-foreground">
+                            <div className="flex items-center gap-2">
+                              <div className="h-8 w-8 rounded-full overflow-hidden border border-border bg-muted flex items-center justify-center shrink-0 shadow-sm">
+                                {rec.profile_picture_url ? (
+                                  <img src={rec.profile_picture_url} className="h-full w-full object-cover" alt="" />
+                                ) : (
+                                  <Users className="h-4 w-4 text-muted-foreground" />
+                                )}
+                              </div>
+                              {rec.employee_name}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">{rec.pay_type}</TableCell>
+                          <TableCell className="text-foreground">₱{rec.basic_salary.toLocaleString()}</TableCell>
+                          <TableCell className="text-foreground font-medium">₱{rec.overtime_pay.toLocaleString()}</TableCell>
+                          <TableCell className="text-foreground">₱{rec.holiday_pay?.toLocaleString() || 0}</TableCell>
+                          <TableCell className="text-foreground">₱{rec.allowances?.toLocaleString() || 0}</TableCell>
+                          <TableCell className="text-red-600/80 font-medium">₱{rec.sss?.toLocaleString() || 0}</TableCell>
+                          <TableCell className="text-red-600/80 font-medium">₱{rec.philhealth?.toLocaleString() || 0}</TableCell>
+                          <TableCell className="text-red-600/80 font-medium">₱{rec.pagibig?.toLocaleString() || 0}</TableCell>
+                          <TableCell className="text-red-600/80 font-medium">₱{rec.withholding_tax?.toLocaleString() || 0}</TableCell>
+                          <TableCell className="text-red-600/80 font-medium">₱{rec.loans?.toLocaleString() || 0}</TableCell>
+                          <TableCell className="text-foreground">₱{rec.absences?.toLocaleString() || 0}</TableCell>
+                          <TableCell className="text-foreground">₱{rec.cash_advance?.toLocaleString() || 0}</TableCell>
+                          <TableCell className="text-foreground font-semibold">₱{rec.total_deductions?.toLocaleString()}</TableCell>
+                          <TableCell className="text-foreground font-bold">₱{rec.net_after_deductions?.toLocaleString()}</TableCell>
+                          <TableCell className="text-foreground font-bold">
+                            ₱{rec.total_net?.toLocaleString() || 0}
+                          </TableCell>
+                          <TableCell>
+                            <span className={cn(
+                              "px-2 py-1 rounded-full text-xs font-medium border",
+                              statusVariants[rec.status] || "bg-muted text-muted-foreground border-border"
+                            )}>
+                              {rec.status}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {rec.status !== "Paid" && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleMarkAsPaid(rec.id)
+                                }}
+                                className="text-green-600 hover:bg-green-50"
+                              >
+                                <CheckCircle className="h-4 w-4 mr-1" />
+                                Mark Paid
+                              </Button>
+                            )}
+                          </TableCell>
+
+                        </TableRow>
+                      ))}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
           </div>
         </DialogContent>
@@ -2183,9 +2230,9 @@ export default function PayrollPage() {
                 const loans = editRecord.loans || 0
                 const absences = editRecord.absences || 0
                 const cash_advance = editRecord.cash_advance || 0
-                
+
                 const totalDeductions = sss + philhealth + pagibig + withholding_tax + loans + absences + cash_advance
-                
+
                 const grossPay = (editRecord.basic_salary || 0) + (editRecord.overtime_pay || 0) + (editRecord.holiday_pay || 0) + (editRecord.allowances || 0)
                 const netPay = grossPay - totalDeductions
 
@@ -2482,12 +2529,12 @@ export default function PayrollPage() {
                     <span className="text-muted-foreground">Total Deductions:</span>
                     <div className="font-medium text-foreground text-red-600">
                       ₱{(
-                        (editRecord.sss || 0) + 
-                        (editRecord.philhealth || 0) + 
-                        (editRecord.pagibig || 0) + 
-                        (editRecord.withholding_tax || 0) + 
-                        (editRecord.loans || 0) + 
-                        (editRecord.absences || 0) + 
+                        (editRecord.sss || 0) +
+                        (editRecord.philhealth || 0) +
+                        (editRecord.pagibig || 0) +
+                        (editRecord.withholding_tax || 0) +
+                        (editRecord.loans || 0) +
+                        (editRecord.absences || 0) +
                         (editRecord.cash_advance || 0)
                       ).toLocaleString()}
                     </div>
