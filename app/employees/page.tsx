@@ -201,6 +201,7 @@ export default function EmployeesPage() {
     leave_credits: "0",
     profile_picture_url: "",
     working_days: [] as string[],
+    daily_rate: "0",
   }
 
   async function handleDelete(id: string) {
