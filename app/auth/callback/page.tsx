@@ -25,7 +25,7 @@ export default function AuthCallback() {
       // 👇 Check user role before redirect
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("role, avatar_url")
+        .select("role, avatar_url, permissions")
         .eq("id", session.user.id)
         .single()
 
