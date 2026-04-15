@@ -5,6 +5,7 @@
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabaseClient"
+import { getLandingPage } from "@/lib/auth-utils"
 
 export default function AuthCallback() {
   const router = useRouter()
@@ -45,13 +46,8 @@ export default function AuthCallback() {
       // Refresh the router to update middleware session
       router.refresh()
 
-      if (profile.role === "employee") {
-        router.push("/my-payroll")
-      } else if (profile.role === "admin" || profile.role === "hr") {
-        router.push("/dashboard")
-      } else {
-        router.push("/dashboard")
-      }
+      const destination = getLandingPage(profile.role, profile.permissions)
+      router.push(destination)
     }
 
     getSession()

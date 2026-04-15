@@ -1,6 +1,6 @@
 //columns.tsx
 "use client"
-import { toast } from "sonner"
+import { toast } from "@/lib/toast"
 import { ColumnDef } from "@tanstack/react-table"
 import { Button } from "@/components/ui/button"
 import { ArrowUpDown, MoreHorizontal, User } from "lucide-react"
@@ -51,6 +51,8 @@ export type Employee = {
   attendance_log_userid?: number | null
   shift_id?: string | null
   profile_picture_url?: string | null
+  working_days?: string[] | null
+  daily_rate?: number | null
 }
 
 declare module '@tanstack/react-table' {
@@ -230,6 +232,19 @@ export const columns: ColumnDef<Employee>[] = [
       const credits = parseFloat(row.getValue("leave_credits") || "0")
       return <div className="text-xs font-medium text-muted-foreground group-hover:text-primary/80 transition-colors">{credits.toFixed(1)} days</div>
     },
+  },
+  {
+    accessorKey: "working_days",
+    header: "Days of Work",
+    cell: ({ row }) => {
+      const days = row.original.working_days?.length || 0
+      return (
+        <div className="flex items-center gap-1.5 group-hover:text-primary transition-colors">
+          <span className="text-xs font-bold text-foreground">{days}</span>
+          <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-tighter">days</span>
+        </div>
+      )
+    }
   },
   {
     id: "actions",

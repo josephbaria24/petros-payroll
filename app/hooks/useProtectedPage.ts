@@ -4,15 +4,16 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useSession, useSupabaseClient } from "@supabase/auth-helpers-react"
+import { getLandingPage } from "@/lib/auth-utils"
 
 /**
- * Protects a page and optionally returns a loading state until role is verified.
+ * Protects a page and optionally returns a loading state until role and permissions are verified.
  */
-export function useProtectedPage(allowedRoles: string[] = []) {
+export function useProtectedPage(allowedRoles: string[] = [], requiredPermission?: string) {
   const router = useRouter()
   const session = useSession()
   const supabase = useSupabaseClient()
-  const [isChecking, setIsChecking] = useState(true) // 👈 add loading state
+  const [isChecking, setIsChecking] = useState(true)
 
   useEffect(() => {
     const checkAccess = async () => {
@@ -25,7 +26,7 @@ export function useProtectedPage(allowedRoles: string[] = []) {
 
       const { data: profile, error } = await supabase
         .from("profiles")
-        .select("role")
+        .select("role, permissions")
         .eq("id", userId)
         .single()
 
@@ -36,9 +37,19 @@ export function useProtectedPage(allowedRoles: string[] = []) {
       }
 
       const userRole = profile.role
+      const userPermissions = profile.permissions || {}
 
+      // Check role access
       if (!allowedRoles.includes(userRole)) {
         router.push("/my-payroll")
+        return
+      }
+
+      // Check specific permission if required
+      if (requiredPermission && !userPermissions[requiredPermission]) {
+        console.warn(`User lacks required permission: ${requiredPermission}`)
+        const destination = getLandingPage(userRole, userPermissions)
+        router.push(destination)
         return
       }
 
@@ -46,7 +57,7 @@ export function useProtectedPage(allowedRoles: string[] = []) {
     }
 
     checkAccess()
-  }, [session, supabase, router, allowedRoles])
+  }, [session, supabase, router, allowedRoles, requiredPermission])
 
   return { isChecking }
 }

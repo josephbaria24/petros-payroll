@@ -9,7 +9,7 @@ import {
     DialogFooter,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { toast } from "sonner"
+import { toast } from "@/lib/toast"
 import { Check, Mail, Users, Loader2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 

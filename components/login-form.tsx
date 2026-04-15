@@ -11,6 +11,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { EyeIcon, EyeOffIcon } from "lucide-react"
 import { supabase } from "@/lib/supabaseClient"
+import { getLandingPage } from "@/lib/auth-utils"
 
 export function LoginForm({ className, ...props }: React.ComponentProps<"div">) {
   const [email, setEmail] = useState("")
@@ -30,7 +31,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
 
       const { data: profile, error } = await supabase
         .from("profiles")
-        .select("role")
+        .select("role, permissions")
         .eq("id", session.user.id)
         .single()
 
@@ -39,13 +40,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
         return
       }
 
-      const role = profile.role
-      if (role === "employee") {
-        router.push("/my-payroll")
-      }
-      if (role === "admin" || role === "hr") {
-        router.push("/dashboard")
-      }
+      router.push(getLandingPage(profile.role, profile.permissions))
     }
 
     checkSessionAndRole()
@@ -72,21 +67,15 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("role")
+      .select("role, permissions")
       .eq("id", data.user.id)
       .single()
 
     // Refresh the router to update middleware session
     router.refresh()
 
-    if (profile?.role === "employee") {
-      router.push("/my-payroll")
-    } else if (profile?.role === "admin" || profile?.role === "hr") {
-      router.push("/dashboard")
-    } else {
-      // Default redirect if no role found
-      router.push("/dashboard")
-    }
+    const destination = getLandingPage(profile?.role || null, profile?.permissions)
+    router.push(destination)
 
     setLoading(false)
   }

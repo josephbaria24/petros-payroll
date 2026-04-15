@@ -46,7 +46,8 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select"
-import { toast } from "sonner"
+import { toast } from "@/lib/toast"
+import { sileo } from "sileo"
 import { Calendar, CalendarDayButton } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { 
@@ -195,77 +196,39 @@ export default function TimeSheetPage() {
 
   // 🚀 Action Handlers
   const handleClockIn = async () => {
-    if (!employee) return
-    const now = new Date()
-    const timestamp = now.toISOString()
-    const workDate = format(now, "yyyy-MM-dd")
-    const timeInStr = format(now, "HH:mm:ss")
-
-    setLoading(true)
-    const { error: attErr } = await supabase.from("attendance_logs").insert({
-      user_id: employee.attendance_log_userid,
-      timestamp,
-      work_date: workDate,
-      status: 'time_in'
+    sileo.info({ 
+      title: "Action Disabled", 
+      description: "Please use the biometrics device to clock in.",
+      fill: "black",
+      styles: {
+        title: "text-white!",
+        description: "text-white/75!",
+      }
     })
-
-    const { error: logErr } = await supabase.from("time_logs").insert({
-      employee_id: employee.id,
-      date: workDate,
-      time_in: timeInStr,
-      status: 'Present'
-    })
-
-    if (attErr || logErr) toast.error("Failed to clock in")
-    else toast.success("Successfully clocked in")
-    
-    await fetchLogs(employee)
-    setLoading(false)
   }
 
   const handleToggleBreak = async () => {
-    if (!employee || !todayLog) return
-    const now = new Date()
-    const status = isOnBreak ? 'break_out' : 'break_in'
-
-    setLoading(true)
-    const { error } = await supabase.from("attendance_logs").insert({
-      user_id: employee.attendance_log_userid,
-      timestamp: now.toISOString(),
-      work_date: todayLog.date || format(now, "yyyy-MM-dd"),
-      status
+    sileo.info({ 
+      title: "Action Disabled", 
+      description: "Please log your breaks through the biometrics device.",
+      fill: "black",
+      styles: {
+        title: "text-white!",
+        description: "text-white/75!",
+      }
     })
-
-    if (error) toast.error("Failed to record break")
-    else toast.success(`${isOnBreak ? "Break ended" : "Break started"}`)
-
-    await fetchLogs(employee)
-    setLoading(false)
   }
 
   const handleClockOut = async () => {
-    if (!employee || !todayLog) return
-    const now = new Date()
-    const timeOutStr = format(now, "HH:mm:ss")
-
-    setLoading(true)
-    await supabase.from("attendance_logs").insert({
-      user_id: employee.attendance_log_userid,
-      timestamp: now.toISOString(),
-      work_date: todayLog.date,
-      status: 'time_out'
+    sileo.info({ 
+      title: "Action Disabled", 
+      description: "Please use the biometrics device to clock out.",
+      fill: "black",
+      styles: {
+        title: "text-white!",
+        description: "text-white/75!",
+      }
     })
-
-    const { error } = await supabase
-      .from("time_logs")
-      .update({ time_out: timeOutStr })
-      .eq("id", todayLog.id)
-
-    if (error) toast.error("Failed to clock out")
-    else toast.success("Successfully clocked out")
-
-    await fetchLogs(employee)
-    setLoading(false)
   }
 
   // 📊 Helpers & Metrics
@@ -275,6 +238,25 @@ export default function TimeSheetPage() {
     const date = new Date()
     date.setHours(parseInt(h), parseInt(m))
     return format(date, "h:mm aa")
+  }
+
+  const computeWorkingHours = (log: any) => {
+    if (log.total_hours) return Number(log.total_hours)
+    if (!log.time_in || !log.time_out) return 0
+
+    const [inH, inM] = log.time_in.split(':').map(Number)
+    const [outH, outM] = log.time_out.split(':').map(Number)
+
+    let inMins = inH * 60 + inM
+    let outMins = outH * 60 + outM
+
+    if (outMins < inMins) outMins += 24 * 60 // cross midnight
+
+    let diffMins = outMins - inMins
+    // Deduct standard 1-hour break if shift > 5 hours
+    if (diffMins > 300) diffMins -= 60
+    
+    return Math.max(0, diffMins / 60)
   }
 
   const calculateWages = (hours: number) => {
@@ -288,7 +270,7 @@ export default function TimeSheetPage() {
   }
 
   const stats = useMemo(() => {
-    const totalHrs = logs.reduce((acc, log) => acc + (Number(log.total_hours) || 0), 0)
+    const totalHrs = logs.reduce((acc, log) => acc + computeWorkingHours(log), 0)
     const totalWages = calculateWages(totalHrs)
     
     // Real Weekly Insights
@@ -495,7 +477,7 @@ export default function TimeSheetPage() {
                             modifiers={{
                               fullDay: (date) => {
                                 const log = allLogs.find(l => isSameDay(new Date(l.date), date))
-                                return !!(log && Number(log.total_hours) >= 8)
+                                return !!(log && computeWorkingHours(log) >= 8)
                               },
                               emptyDay: (date) => {
                                 if (date.getDay() === 0 || date.getDay() === 6) return false
@@ -516,8 +498,8 @@ export default function TimeSheetPage() {
                                 
                                 let tooltipContent = "No attendance recorded"
                                 if (log) {
-                                  const hrs = Number(log.total_hours || 0).toFixed(1)
-                                  tooltipContent = `${hrs} Hours - ${Number(log.total_hours) >= 8 ? "Full Day Completed" : "Partial Day"}`
+                                  const hrs = computeWorkingHours(log).toFixed(1)
+                                  tooltipContent = `${hrs} Hours - ${computeWorkingHours(log) >= 8 ? "Full Day Completed" : "Partial Day"}`
                                 } else if (date.getDay() === 0 || date.getDay() === 6) {
                                   tooltipContent = "Weekend"
                                 }
@@ -597,7 +579,7 @@ export default function TimeSheetPage() {
                             <TableCell className="py-6 font-bold text-foreground">
                               <div className="flex items-center gap-2">
                                 <div className="h-2 w-2 rounded-full bg-primary/20" />
-                                {log.total_hours ? Number(log.total_hours).toFixed(2) : "0.00"} hrs
+                                {computeWorkingHours(log).toFixed(2)} hrs
                               </div>
                             </TableCell>
                             <TableCell className="py-6">

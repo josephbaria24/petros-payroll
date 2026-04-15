@@ -104,7 +104,7 @@ const statusVariants: Record<string, string> = {
 }
 
 export default function ReportsPage() {
-  useProtectedPage(["admin", "hr"])
+  useProtectedPage(["admin", "hr"], "reports")
   const { activeOrganization } = useOrganization()
 
   const [payrollSummary, setPayrollSummary] = useState<PayrollSummary>({

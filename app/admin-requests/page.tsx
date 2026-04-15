@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabaseClient"
 import { useOrganization } from "@/contexts/OrganizationContext"
+import { useProtectedPage } from "../hooks/useProtectedPage"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
@@ -57,6 +58,7 @@ interface Request {
 }
 
 export default function AdminRequestsPage() {
+  useProtectedPage(["admin", "hr"], "admin-requests")
   const { activeOrganization } = useOrganization()
   const [requests, setRequests] = useState<Request[]>([])
   const [filteredRequests, setFilteredRequests] = useState<Request[]>([])

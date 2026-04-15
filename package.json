@@ -50,6 +50,7 @@
     "react-day-picker": "^9.11.0",
     "react-dom": "^19.1.2",
     "recharts": "^3.7.0",
+    "sileo": "^0.1.5",
     "sonner": "^2.0.7",
     "ssh2-sftp-client": "^12.1.1",
     "tailwind-merge": "^3.3.1",

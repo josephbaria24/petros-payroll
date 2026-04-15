@@ -5,9 +5,9 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { LayoutShell } from "@/components/layout-shell"
 import { ThemeWrapper } from "@/components/theme-wrapper"
 import { TeamTransition } from "@/components/team-transition"
-import { Toaster } from "sonner"
 import { OrganizationProvider } from "@/contexts/OrganizationContext"
 import { supabase } from "@/lib/supabaseClient"
+import { Toaster as SileoToaster } from "sileo"
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -17,12 +17,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
           <ThemeWrapper>
             <TeamTransition />
             <LayoutShell>{children}</LayoutShell>
-            <Toaster
-              position="top-center"
-              toastOptions={{
-                className: "custom-toast",
-              }}
-            />
+            <SileoToaster position="top-center" theme="dark" />
           </ThemeWrapper>
         </OrganizationProvider>
       </ThemeProvider>

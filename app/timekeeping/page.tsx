@@ -34,8 +34,18 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+  DropdownMenuSeparator
+} from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
-import { toast } from "sonner"
+import { toast } from "@/lib/toast"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import {
@@ -49,7 +59,9 @@ import {
   PanelRightClose,
   ChevronRight,
   Activity,
-  BarChart3
+  BarChart3,
+  MoreVertical,
+  Trash2
 } from "lucide-react"
 import {
   ResponsiveContainer,
@@ -85,6 +97,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs"
+import { useIsMobile } from "@/hooks/use-mobile"
 import { utils, writeFile } from "xlsx"
 
 type TimeLog = {
@@ -104,29 +117,110 @@ type TimeLog = {
 }
 
 // Helper function to extract Philippine time from ZKT timestamp
+// Uses literal string parsing to avoid shifts for 'fake UTC' biometric data
 function extractPhilippineTime(timestamp: string): string {
-  return timestamp.split('T')[1].split('+')[0].substring(0, 5)
+  if (!timestamp || !timestamp.includes('T')) return "";
+  // Taking the HH:mm part literally from the timestamp string
+  return timestamp.split('T')[1].substring(0, 5);
 }
 
 // Helper function to extract Philippine date from ZKT timestamp
 function extractPhilippineDate(timestamp: string): string {
-  return timestamp.split('T')[0]
+  if (!timestamp) return "";
+  return timestamp.split('T')[0];
 }
 
-// Helper function to format HH:MM to 12-hour AM/PM
+// Helper function to format HH:mm to 12-hour AM/PM for display
 function formatTo12Hour(timeStr: string | null): string {
-  if (!timeStr || timeStr === "-") return "-";
-  const [hours, minutes] = timeStr.split(':');
-  const h = parseInt(hours);
-  const ampm = h >= 12 ? 'PM' : 'AM';
-  const displayHours = h % 12 || 12;
-  return `${displayHours}:${minutes} ${ampm}`;
+  if (!timeStr || timeStr === "-" || timeStr === "") return "-";
+  try {
+    const parts = timeStr.split(':');
+    const h = parseInt(parts[0]);
+    const m = parts[1].substring(0, 2);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const displayHours = h % 12 || 12;
+    return `${displayHours}:${m} ${ampm}`;
+  } catch (e) {
+    return "-";
+  }
 }
+
+// Helper to convert HH:mm (24h) to 12h parts
+function splitTo12HourParts(timeStr: string | null) {
+  if (!timeStr || timeStr === "-" || timeStr === "") return { hour: "08", minute: "00", period: "AM" };
+  try {
+    const [hours, minutes] = timeStr.split(':');
+    const h = parseInt(hours);
+    const m = minutes.substring(0, 2);
+    const period = h >= 12 ? 'PM' : 'AM';
+    const displayHours = (h % 12 || 12).toString().padStart(2, '0');
+    return { hour: displayHours, minute: m, period };
+  } catch (e) {
+    return { hour: "08", minute: "00", period: "AM" };
+  }
+}
+
+// Helper to convert 12h parts back to HH:mm (24h)
+function joinTo24Hour(hour: string, minute: string, period: string): string {
+  let h = parseInt(hour);
+  if (period === "PM" && h < 12) h += 12;
+  if (period === "AM" && h === 12) h = 0;
+  return `${h.toString().padStart(2, '0')}:${minute.padStart(2, '0')}`;
+}
+
+const VisualTimePicker = ({ 
+  value, 
+  onChange, 
+  label 
+}: { 
+  value: string | null; 
+  onChange: (val: string) => void; 
+  label: string 
+}) => {
+  const { hour, minute, period } = splitTo12HourParts(value);
+
+  const hours = Array.from({ length: 12 }, (_, i) => (i + 1).toString().padStart(2, '0'));
+  const minutes = Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, '0'));
+
+  return (
+    <div className="space-y-2">
+      <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{label}</Label>
+      <div className="flex items-center gap-1">
+        <Select value={hour} onValueChange={(h) => onChange(joinTo24Hour(h, minute, period))}>
+          <SelectTrigger className="w-full h-10 text-xs font-bold">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {hours.map(h => <SelectItem key={h} value={h}>{h}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <span className="text-muted-foreground font-bold px-0.5">:</span>
+        <Select value={minute} onValueChange={(m) => onChange(joinTo24Hour(hour, m, period))}>
+          <SelectTrigger className="w-full h-10 text-xs font-bold">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="max-h-[200px]">
+            {minutes.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={period} onValueChange={(p) => onChange(joinTo24Hour(hour, minute, p))}>
+          <SelectTrigger className="w-full h-10 text-xs font-bold">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="AM">AM</SelectItem>
+            <SelectItem value="PM">PM</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  );
+};
 
 const COLORS = ['#0ea5e9', '#8b5cf6', '#f59e0b', '#10b981', '#ef4444', '#6366f1']
 
 export default function TimekeepingPage() {
-  useProtectedPage(["admin", "hr"])
+  useProtectedPage(["admin", "hr"], "timekeeping")
   const { activeOrganization } = useOrganization()
   const [logs, setLogs] = useState<TimeLog[]>([])
   const [open, setOpen] = useState(false)
@@ -158,6 +252,7 @@ export default function TimekeepingPage() {
     logs: true,
     achievement: true
   })
+  const isMobile = useIsMobile()
   const [exportFormat, setExportFormat] = useState<"pdf" | "excel">("pdf")
   const [exportTimeframe, setExportTimeframe] = useState<"day" | "week" | "month" | "year">("day")
 
@@ -173,33 +268,93 @@ export default function TimekeepingPage() {
     loadData()
   }, [selectedDate, activeOrganization])
 
+  // Responsive panel: Close logs by default on mobile
+  useEffect(() => {
+    if (isMobile) {
+      setPanelOpen(false)
+    } else {
+      setPanelOpen(true)
+    }
+  }, [isMobile])
+
   // Helper functions for logic reuse (Range Exports & Daily View)
   function processRawLogsForOrg(org: string, logsData: any[], employeesData: any[], fallbackDateStr: string) {
     if (org === "pdn") {
-      return (logsData || []).map((log: any) => {
-        const emp = employeesData?.find((e: any) => e.id === log.employee_id)
-        const timeInUTC = log.timestamp ? new Date(log.timestamp) : null
-        const timeOutUTC = log.timeout ? new Date(log.timeout) : null
-        const timeInPH = log.timestamp ? extractPhilippineTime(log.timestamp) : null
-        const timeOutPH = log.timeout ? extractPhilippineTime(log.timeout) : null
-        const totalHours = timeInUTC && timeOutUTC ? (timeOutUTC.getTime() - timeInUTC.getTime()) / (1000 * 60 * 60) : 0
+      const enrichedLogs: TimeLog[] = []
+      
+      employeesData.forEach(emp => {
+        const empLogs = (logsData || []).filter((log: any) => (log.employee_id === emp.id || log.full_name === emp.full_name))
+        
+        if (empLogs.length > 0) {
+          empLogs.forEach((log: any) => {
+            const timeInUTC = log.timestamp ? new Date(log.timestamp) : null
+            const timeOutUTC = log.timeout ? new Date(log.timeout) : null
+            const timeInPH = log.timestamp ? extractPhilippineTime(log.timestamp) : null
+            const timeOutPH = log.timeout ? extractPhilippineTime(log.timeout) : null
+            const totalHours = timeInUTC && timeOutUTC ? (timeOutUTC.getTime() - timeInUTC.getTime()) / (1000 * 60 * 60) : 0
 
-        return {
-          id: log.id.toString(),
-          employee_id: log.employee_id || "",
-          employee_name: emp?.full_name || log.full_name || "Unknown",
-          date: log.work_date || fallbackDateStr,
-          time_in: timeInPH,
-          time_out: timeOutPH,
-          time_in_display: formatTo12Hour(timeInPH),
-          time_out_display: formatTo12Hour(timeOutPH),
-          total_hours: Math.round(totalHours * 100) / 100,
-          overtime_hours: totalHours > 8 ? Math.round((totalHours - 8) * 100) / 100 : 0,
-          status: log.status || "time_in",
-          in_id: log.id.toString(),
-          out_id: log.id.toString(),
+            enrichedLogs.push({
+              id: log.id.toString(),
+              employee_id: emp.id,
+              employee_name: emp.full_name,
+              date: log.work_date || fallbackDateStr,
+              time_in: timeInPH,
+              time_out: timeOutPH,
+              time_in_display: formatTo12Hour(timeInPH),
+              time_out_display: formatTo12Hour(timeOutPH),
+              total_hours: Math.round(totalHours * 100) / 100,
+              overtime_hours: totalHours > 8 ? Math.round((totalHours - 8) * 100) / 100 : 0,
+              status: log.status || "Present",
+              in_id: log.id.toString(),
+              out_id: log.id.toString(),
+            })
+          })
+        } else {
+          // No logs for this employee
+          // Determine status based on permanent flags, weekend, or current time
+          const now = new Date()
+          const phTime = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Manila" }))
+          const phHour = phTime.getHours()
+          const isToday = fallbackDateStr === format(phTime, "yyyy-MM-dd")
+          
+          // Weekend detection
+          const [y, m, d_num] = fallbackDateStr.split("-").map(Number)
+          const dateObj = new Date(y, m - 1, d_num)
+          const dayOfWeek = dateObj.getDay()
+          const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
+
+          let defaultStatus = isWeekend ? "Weekend" : "Absent"
+          let defaultHours = 0
+
+          // Permanent status only apply to weekdays
+          if (!isWeekend) {
+            if (emp.is_remote) {
+              defaultStatus = "Remote"
+              defaultHours = 8
+            } else if (emp.is_wfh) {
+              defaultStatus = "Work From Home"
+              defaultHours = 8
+            } else if (isToday && phHour < 11) {
+              defaultStatus = "Late"
+            }
+          }
+
+          enrichedLogs.push({
+            id: `missing-${emp.id}`,
+            employee_id: emp.id,
+            employee_name: emp.full_name,
+            date: fallbackDateStr,
+            time_in: null,
+            time_out: null,
+            time_in_display: "-",
+            time_out_display: "-",
+            total_hours: defaultHours,
+            overtime_hours: 0,
+            status: defaultStatus,
+          })
         }
       })
+      return enrichedLogs
     } else {
       const userGroups: Record<number, any[]> = {}
       logsData.forEach((log) => {
@@ -208,50 +363,94 @@ export default function TimekeepingPage() {
       })
 
       const enrichedLogs: TimeLog[] = []
-      for (const userIdStr in userGroups) {
-        const userId = parseInt(userIdStr)
-        const userLogs = userGroups[userId]
-        const matchedEmp = employeesData.find((emp) => emp.attendance_log_userid === userId)
-        const empName = matchedEmp?.full_name || "Unknown"
-        const empId = matchedEmp?.id || ""
+      
+      employeesData.forEach(emp => {
+        const userId = emp.attendance_log_userid
+        const userLogs = userId ? userGroups[userId] : []
+        const empName = emp.full_name
+        const empId = emp.id
 
-        let currentIn: any = null
-        const processSession = (inEv: any | null, outEv: any | null) => {
-          const tInUTC = inEv ? new Date(inEv.timestamp) : null
-          const tOutUTC = outEv ? new Date(outEv.timestamp) : null
-          const tInPH = inEv ? extractPhilippineTime(inEv.timestamp) : null
-          const tOutPH = outEv ? extractPhilippineTime(outEv.timestamp) : null
-          const dPH = (inEv || outEv)?.work_date || fallbackDateStr
-          const tHours = tInUTC && tOutUTC ? (tOutUTC.getTime() - tInUTC.getTime()) / (1000 * 60 * 60) : 0
+        if (userLogs && userLogs.length > 0) {
+          let currentIn: any = null
+          const processSession = (inEv: any | null, outEv: any | null) => {
+            const tInUTC = inEv ? new Date(inEv.timestamp) : null
+            const tOutUTC = outEv ? new Date(outEv.timestamp) : null
+            const tInPH = inEv ? extractPhilippineTime(inEv.timestamp) : null
+            const tOutPH = outEv ? extractPhilippineTime(outEv.timestamp) : null
+            const dPH = (inEv || outEv)?.work_date || fallbackDateStr
+            const tHours = tInUTC && tOutUTC ? (tOutUTC.getTime() - tInUTC.getTime()) / (1000 * 60 * 60) : 0
+
+            enrichedLogs.push({
+              id: (inEv || outEv).id.toString(),
+              employee_id: empId,
+              employee_name: empName,
+              date: dPH,
+              time_in: tInPH,
+              time_out: tOutPH,
+              time_in_display: formatTo12Hour(tInPH),
+              time_out_display: formatTo12Hour(tOutPH),
+              total_hours: Math.round(tHours * 100) / 100,
+              overtime_hours: tHours > 8 ? Math.round((tHours - 8) * 100) / 100 : 0,
+              status: outEv ? "time_out" : "time_in",
+              in_id: inEv?.id?.toString(),
+              out_id: outEv?.id?.toString(),
+            })
+          }
+
+          userLogs.forEach((log) => {
+            if (log.status === "time_in") {
+              if (currentIn) processSession(currentIn, null)
+              currentIn = log
+            } else if (log.status === "time_out") {
+              if (currentIn) { processSession(currentIn, log); currentIn = null }
+              else processSession(null, log)
+            }
+          })
+          if (currentIn) processSession(currentIn, null)
+        } else {
+          // No biometric logs
+          const now = new Date()
+          const phTime = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Manila" }))
+          const phHour = phTime.getHours()
+          const isToday = fallbackDateStr === format(phTime, "yyyy-MM-dd")
+          
+          // Weekend detection
+          const [y, m, d_num] = fallbackDateStr.split("-").map(Number)
+          const dateObj = new Date(y, m - 1, d_num)
+          const dayOfWeek = dateObj.getDay()
+          const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
+
+          let defaultStatus = isWeekend ? "Weekend" : "Absent"
+          let defaultHours = 0
+
+          // Permanent status only apply to weekdays (Mo-Fr)
+          if (!isWeekend) {
+            if (emp.is_remote) {
+              defaultStatus = "Remote"
+              defaultHours = 8
+            } else if (emp.is_wfh) {
+              defaultStatus = "Work From Home"
+              defaultHours = 8
+            } else if (isToday && phHour < 11) {
+              defaultStatus = "Late"
+            }
+          }
 
           enrichedLogs.push({
-            id: (inEv || outEv).id.toString(),
+            id: `missing-${empId}`,
             employee_id: empId,
             employee_name: empName,
-            date: dPH,
-            time_in: tInPH,
-            time_out: tOutPH,
-            time_in_display: formatTo12Hour(tInPH),
-            time_out_display: formatTo12Hour(tOutPH),
-            total_hours: Math.round(tHours * 100) / 100,
-            overtime_hours: tHours > 8 ? Math.round((tHours - 8) * 100) / 100 : 0,
-            status: outEv ? "time_out" : "time_in",
-            in_id: inEv?.id?.toString(),
-            out_id: outEv?.id?.toString(),
+            date: fallbackDateStr,
+            time_in: null,
+            time_out: null,
+            time_in_display: "-",
+            time_out_display: "-",
+            total_hours: defaultHours,
+            overtime_hours: 0,
+            status: defaultStatus,
           })
         }
-
-        userLogs.forEach((log) => {
-          if (log.status === "time_in") {
-            if (currentIn) processSession(currentIn, null)
-            currentIn = log
-          } else if (log.status === "time_out") {
-            if (currentIn) { processSession(currentIn, log); currentIn = null }
-            else processSession(null, log)
-          }
-        })
-        if (currentIn) processSession(currentIn, null)
-      }
+      })
       return enrichedLogs
     }
   }
@@ -259,12 +458,51 @@ export default function TimekeepingPage() {
   async function fetchLogsInRange(start: string, end: string) {
     if (activeOrganization === "pdn") {
       const { data: logsData } = await supabase.from("pdn_attendance_logs").select("*").gte("work_date", start).lte("work_date", end).order("timestamp", { ascending: true })
-      const { data: empData } = await supabase.from("pdn_employees").select("id, full_name")
+      const { data: empData } = await supabase.from("pdn_employees").select("id, full_name, employment_status, is_remote, is_wfh").neq("employment_status", "Inactive")
       return processRawLogsForOrg("pdn", logsData || [], empData || [], start)
     } else {
-      const { data: logsData } = await supabase.from("attendance_logs").select("*").gte("work_date", start).lte("work_date", end).order("timestamp", { ascending: true })
-      const { data: empData } = await supabase.from("employees").select("id, full_name, attendance_log_userid")
-      return processRawLogsForOrg("petrosphere", logsData || [], empData || [], start)
+      const [{ data: logsData }, { data: empData }, { data: manualLogs }] = await Promise.all([
+        supabase.from("attendance_logs").select("*").gte("work_date", start).lte("work_date", end).order("timestamp", { ascending: true }),
+        supabase.from("employees").select("id, full_name, attendance_log_userid, employment_status, is_remote, is_wfh").neq("employment_status", "Inactive"),
+        supabase.from("time_logs").select("*").gte("date", start).lte("date", end)
+      ])
+
+      const rawEnriched = processRawLogsForOrg("petrosphere", logsData || [], empData || [], start)
+      
+      // Properly apply manual overrides from time_logs
+      const overrideMap = new Map()
+      manualLogs?.forEach(mLog => {
+        overrideMap.set(mLog.employee_id, mLog)
+      })
+
+      const finalLogs: any[] = []
+      const processedEmpIds = new Set()
+
+      rawEnriched.forEach(log => {
+        const mLog = overrideMap.get(log.employee_id)
+        if (mLog) {
+          if (!processedEmpIds.has(log.employee_id)) {
+            finalLogs.push({
+              id: mLog.id.toString(),
+              employee_id: mLog.employee_id,
+              employee_name: log.employee_name,
+              date: mLog.date,
+              time_in: mLog.time_in,
+              time_out: mLog.time_out,
+              time_in_display: formatTo12Hour(mLog.time_in),
+              time_out_display: formatTo12Hour(mLog.time_out),
+              total_hours: mLog.total_hours || 0,
+              overtime_hours: mLog.overtime_hours || 0,
+              status: mLog.status || "Present",
+            })
+            processedEmpIds.add(log.employee_id)
+          }
+        } else {
+          finalLogs.push(log)
+        }
+      })
+
+      return finalLogs
     }
   }
 
@@ -276,7 +514,7 @@ export default function TimekeepingPage() {
 
   async function fetchEmployees() {
     if (activeOrganization === "pdn") {
-      const { data, error } = await supabase.from("pdn_employees").select("id, full_name")
+      const { data, error } = await supabase.from("pdn_employees").select("id, full_name, employment_status, is_remote, is_wfh").neq("employment_status", "Inactive")
       if (error) {
         console.error("Error fetching PDN employees:", error)
         return
@@ -285,7 +523,7 @@ export default function TimekeepingPage() {
       return
     }
 
-    const { data, error } = await supabase.from("employees").select("id, full_name, attendance_log_userid")
+    const { data, error } = await supabase.from("employees").select("id, full_name, attendance_log_userid, employment_status, is_remote, is_wfh").neq("employment_status", "Inactive")
     if (error) {
       console.error(error)
       return
@@ -302,8 +540,9 @@ export default function TimekeepingPage() {
       const { error } = await supabase.from("pdn_attendance_logs").insert({
         employee_id: form.employee_id,
         work_date: form.date,
-        timestamp: form.time_in ? `${form.date}T${form.time_in}:00+08:00` : new Date().toISOString(),
-        timeout: form.time_out ? `${form.date}T${form.time_out}:00+08:00` : null,
+        // Using +00:00 to match biometric record format and prevent shifts
+        timestamp: form.time_in ? `${form.date}T${form.time_in}:00+00:00` : new Date().toISOString(),
+        timeout: form.time_out ? `${form.date}T${form.time_out}:00+00:00` : null,
         status: form.status,
         full_name: employees.find(emp => emp.id === form.employee_id)?.full_name || "",
       })
@@ -348,8 +587,9 @@ export default function TimekeepingPage() {
         const { error } = await supabase
           .from("pdn_attendance_logs")
           .update({
-            timestamp: form.time_in ? `${form.date}T${form.time_in}:00+08:00` : null,
-            timeout: form.time_out ? `${form.date}T${form.time_out}:00+08:00` : null,
+            // Using +00:00 to match biometric record format and prevent shifts
+            timestamp: form.time_in ? `${form.date}T${form.time_in}:00+00:00` : null,
+            timeout: form.time_out ? `${form.date}T${form.time_out}:00+00:00` : null,
             work_date: form.date,
             status: form.time_out ? "time_out" : "time_in"
           })
@@ -357,49 +597,39 @@ export default function TimekeepingPage() {
 
         if (error) throw error
       } else {
-        // Petrosphere: Might need to update up to two rows
-        if (selectedLog.in_id) {
-          const { error: inErr } = await supabase
-            .from("attendance_logs")
-            .update({
-              timestamp: form.time_in ? `${form.date}T${form.time_in}:00+08:00` : null,
-              work_date: form.date
-            })
-            .eq("id", selectedLog.in_id)
-          if (inErr) throw inErr
-        }
+        // Petrosphere: Non-PDN regular logs
+        // We ALWAYS route edits to time_logs as overrides instead of mutating native biometric logs
 
-        if (selectedLog.out_id && selectedLog.out_id !== selectedLog.in_id) {
-          if (form.time_out) {
-            const { error: outErr } = await supabase
-              .from("attendance_logs")
-              .update({
-                timestamp: `${form.date}T${form.time_out}:00+08:00`,
-                work_date: form.date
-              })
-              .eq("id", selectedLog.out_id)
-            if (outErr) throw outErr
-          } else {
-            // User cleared the OUT time, delete the OUT row
-            const { error: delErr } = await supabase
-              .from("attendance_logs")
-              .delete()
-              .eq("id", selectedLog.out_id)
-            if (delErr) throw delErr
-          }
-        } else if (form.time_out && !selectedLog.out_id) {
-          // If editing a log that only had IN and now has OUT, we need to find the user_id and insert a new OUT row
-          const { data: empData } = await supabase.from("employees").select("attendance_log_userid").eq("id", form.employee_id).single()
-          if (empData?.attendance_log_userid) {
-            const { error: insertErr } = await supabase.from("attendance_logs").insert({
-              user_id: empData.attendance_log_userid,
-              timestamp: `${form.date}T${form.time_out}:00+08:00`,
-              status: "time_out",
-              work_date: form.date,
-              full_name: employees.find(e => e.id === form.employee_id)?.full_name || ""
+        const { data: existingLog } = await supabase
+          .from("time_logs")
+          .select("id")
+          .eq("date", form.date)
+          .eq("employee_id", form.employee_id)
+          .maybeSingle()
+
+        if (existingLog) {
+          const { error: updateErr } = await supabase
+            .from("time_logs")
+            .update({
+              time_in: form.time_in || null,
+              time_out: form.time_out || null,
+              status: form.status,
+              total_hours: ["On Leave", "Work From Home", "Remote"].includes(form.status) ? 8 : 0
             })
-            if (insertErr) throw insertErr
-          }
+            .eq("id", existingLog.id)
+          if (updateErr) throw updateErr
+        } else {
+          const { error: insertErr } = await supabase
+            .from("time_logs")
+            .insert({
+              employee_id: form.employee_id,
+              date: form.date,
+              time_in: form.time_in || null,
+              time_out: form.time_out || null,
+              status: form.status,
+              total_hours: ["On Leave", "Work From Home", "Remote"].includes(form.status) ? 8 : 0
+            })
+          if (insertErr) throw insertErr
         }
       }
 
@@ -410,6 +640,157 @@ export default function TimekeepingPage() {
     } catch (err: any) {
       console.error("Error updating log:", err)
       toast.error(err.message || "Error updating log", { id: toastId })
+    }
+  }
+
+  async function handleDeleteLog(log: TimeLog) {
+    if (log.id.startsWith("missing-")) {
+      toast.error("Cannot delete a placeholder log.")
+      return
+    }
+
+    if (!confirm("Are you sure you want to delete this log?")) return
+
+    const toastId = toast.loading("Deleting log...")
+
+    try {
+      if (activeOrganization === "pdn") {
+        const { error } = await supabase.from("pdn_attendance_logs").delete().eq("id", log.id)
+        if (error) throw error
+      } else {
+        const deletePromises = []
+        
+        // Try deleting from time_logs
+        deletePromises.push(supabase.from("time_logs").delete().eq("id", log.id))
+        
+        // Try deleting from attendance_logs, ignore type mismatch if id is a uuid
+        deletePromises.push(supabase.from("attendance_logs").delete().eq("id", log.id).then(({error})=> {
+          if(error && error.code !== "22P02") throw error; // ignore invalid input syntax
+        }))
+
+        if (log.in_id) {
+          deletePromises.push(supabase.from("time_logs").delete().eq("id", log.in_id))
+          deletePromises.push(supabase.from("attendance_logs").delete().eq("id", log.in_id).then(({error})=> {
+            if(error && error.code !== "22P02") throw error;
+          }))
+        }
+        
+        if (log.out_id && log.out_id !== log.in_id) {
+          deletePromises.push(supabase.from("time_logs").delete().eq("id", log.out_id))
+          deletePromises.push(supabase.from("attendance_logs").delete().eq("id", log.out_id).then(({error})=> {
+            if(error && error.code !== "22P02") throw error;
+          }))
+        }
+
+        await Promise.all(deletePromises)
+      }
+
+      toast.success("Log deleted successfully", { id: toastId })
+      fetchLogs(selectedDate)
+    } catch (err: any) {
+      console.error("Detailed Error deleting log:", err)
+      const errorMessage = err?.message || "Failed to delete log"
+      toast.error(errorMessage, { id: toastId })
+    }
+  }
+
+  async function handleSetStatus(employeeId: string, status: string, mode: 'single' | 'permanent' = 'single') {
+    const dateStr = format(selectedDate || new Date(), "yyyy-MM-dd")
+    const toastId = toast.loading(`${mode === 'permanent' ? 'Setting permanent' : 'Setting'} status to ${status}...`)
+
+    try {
+      const isFullDayStatus = ["On Leave", "Work From Home", "Remote"].includes(status)
+      const total_hours = isFullDayStatus ? 8 : 0
+
+      // If permanent, update the employee record
+      if (mode === 'permanent') {
+        const isRemote = status === "Remote"
+        const isWFH = status === "Work From Home"
+        
+        if (activeOrganization === "pdn") {
+           const { error } = await supabase
+            .from("pdn_employees")
+            .update({ is_remote: isRemote, is_wfh: isWFH })
+            .eq("id", employeeId)
+           if (error) throw error
+        } else {
+           const { error } = await supabase
+            .from("employees")
+            .update({ is_remote: isRemote, is_wfh: isWFH })
+            .eq("id", employeeId)
+           if (error) throw error
+        }
+      }
+
+      if (activeOrganization === "pdn") {
+        // PDN: Check if a log already exists for this date/employee
+        const { data: existing } = await supabase
+          .from("pdn_attendance_logs")
+          .select("id")
+          .eq("employee_id", employeeId)
+          .eq("work_date", dateStr)
+          .maybeSingle()
+
+        if (existing) {
+          const { error } = await supabase
+            .from("pdn_attendance_logs")
+            .update({ status, total_hours })
+            .eq("id", existing.id)
+          if (error) throw error
+        } else {
+          const { error } = await supabase
+            .from("pdn_attendance_logs")
+            .insert({
+              employee_id: employeeId,
+              work_date: dateStr,
+              status,
+              total_hours,
+              full_name: employees.find(e => e.id === employeeId)?.full_name || "",
+              timestamp: `${dateStr}T00:00:00+00:00` // Placeholder timestamp
+            })
+          if (error) throw error
+        }
+      } else {
+        // Petrosphere: Use time_logs
+        const { data: existing } = await supabase
+          .from("time_logs")
+          .select("id")
+          .eq("employee_id", employeeId)
+          .eq("date", dateStr)
+          .maybeSingle()
+
+        if (existing) {
+          const { error } = await supabase
+            .from("time_logs")
+            .update({ status, total_hours })
+            .eq("id", existing.id)
+          if (error) throw error
+        } else {
+          const { error } = await supabase
+            .from("time_logs")
+            .insert({
+              employee_id: employeeId,
+              date: dateStr,
+              status,
+              total_hours
+            })
+          if (error) throw error
+        }
+      }
+
+      toast.success(`${mode === 'permanent' ? 'Permanent status' : 'Status'} updated to ${status}`, { id: toastId })
+      fetchLogs(selectedDate)
+      if (mode === 'permanent') fetchEmployees() // Refresh employee flags
+    } catch (err: any) {
+      console.error("Detailed Error setting status:", {
+        message: err.message,
+        details: err.details,
+        hint: err.hint,
+        code: err.code,
+        error: err
+      })
+      const errorMessage = err.details || err.message || "Error setting status"
+      toast.error(errorMessage, { id: toastId })
     }
   }
 
@@ -432,13 +813,27 @@ export default function TimekeepingPage() {
 
   // Hours by employee (for bar chart)
   const hoursByEmployee = useMemo(() => {
-    const map = new Map<string, number>()
+    const map = new Map<string, { hours: number, status?: string }>()
     logs.forEach(log => {
       const name = log.employee_name || "Unknown"
-      map.set(name, (map.get(name) || 0) + log.total_hours)
+      const current = map.get(name) || { hours: 0 }
+      map.set(name, {
+        hours: current.hours + log.total_hours,
+        status: ["Remote", "On Leave", "Work From Home"].includes(log.status) ? log.status : current.status
+      })
     })
     return Array.from(map)
-      .map(([name, hours]) => ({ name: name.split(' ')[0], hours: Math.round(hours * 100) / 100 }))
+      .map(([name, data]) => {
+        let displayName = name.split(' ')[0]
+        if (data.status === "Remote") displayName += " (REM)"
+        else if (data.status === "On Leave") displayName += " (LV)"
+        else if (data.status === "Work From Home") displayName += " (WFH)"
+        
+        return { 
+          name: displayName, 
+          hours: Math.round(data.hours * 100) / 100 
+        }
+      })
       .sort((a, b) => b.hours - a.hours)
       .slice(0, 8)
   }, [logs])
@@ -744,9 +1139,9 @@ export default function TimekeepingPage() {
             {/* Export Report Dialog */}
             <Dialog open={exportOpen} onOpenChange={setExportOpen}>
               <DialogTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-2 font-semibold border-primary/20 hover:bg-primary/5">
+                <Button variant="outline" size="sm" className="gap-2 font-semibold border-primary/20 hover:bg-primary/5 px-2 md:px-3">
                   <BarChart3 className="w-4 h-4 text-primary" />
-                  Export Report
+                  <span className="hidden md:inline">Export Report</span>
                 </Button>
               </DialogTrigger>
               <DialogContent className="lg:w-[40vw] w-[90vw]">
@@ -762,7 +1157,7 @@ export default function TimekeepingPage() {
                       <TabsTrigger value="pdf" className="text-xs font-bold">PDF (Visual)</TabsTrigger>
                       <TabsTrigger value="excel" className="text-xs font-bold">Excel (Data)</TabsTrigger>
                     </TabsList>
-                    
+
                     <div className="space-y-4 pt-0">
                       <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider mb-1">Timeframe:</p>
                       <Select value={exportTimeframe} onValueChange={(v) => setExportTimeframe(v as any)}>
@@ -805,7 +1200,7 @@ export default function TimekeepingPage() {
                         ))}
                       </div>
                     </TabsContent>
-                    
+
                     <TabsContent value="excel" className="space-y-4 pt-0">
                       <div className="flex flex-col items-center justify-center p-8 border border-dashed border-border rounded-xl bg-muted/10 text-center space-y-3">
                         <div className="h-12 w-12 rounded-full bg-emerald-500/10 flex items-center justify-center">
@@ -821,7 +1216,7 @@ export default function TimekeepingPage() {
                     </TabsContent>
                   </Tabs>
                 </div>
-                
+
                 <Button
                   onClick={exportFormat === "pdf" ? handleExportPDF : handleExportExcel}
                   className="w-full gap-2 py-6 rounded-xl font-bold text-sm shadow-lg shadow-primary/10"
@@ -843,9 +1238,9 @@ export default function TimekeepingPage() {
               if (!v) resetForm()
             }}>
               <DialogTrigger asChild>
-                <Button size="sm" className="gap-2">
+                <Button size="sm" className="gap-2 px-2 md:px-3">
                   <Plus className="w-4 h-4" />
-                  Add Log
+                  <span className="hidden md:inline">Add Log</span>
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-md">
@@ -884,23 +1279,16 @@ export default function TimekeepingPage() {
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Time In</Label>
-                      <Input
-                        type="time"
-                        value={form.time_in}
-                        onChange={(e) => setForm({ ...form, time_in: e.target.value })}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Time Out</Label>
-                      <Input
-                        type="time"
-                        value={form.time_out}
-                        onChange={(e) => setForm({ ...form, time_out: e.target.value })}
-                      />
-                    </div>
+                    <VisualTimePicker
+                      label="Time In"
+                      value={form.time_in}
+                      onChange={(val) => setForm({ ...form, time_in: val })}
+                    />
+                    <VisualTimePicker
+                      label="Time Out"
+                      value={form.time_out}
+                      onChange={(val) => setForm({ ...form, time_out: val })}
+                    />
                   </div>
 
                   <div className="space-y-2">
@@ -973,23 +1361,16 @@ export default function TimekeepingPage() {
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Time In</Label>
-                      <Input
-                        type="time"
-                        value={form.time_in || ""}
-                        onChange={(e) => setForm({ ...form, time_in: e.target.value })}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Time Out</Label>
-                      <Input
-                        type="time"
-                        value={form.time_out || ""}
-                        onChange={(e) => setForm({ ...form, time_out: e.target.value })}
-                      />
-                    </div>
+                    <VisualTimePicker
+                      label="Time In"
+                      value={form.time_in}
+                      onChange={(val) => setForm({ ...form, time_in: val })}
+                    />
+                    <VisualTimePicker
+                      label="Time Out"
+                      value={form.time_out}
+                      onChange={(val) => setForm({ ...form, time_out: val })}
+                    />
                   </div>
 
                   <Button type="submit" className="w-full">
@@ -1004,10 +1385,10 @@ export default function TimekeepingPage() {
               variant="outline"
               size="sm"
               onClick={() => setPanelOpen(!panelOpen)}
-              className="gap-2"
+              className="gap-2 px-2 md:px-3"
             >
               {panelOpen ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
-              {panelOpen ? "Close" : "Logs"}
+              <span className="hidden md:inline">{panelOpen ? "Close" : "Logs"}</span>
             </Button>
           </div>
         </div>
@@ -1278,17 +1659,27 @@ export default function TimekeepingPage() {
       {/* ===== Floating Right Panel ===== */}
       <div
         className={cn(
-          "fixed top-[57px] right-0 bottom-0 w-[420px] bg-card border-l border-border shadow-2xl z-30 transition-transform duration-300 ease-in-out flex flex-col",
+          "fixed top-[57px] right-0 bottom-0 w-full sm:w-[420px] bg-card border-l border-border shadow-2xl z-40 transition-transform duration-300 ease-in-out flex flex-col",
           panelOpen ? "translate-x-0" : "translate-x-full"
         )}
       >
         {/* Panel Header */}
         <div className="p-4 border-b border-border bg-muted/30 flex-shrink-0">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-bold text-foreground uppercase tracking-wider flex items-center gap-2">
-              <Clock className="h-4 w-4 text-primary" />
-              Attendance Logs
-            </h2>
+            <div className="flex items-center gap-3">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8 -ml-2 sm:hidden hover:bg-muted" 
+                onClick={() => setPanelOpen(false)}
+              >
+                <ChevronRight className="h-5 w-5" />
+              </Button>
+              <h2 className="text-sm font-bold text-foreground uppercase tracking-wider flex items-center gap-2">
+                <Clock className="h-4 w-4 text-primary" />
+                Attendance Logs
+              </h2>
+            </div>
             <Badge variant="outline" className="text-[10px] font-bold">
               {logs.length} records
             </Badge>
@@ -1297,9 +1688,14 @@ export default function TimekeepingPage() {
           {/* Panel Date Picker */}
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="w-full justify-start gap-2 font-medium text-xs">
-                <CalendarIcon className="h-3.5 w-3.5" />
-                {selectedDate ? format(selectedDate, "EEEE, MMMM dd, yyyy") : "Pick a date"}
+              <Button variant="outline" size="sm" className="gap-2 font-semibold border-primary/20 hover:bg-primary/5 px-2 md:px-3 w-full justify-start">
+                <CalendarIcon className="h-4 w-4 text-primary" />
+                <span className="hidden md:inline">
+                  {selectedDate ? format(selectedDate, "MMMM dd, yyyy") : "Pick a date"}
+                </span>
+                <span className="md:hidden">
+                  {selectedDate ? format(selectedDate, "MMM dd") : "Date"}
+                </span>
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
@@ -1337,37 +1733,146 @@ export default function TimekeepingPage() {
                         {log.total_hours.toFixed(1)}h
                       </Badge>
                     )}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={() => {
-                        setSelectedLog(log)
-                        setForm({
-                          employee_id: log.employee_id,
-                          date: log.date,
-                          time_in: log.time_in || "",
-                          time_out: log.time_out || "",
-                          status: log.status
-                        })
-                        setEditOpen(true)
-                      }}
-                    >
-                      <Clock className="h-3 w-3 text-muted-foreground hover:text-primary" />
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <MoreVertical className="h-4 w-4 text-muted-foreground hover:text-primary" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuItem
+                          className="text-xs font-bold gap-2"
+                          onClick={() => {
+                            setSelectedLog(log)
+                            setForm({
+                              employee_id: log.employee_id,
+                              date: log.date,
+                              time_in: log.time_in || "",
+                              time_out: log.time_out || "",
+                              status: log.status
+                            })
+                            setEditOpen(true)
+                          }}
+                        >
+                          <Clock className="w-3.5 h-3.5" />
+                          Edit Time Log
+                        </DropdownMenuItem>
+
+                        <DropdownMenuItem 
+                          className="text-xs font-bold gap-2 text-destructive focus:bg-destructive/10 focus:text-destructive"
+                          onClick={() => handleDeleteLog(log)}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          Delete Log
+                        </DropdownMenuItem>
+                        
+                        <DropdownMenuSeparator />
+                        
+                        <DropdownMenuSub>
+                          <DropdownMenuSubTrigger className="text-xs font-bold gap-2">
+                            <Activity className="w-3.5 h-3.5" />
+                            Set Status
+                          </DropdownMenuSubTrigger>
+                          <DropdownMenuSubContent className="w-40">
+                            <DropdownMenuItem 
+                              className="text-xs font-bold"
+                              onClick={() => handleSetStatus(log.employee_id, "Absent")}
+                            >
+                              Absent
+                            </DropdownMenuItem>
+
+                            <DropdownMenuItem 
+                              className="text-xs font-bold"
+                              onClick={() => handleSetStatus(log.employee_id, "On Leave")}
+                            >
+                              On Leave
+                            </DropdownMenuItem>
+                            
+                            <DropdownMenuSeparator />
+
+                            <DropdownMenuSub>
+                              <DropdownMenuSubTrigger className="text-xs font-bold">
+                                Work From Home
+                              </DropdownMenuSubTrigger>
+                              <DropdownMenuSubContent className="w-40">
+                                <DropdownMenuItem onClick={() => handleSetStatus(log.employee_id, "Work From Home", "single")}>
+                                  Today Only
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleSetStatus(log.employee_id, "Work From Home", "permanent")}>
+                                  Every Day
+                                </DropdownMenuItem>
+                              </DropdownMenuSubContent>
+                            </DropdownMenuSub>
+
+                            <DropdownMenuSub>
+                              <DropdownMenuSubTrigger className="text-xs font-bold">
+                                Remote
+                              </DropdownMenuSubTrigger>
+                              <DropdownMenuSubContent className="w-40">
+                                <DropdownMenuItem onClick={() => handleSetStatus(log.employee_id, "Remote", "single")}>
+                                  Today Only
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleSetStatus(log.employee_id, "Remote", "permanent")}>
+                                  Every Day
+                                </DropdownMenuItem>
+                              </DropdownMenuSubContent>
+                            </DropdownMenuSub>
+
+                            <DropdownMenuSeparator />
+
+                            <DropdownMenuSub>
+                              <DropdownMenuSubTrigger className="text-xs font-bold text-emerald-600">
+                                Present
+                              </DropdownMenuSubTrigger>
+                              <DropdownMenuSubContent className="w-40">
+                                <DropdownMenuItem onClick={() => handleSetStatus(log.employee_id, "Present", "single")}>
+                                  Today Only
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleSetStatus(log.employee_id, "Present", "permanent")}>
+                                  Clear Every Day
+                                </DropdownMenuItem>
+                              </DropdownMenuSubContent>
+                            </DropdownMenuSub>
+                          </DropdownMenuSubContent>
+                        </DropdownMenuSub>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
 
-                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <span className="font-semibold text-emerald-600">IN</span>
-                      <span className="font-medium">{log.time_in_display || "-"}</span>
+                  {["On Leave", "Absent", "Work From Home", "Remote", "Late", "Weekend"].includes(log.status) && !log.time_in ? (
+                    <div className="mt-1">
+                      <Badge 
+                        variant="outline" 
+                        className={cn(
+                          "text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md",
+                          log.status === "On Leave" && "bg-blue-500/10 text-blue-600 border-blue-500/20",
+                          log.status === "Absent" && "bg-red-500/10 text-red-600 border-red-500/20",
+                          log.status === "Work From Home" && "bg-purple-500/10 text-purple-600 border-purple-500/20",
+                          log.status === "Remote" && "bg-indigo-500/10 text-indigo-600 border-indigo-500/20",
+                          log.status === "Late" && "bg-amber-500/10 text-amber-600 border-amber-500/20",
+                          log.status === "Weekend" && "bg-slate-500/10 text-slate-500 border-slate-500/20"
+                        )}
+                      >
+                        {log.status === "Late" ? "Waiting for Login" : log.status}
+                      </Badge>
                     </div>
-                    <ChevronRight className="h-3 w-3 text-muted-foreground/40" />
-                    <div className="flex items-center gap-1">
-                      <span className="font-semibold text-red-500">OUT</span>
-                      <span className="font-medium">{log.time_out_display || "-"}</span>
+                  ) : (
+                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <span className="font-semibold text-emerald-600">IN</span>
+                        <span className="font-medium">{log.time_in_display || "-"}</span>
+                      </div>
+                      <ChevronRight className="h-3 w-3 text-muted-foreground/40" />
+                      <div className="flex items-center gap-1">
+                        <span className="font-semibold text-red-500">OUT</span>
+                        <span className="font-medium">{log.time_out_display || "-"}</span>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               ))}
             </div>

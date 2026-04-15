@@ -13,7 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 
-import { toast } from "sonner"
+import { toast } from "@/lib/toast"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { FileText, Download, Eye, PhilippinePeso, Trash2, Search, Info, TrendingUp, Calendar, ChevronRight, ChevronLeft } from "lucide-react"

@@ -37,6 +37,7 @@ export function SidebarLeft({ ...props }: React.ComponentProps<typeof Sidebar>) 
   const pathname = usePathname()
   const { activeOrganization } = useOrganization()
   const [role, setRole] = React.useState<string | null>(null)
+  const [permissions, setPermissions] = React.useState<Record<string, boolean>>({})
   const [pendingCount, setPendingCount] = React.useState<number>(0)
 
 
@@ -73,12 +74,13 @@ export function SidebarLeft({ ...props }: React.ComponentProps<typeof Sidebar>) 
       if (user) {
         const { data: profile } = await supabase
           .from("profiles")
-          .select("role")
+          .select("role, permissions")
           .eq("id", user.id)
           .single()
 
         if (profile?.role) {
           setRole(profile.role)
+          setPermissions(profile.permissions || {})
         }
       }
     }
@@ -125,6 +127,12 @@ export function SidebarLeft({ ...props }: React.ComponentProps<typeof Sidebar>) 
           { title: "Payroll", url: "/payroll", icon: Calculator, color: "#06b6d4" }, // Cyan
           { title: "Deductions", url: "/deductions", icon: Receipt, color: "#f43f5e" }, // Rose
         ]
+      },
+      {
+        label: "MANAGEMENT",
+        items: [
+          { title: "User Manager", url: "/user-manager", icon: Settings2, color: "#64748b" }, // Slate
+        ]
       }
     ]
 
@@ -140,6 +148,18 @@ export function SidebarLeft({ ...props }: React.ComponentProps<typeof Sidebar>) 
     ]
 
     const groups = role === "admin" || role === "hr" ? adminItems : role === "employee" ? employeeItems : []
+
+    // Filter by permissions if HR
+    if (role === "hr") {
+      return groups.map(group => ({
+        ...group,
+        items: group.items.filter(item => {
+          // Determine permission key from URL
+          const key = item.url.replace("/", "")
+          return permissions[key] === true
+        })
+      })).filter(group => group.items.length > 0)
+    }
 
     return groups.map(group => ({
       ...group,

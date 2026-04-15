@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { toast } from "sonner"
+import { toast } from "@/lib/toast"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { MoreHorizontal, Plus, PhilippinePeso, Users, TrendingUp, Calculator, FileText, Edit, Trash2, ChevronLeft, ChevronRight, Search } from "lucide-react"
@@ -61,7 +61,7 @@ const deductionTypeVariants: Record<string, string> = {
 }
 
 export default function DeductionsPage() {
-  useProtectedPage(["admin", "hr"])
+  useProtectedPage(["admin", "hr"], "deductions")
   const { activeOrganization } = useOrganization()
 
   const [deductions, setDeductions] = useState<Deduction[]>([])

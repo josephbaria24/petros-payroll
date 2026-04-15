@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabaseClient"
 import { useOrganization } from "@/contexts/OrganizationContext"
 import { Button } from "@/components/ui/button"
@@ -9,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { toast } from "sonner"
+import { toast } from "@/lib/toast"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { CalendarIcon, Eye, Trash2, Plus, X, Calculator, Users, PhilippinePeso, TrendingUp, FileText, Check, XCircle, Clock, CheckCircle, ChevronDown, CheckCircle2, AlertCircle, Mail, Search } from "lucide-react"
@@ -35,18 +36,20 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { PayrollNotifyDialog } from "@/components/payroll-notify-dialog"
 
-type EmployeeRequest = {
-  id: string
-  employee_id: string
-  request_type: string
-  date: string
-  time_start: string
-  time_end: string
-  reason: string
-  status: string
-  admin_remarks?: string
-  employee_name?: string
-  created_at: string
+
+
+function formatTo12Hour(timeStr: string | null): string {
+  if (!timeStr || timeStr === "-" || timeStr === "") return "-";
+  try {
+    const parts = timeStr.split(':');
+    const h = parseInt(parts[0]);
+    const m = parts[1].substring(0, 2);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const displayHours = h % 12 || 12;
+    return `${displayHours}:${m} ${ampm}`;
+  } catch (e) {
+    return "-";
+  }
 }
 
 
@@ -65,6 +68,7 @@ type PayrollRecord = {
   allowances?: number
   status: string
   absences?: number
+  tardiness?: number
   cash_advance?: number
   sss?: number
   philhealth?: number
@@ -95,24 +99,7 @@ type PayrollPeriod = {
   creator: string
 }
 
-type OvertimeEntry = {
-  date: Date
-  hours: number
-  ratePerHour: number
-  requestId?: string
-}
 
-type EmployeeAdjustment = {
-  employee_id: string
-  absenceDays: number
-  absenceAmountPerDay: number
-  holidayDate?: Date
-  holidayPay?: number
-  overtimeEntries: OvertimeEntry[]
-  cashAdvance?: number
-  otherDeductions?: number
-  withholdingTax?: number
-}
 
 const statusVariants: Record<string, string> = {
   "Paid": "bg-primary text-primary-foreground border-border",
@@ -124,8 +111,8 @@ const statusVariants: Record<string, string> = {
 }
 
 export default function PayrollPage() {
-
-  useProtectedPage(["admin", "hr"])
+  const router = useRouter()
+  useProtectedPage(["admin", "hr"], "payroll")
   const { activeOrganization } = useOrganization()
   const [periods, setPeriods] = useState<PayrollPeriod[]>([])
   const [currentPeriodPage, setCurrentPeriodPage] = useState(1)
@@ -134,13 +121,10 @@ export default function PayrollPage() {
   const [notificationPeriodName, setNotificationPeriodName] = useState("")
 
   const itemsPerPage = 5
-  const [open, setOpen] = useState(false)
   const [selectedPeriodRecords, setSelectedPeriodRecords] = useState<PayrollRecord[]>([])
   const [selectedPeriodName, setSelectedPeriodName] = useState("")
   const [periodDialogOpen, setPeriodDialogOpen] = useState(false)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
-  const [employeeRequests, setEmployeeRequests] = useState<EmployeeRequest[]>([])
-  const [selectedRequests, setSelectedRequests] = useState<string[]>([])
   const [searchQuery, setSearchQuery] = useState("")
 
   function handleSelect(id: string) {
@@ -149,235 +133,14 @@ export default function PayrollPage() {
     )
   }
 
-  function handleRequestSelect(id: string) {
-    setSelectedRequests((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-    )
-  }
-
-  function addOvertimeEntry(adjustmentIndex: number) {
-    const updated = [...employeeAdjustments]
-    updated[adjustmentIndex].overtimeEntries.push({
-      date: new Date(),
-      hours: 0,
-      ratePerHour: 0,
-    })
-    setEmployeeAdjustments(updated)
-  }
-
-  function updateOvertimeEntry(
-    adjIndex: number,
-    entryIndex: number,
-    field: keyof OvertimeEntry,
-    value: Date | number | string | undefined
-  ) {
-    const updated = [...employeeAdjustments]
-    if (field === 'date' && value instanceof Date) {
-      updated[adjIndex].overtimeEntries[entryIndex][field] = value
-    } else if ((field === 'hours' || field === 'ratePerHour') && typeof value === 'number') {
-      updated[adjIndex].overtimeEntries[entryIndex][field] = value
-    } else if (field === 'requestId' && (typeof value === 'string' || value === undefined)) {
-      updated[adjIndex].overtimeEntries[entryIndex][field] = value
-    }
-    setEmployeeAdjustments(updated)
-  }
-
-  const [, setForm] = useState({
-    employee_id: "",
-    period_start: "",
-    period_end: "",
-    net_pay: "",
-    status: "Pending Payment",
-  })
   const [employees, setEmployees] = useState<{ id: string; full_name: string; pay_type: string }[]>([])
-  const [periodStart, setPeriodStart] = useState<Date | undefined>(undefined)
-  const [periodEnd, setPeriodEnd] = useState<Date | undefined>(undefined)
   const [editRecord, setEditRecord] = useState<PayrollRecord | null>(null)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
-
-  const [employeeAdjustments, setEmployeeAdjustments] = useState<EmployeeAdjustment[]>([])
 
   useEffect(() => {
     fetchPayrollPeriods()
     fetchEmployees()
   }, [activeOrganization])
-
-  useEffect(() => {
-    if (open && periodStart && periodEnd) {
-      fetchEmployeeRequestsForPeriod()
-    }
-  }, [open, periodStart, periodEnd])
-
-  useEffect(() => {
-    if (open && periodStart && periodEnd && employeeRequests.length > 0) {
-      autoFillApprovedRequests()
-    }
-  }, [employeeRequests])
-
-  async function fetchEmployeeRequestsForPeriod() {
-    if (!periodStart || !periodEnd) return
-
-    const { data, error } = await supabase
-      .from("employee_requests")
-      .select(`
-        *,
-        employees(full_name)
-      `)
-      .gte("date", format(periodStart, "yyyy-MM-dd"))
-      .lte("date", format(periodEnd, "yyyy-MM-dd"))
-      .order("created_at", { ascending: false })
-
-    if (error) {
-      console.error("Error fetching requests:", error)
-      return
-    }
-
-    const formattedRequests = data.map((req: any) => ({
-      ...req,
-      employee_name: req.employees?.full_name
-    }))
-
-    setEmployeeRequests(formattedRequests)
-  }
-
-  function autoFillApprovedRequests() {
-    const approvedRequests = employeeRequests.filter(req => req.status === "Approved")
-
-    if (approvedRequests.length === 0) return
-
-    const adjustmentsMap = new Map<string, EmployeeAdjustment>()
-
-    approvedRequests.forEach(req => {
-      if (!adjustmentsMap.has(req.employee_id)) {
-        adjustmentsMap.set(req.employee_id, {
-          employee_id: req.employee_id,
-          absenceDays: 0,
-          absenceAmountPerDay: 0,
-          overtimeEntries: []
-        })
-      }
-
-      const adjustment = adjustmentsMap.get(req.employee_id)!
-
-      if (req.request_type === "Overtime") {
-        const timeStart = new Date(`2000-01-01T${req.time_start}`)
-        const timeEnd = new Date(`2000-01-01T${req.time_end}`)
-        const hours = Math.abs((timeEnd.getTime() - timeStart.getTime()) / (1000 * 60 * 60))
-
-        adjustment.overtimeEntries.push({
-          date: new Date(req.date),
-          hours: parseFloat(hours.toFixed(2)),
-          ratePerHour: 0,
-          requestId: req.id
-        })
-      } else if (req.request_type === "Holiday Work") {
-        adjustment.holidayDate = new Date(req.date)
-        adjustment.holidayPay = 0
-      }
-    })
-
-    setEmployeeAdjustments(Array.from(adjustmentsMap.values()))
-  }
-
-  async function handleApproveRequest(requestId: string) {
-    const toastId = toast.loading("Approving request...")
-
-    const { error } = await supabase
-      .from("employee_requests")
-      .update({
-        status: "Approved",
-        updated_at: new Date().toISOString()
-      })
-      .eq("id", requestId)
-
-    if (error) {
-      toast.error("Failed to approve request", { id: toastId })
-    } else {
-      toast.success("Request approved!", { id: toastId })
-      fetchEmployeeRequestsForPeriod()
-    }
-  }
-
-  async function handleRejectRequest(requestId: string, remarks?: string) {
-    const toastId = toast.loading("Rejecting request...")
-
-    const { error } = await supabase
-      .from("employee_requests")
-      .update({
-        status: "Rejected",
-        admin_remarks: remarks || "Request rejected",
-        updated_at: new Date().toISOString()
-      })
-      .eq("id", requestId)
-
-    if (error) {
-      toast.error("Failed to reject request", { id: toastId })
-    } else {
-      toast.success("Request rejected", { id: toastId })
-      fetchEmployeeRequestsForPeriod()
-    }
-  }
-
-  function addApprovedRequestsToAdjustments() {
-    const approvedRequests = employeeRequests.filter(req =>
-      selectedRequests.includes(req.id) && req.status === "Approved"
-    )
-
-    approvedRequests.forEach(req => {
-      const existingAdjIndex = employeeAdjustments.findIndex(
-        adj => adj.employee_id === req.employee_id
-      )
-
-      if (req.request_type === "Overtime") {
-        const timeStart = new Date(`2000-01-01T${req.time_start}`)
-        const timeEnd = new Date(`2000-01-01T${req.time_end}`)
-        const hours = (timeEnd.getTime() - timeStart.getTime()) / (1000 * 60 * 60)
-
-        const overtimeEntry: OvertimeEntry = {
-          date: new Date(req.date),
-          hours: hours,
-          ratePerHour: 0,
-          requestId: req.id
-        }
-
-        if (existingAdjIndex >= 0) {
-          const updated = [...employeeAdjustments]
-          updated[existingAdjIndex].overtimeEntries.push(overtimeEntry)
-          setEmployeeAdjustments(updated)
-        } else {
-          setEmployeeAdjustments([
-            ...employeeAdjustments,
-            {
-              employee_id: req.employee_id,
-              absenceDays: 0,
-              absenceAmountPerDay: 0,
-              overtimeEntries: [overtimeEntry]
-            }
-          ])
-        }
-      } else if (req.request_type === "Holiday Work") {
-        if (existingAdjIndex >= 0) {
-          const updated = [...employeeAdjustments]
-          updated[existingAdjIndex].holidayDate = new Date(req.date)
-          setEmployeeAdjustments(updated)
-        } else {
-          setEmployeeAdjustments([
-            ...employeeAdjustments,
-            {
-              employee_id: req.employee_id,
-              absenceDays: 0,
-              absenceAmountPerDay: 0,
-              holidayDate: new Date(req.date),
-              overtimeEntries: []
-            }
-          ])
-        }
-      }
-    })
-
-    toast.success(`Added ${approvedRequests.length} approved requests to adjustments`)
-    setSelectedRequests([])
-  }
 
   async function handleDeleteSelected() {
     if (selectedIds.length === 0) return toast.warning("No records selected.")
@@ -432,7 +195,7 @@ export default function PayrollPage() {
         .from("pdn_payroll_records")
         .select(`
           id, employee_id, period_start, period_end, basic_salary,
-          overtime_pay, holiday_pay, night_diff, allowances, absences,
+          overtime_pay, holiday_pay, night_diff, allowances, absences, tardiness,
           cash_advance, sss, philhealth, pagibig, withholding_tax, loans,
           total_deductions, net_pay, status, created_at, updated_at, creator_id,
           pdn_employees(full_name, pay_type, profile_picture_url)
@@ -463,6 +226,7 @@ export default function PayrollPage() {
           allowances: rec.allowances || 0,
           status: rec.status,
           absences: rec.absences || 0,
+          tardiness: rec.tardiness || 0,
           cash_advance: rec.cash_advance || 0,
           sss: rec.sss || 0,
           philhealth: rec.philhealth || 0,
@@ -535,6 +299,7 @@ export default function PayrollPage() {
         night_diff,
         allowances,
         absences,
+        tardiness,
         cash_advance,
         sss,
         philhealth,
@@ -581,6 +346,7 @@ export default function PayrollPage() {
         allowances: rec.allowances || 0,
         status: rec.status,
         absences: rec.absences || 0,
+        tardiness: rec.tardiness || 0,
         cash_advance: rec.cash_advance || 0,
         sss: rec.sss || 0,
         philhealth: rec.philhealth || 0,
@@ -663,349 +429,6 @@ export default function PayrollPage() {
     setEmployees(data)
   }
 
-  function addEmployeeAdjustment() {
-    setEmployeeAdjustments([
-      ...employeeAdjustments,
-      {
-        employee_id: "",
-        absenceDays: 0,
-        absenceAmountPerDay: 0,
-        holidayDate: undefined,
-        holidayPay: 0,
-        overtimeEntries: [],
-        cashAdvance: 0,
-        otherDeductions: 0, // ✅ add this
-      },
-    ])
-  }
-
-  function removeEmployeeAdjustment(index: number) {
-    setEmployeeAdjustments(employeeAdjustments.filter((_, i) => i !== index))
-  }
-
-  function updateEmployeeAdjustment(
-    index: number,
-    field: keyof EmployeeAdjustment,
-    value: string | number | Date
-  ) {
-    const updated = [...employeeAdjustments]
-    updated[index] = { ...updated[index], [field]: value }
-    setEmployeeAdjustments(updated)
-  }
-
-  async function handleBulkGeneratePayrollEnhanced() {
-    if (!periodStart || !periodEnd) {
-      toast.error("Select a valid period first.")
-      return
-    }
-
-    const toastId = toast.loading("Generating payroll...")
-
-    const { data: { user } } = await supabase.auth.getUser()
-    const creatorId = user?.id || "7229a103-7f3e-464c-8032-970b9df6220b"
-
-    try {
-      const payrollTable = activeOrganization === "pdn" ? "pdn_payroll_records" : "payroll_records"
-
-      const { data: existingPayroll } = await supabase
-        .from(payrollTable)
-        .select("id")
-        .eq("period_start", format(periodStart, "yyyy-MM-dd"))
-        .eq("period_end", format(periodEnd, "yyyy-MM-dd"))
-        .limit(1)
-
-      if (existingPayroll && existingPayroll.length > 0) {
-        const confirm = window.confirm(
-          "Payroll already exists for this period. Do you want to regenerate it? This will overwrite existing records."
-        )
-        if (!confirm) {
-          toast.dismiss(toastId)
-          return
-        }
-
-        await supabase
-          .from(payrollTable)
-          .delete()
-          .eq("period_start", format(periodStart, "yyyy-MM-dd"))
-          .eq("period_end", format(periodEnd, "yyyy-MM-dd"))
-      }
-
-      if (activeOrganization === "pdn") {
-        // Fetch PDN data from Supabase
-        const { data: allEmployees, error: empErr } = await supabase
-          .from("pdn_employees")
-          .select("id, base_salary, allowance, full_name")
-
-        if (empErr || !allEmployees) {
-          throw new Error("Failed to fetch PDN employees.")
-        }
-
-        const { data: allDeductions, error: deductionError } = await supabase
-          .from("pdn_deductions")
-          .select("employee_id, type, amount")
-
-        if (deductionError) {
-          throw new Error("Failed to fetch PDN deductions.")
-        }
-
-        const recordsToInsert = []
-
-        for (const emp of allEmployees) {
-          const { id: employee_id, base_salary, allowance, full_name } = emp
-
-          if (!base_salary) continue
-
-          const employeeDeductions = (allDeductions || []).filter((d: any) => d.employee_id === employee_id)
-          let sss = 0, philhealth = 0, pagibig = 0, loans = 0
-
-          const deductionMap: Record<string, string> = {
-            sss: "sss",
-            philhealth: "philhealth",
-            pagibig: "pagibig",
-            "pag-ibig": "pagibig",
-            hdmf: "pagibig",
-            other: "loans"
-          }
-
-          employeeDeductions.forEach((d: any) => {
-            const type = d.type.toLowerCase()
-            const target = deductionMap[type] || 'loans'
-            if (target === 'sss') sss += d.amount
-            else if (target === 'philhealth') philhealth += d.amount
-            else if (target === 'pagibig') pagibig += d.amount
-            else loans += d.amount
-          })
-
-          const adjustment = employeeAdjustments.find(a => a.employee_id === employee_id)
-          let absenceDeduction = 0
-          let overtimePay = 0
-
-          if (adjustment) {
-            absenceDeduction = adjustment.absenceDays * (adjustment.absenceAmountPerDay || 0)
-            overtimePay = (adjustment.overtimeEntries || []).reduce((sum, ot) => sum + (ot.hours * ot.ratePerHour), 0)
-          }
-
-          const basicSalary = base_salary
-          const cashAdvance = adjustment?.cashAdvance || 0
-          const holidayPay = adjustment?.holidayPay || 0
-          const otherDeductions = adjustment?.otherDeductions || 0
-          const withholdingTax = adjustment?.withholdingTax || 0
-          const currentAllowance = allowance || 0
-          const totalDeductions = sss + philhealth + pagibig + loans + absenceDeduction + cashAdvance + otherDeductions + withholdingTax
-          const grossPay = basicSalary + overtimePay + holidayPay + currentAllowance
-          const netPay = grossPay - totalDeductions
-
-          recordsToInsert.push({
-            employee_id,
-            period_start: format(periodStart, "yyyy-MM-dd"),
-            period_end: format(periodEnd, "yyyy-MM-dd"),
-            basic_salary: basicSalary,
-            overtime_pay: overtimePay,
-            holiday_pay: holidayPay,
-            allowances: allowance || 0,
-            absences: absenceDeduction,
-            sss,
-            philhealth,
-            pagibig,
-            loans: loans + otherDeductions,
-            withholding_tax: withholdingTax,
-            cash_advance: cashAdvance,
-            gross_pay: grossPay,
-            total_deductions: totalDeductions,
-            net_pay: netPay,
-            status: "Pending Payment",
-            creator_id: creatorId
-          })
-        }
-
-        if (recordsToInsert.length > 0) {
-          const { error: insertError } = await supabase
-            .from("pdn_payroll_records")
-            .insert(recordsToInsert)
-
-          if (insertError) {
-            throw new Error(`Failed to insert PDN payroll: ${insertError.message}`)
-          }
-
-          toast.success("Payroll generated!", { id: toastId })
-          await fetchPayrollPeriods()
-        }
-        return
-      }
-
-      const { data: allEmployees, error: empErr } = await supabase
-        .from("employees")
-        .select("id, base_salary, allowance, full_name")
-
-      if (empErr || !allEmployees) {
-        throw new Error("Failed to fetch employees.")
-      }
-
-      const { data: allDeductions, error: deductionError } = await supabase
-        .from("deductions")
-        .select("employee_id, type, amount, created_at")
-
-      if (deductionError) {
-        throw new Error("Failed to fetch deductions.")
-      }
-
-      const recordsToInsert = []
-
-      for (const emp of allEmployees) {
-        const { id: employee_id, base_salary, allowance, full_name } = emp
-
-        if (!base_salary) {
-          console.warn(`Skipping ${full_name} - no base salary set`)
-          continue
-        }
-
-        const employeeDeductions = allDeductions.filter(d => d.employee_id === employee_id)
-
-        let sss = 0, philhealth = 0, pagibig = 0, loans = 0
-
-        const columnMap: Record<string, string> = {
-          sss: "sss",
-          philhealth: "philhealth",
-          pagibig: "pagibig",
-          "pag-ibig": "pagibig",
-          sss_loan: "loans",
-          pagibig_loan: "loans",
-          salary_loan: "loans",
-          other: "loans"
-        }
-
-        employeeDeductions.forEach(d => {
-          const type = d.type.toLowerCase()
-          const target = columnMap[type] || 'loans'
-          if (target === 'sss') sss += d.amount
-          else if (target === 'philhealth') philhealth += d.amount
-          else if (target === 'pagibig') pagibig += d.amount
-          else loans += d.amount
-        })
-
-        const adjustment = employeeAdjustments.find(a => a.employee_id === employee_id)
-
-        let absenceDeduction = 0
-        let overtimePay = 0
-
-        const overtimeEntries = adjustment?.overtimeEntries || []
-
-        for (const ot of overtimeEntries) {
-          overtimePay += ot.hours * ot.ratePerHour
-        }
-
-        if (adjustment) {
-          if (adjustment.absenceDays > 0 && adjustment.absenceAmountPerDay > 0) {
-            absenceDeduction = adjustment.absenceDays * adjustment.absenceAmountPerDay
-          }
-
-          if (adjustment?.overtimeEntries?.length > 0) {
-            overtimePay = adjustment.overtimeEntries.reduce((sum, ot) => {
-              return sum + (ot.hours * ot.ratePerHour)
-            }, 0)
-          }
-        }
-
-        const basicSalary = base_salary
-        const cashAdvance = adjustment?.cashAdvance || 0
-        const otherDeductions = adjustment?.otherDeductions || 0
-        const withholdingTax = adjustment?.withholdingTax || 0
-
-        const totalDeductions = sss + philhealth + pagibig + loans + absenceDeduction + cashAdvance + otherDeductions + withholdingTax
-        const currentAllowance = allowance || 0
-
-        let holidayPay = 0
-        if (adjustment?.holidayPay && adjustment.holidayPay > 0) {
-          holidayPay = adjustment.holidayPay
-        }
-
-        const grossPay = basicSalary + overtimePay + holidayPay + currentAllowance
-        const netPay = grossPay - totalDeductions
-
-        recordsToInsert.push({
-          employee_id,
-          period_start: format(periodStart, "yyyy-MM-dd"),
-          period_end: format(periodEnd, "yyyy-MM-dd"),
-          basic_salary: basicSalary,
-          overtime_pay: overtimePay,
-          holiday_pay: holidayPay,
-          allowances: allowance || 0,
-          absences: absenceDeduction,
-          sss,
-          philhealth,
-          pagibig,
-          loans: loans + otherDeductions,
-          withholding_tax: withholdingTax,
-          cash_advance: cashAdvance,
-          gross_pay: grossPay,
-          total_deductions: totalDeductions,
-          net_pay: netPay,
-          status: "Pending Payment",
-          creator_id: creatorId
-        })
-      }
-
-      if (recordsToInsert.length > 0) {
-        const { error: insertError } = await supabase
-          .from("payroll_records")
-          .insert(recordsToInsert)
-
-        if (insertError) {
-          throw new Error("Bulk insert failed: " + insertError.message)
-        }
-
-        const { data: insertedRecords } = await supabase
-          .from("payroll_records")
-          .select("id, employee_id")
-          .eq("period_start", format(periodStart, "yyyy-MM-dd"))
-          .eq("period_end", format(periodEnd, "yyyy-MM-dd"))
-
-        const overtimeInserts: any[] = []
-
-        for (const rec of insertedRecords || []) {
-          const adj = employeeAdjustments.find(a => a.employee_id === rec.employee_id)
-          if (!adj || !adj.overtimeEntries?.length) continue
-
-          for (const ot of adj.overtimeEntries) {
-            overtimeInserts.push({
-              payroll_record_id: rec.id,
-              employee_id: rec.employee_id,
-              overtime_date: format(ot.date, "yyyy-MM-dd"),
-              hours: ot.hours,
-              rate_per_hour: ot.ratePerHour,
-              amount: ot.hours * ot.ratePerHour,
-            })
-          }
-        }
-
-        if (overtimeInserts.length > 0) {
-          await supabase.from("payroll_overtimes").insert(overtimeInserts)
-        }
-
-        toast.success(`Payroll generated for ${recordsToInsert.length} employees!`, { id: toastId })
-        fetchPayrollPeriods()
-
-        setEmployeeAdjustments([])
-        setPeriodStart(undefined)
-        setPeriodEnd(undefined)
-        setEmployeeRequests([])
-        setSelectedRequests([])
-      } else {
-        toast.info("No eligible employees found for payroll generation.", { id: toastId })
-      }
-
-    } catch (err: any) {
-      toast.error(err.message || "An error occurred", { id: toastId })
-    }
-  }
-
-  useEffect(() => {
-    setForm((f) => ({
-      ...f,
-      period_start: periodStart ? format(periodStart, "yyyy-MM-dd") : "",
-      period_end: periodEnd ? format(periodEnd, "yyyy-MM-dd") : "",
-    }))
-  }, [periodStart, periodEnd])
 
   function handleViewPeriodRecords(period: PayrollPeriod) {
     setSelectedPeriodRecords(period.records)
@@ -1020,8 +443,7 @@ export default function PayrollPage() {
     totalNet: periods.reduce((sum, p) => sum + p.total_net_after_deductions, 0)
   }
 
-  const pendingRequests = employeeRequests.filter(r => r.status === "Pending")
-  const approvedRequests = employeeRequests.filter(r => r.status === "Approved")
+
 
 
 
@@ -1269,564 +691,13 @@ export default function PayrollPage() {
           <p className="text-muted-foreground">View and manage payroll periods</p>
         </div>
 
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
-              <Plus className="h-4 w-4 mr-2" />
-              Generate Payroll
-            </Button>
-          </DialogTrigger>
-
-          <DialogContent className="lg:w-[50vw] max-w-6xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="text-xl font-semibold text-foreground">Generate Payroll for All Employees</DialogTitle>
-            </DialogHeader>
-
-            <Tabs defaultValue="period" className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="period">Period Selection</TabsTrigger>
-                <TabsTrigger value="requests">
-                  Employee Requests
-                  {pendingRequests.length > 0 && (
-                    <Badge variant="destructive" className="ml-2">{pendingRequests.length}</Badge>
-                  )}
-                </TabsTrigger>
-                <TabsTrigger value="adjustments">Manual Adjustments</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="period" className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-sm font-medium text-muted-foreground">Period Start</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <div className="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-3 cursor-pointer w-full justify-start text-left">
-                          {periodStart ? format(periodStart, "PPP") : <span className="text-muted-foreground">Select date</span>}
-                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                        </div>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <Calendar
-                          mode="single"
-                          selected={periodStart}
-                          onSelect={setPeriodStart}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-
-                  <div>
-                    <Label className="text-sm font-medium text-muted-foreground">Period End</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <div className="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-3 cursor-pointer w-full justify-start text-left">
-                          {periodEnd ? format(periodEnd, "PPP") : <span className="text-muted-foreground">Select date</span>}
-                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                        </div>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <Calendar
-                          mode="single"
-                          selected={periodEnd}
-                          onSelect={setPeriodEnd}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                </div>
-
-                {periodStart && periodEnd && (
-                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <p className="text-sm text-blue-900">
-                      Payroll period: <strong>{format(periodStart, "MMM d, yyyy")}</strong> to <strong>{format(periodEnd, "MMM d, yyyy")}</strong>
-                    </p>
-                  </div>
-                )}
-              </TabsContent>
-
-              <TabsContent value="requests" className="space-y-4">
-                {!periodStart || !periodEnd ? (
-                  <div className="text-center py-8 text-muted-foreground bg-muted/20 rounded-lg border border-border">
-                    <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p>Please select a period first to view requests</p>
-                  </div>
-                ) : employeeRequests.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground bg-muted/20 rounded-lg border border-border">
-                    <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p>No employee requests found for this period</p>
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="text-lg font-medium text-foreground">Employee Requests</h3>
-                        <p className="text-sm text-muted-foreground">
-                          {pendingRequests.length} pending, {approvedRequests.length} approved
-                        </p>
-                      </div>
-                      {selectedRequests.length > 0 && (
-                        <Button
-                          onClick={addApprovedRequestsToAdjustments}
-                          variant="outline"
-                          size="sm"
-                        >
-                          <Plus className="h-4 w-4 mr-1" />
-                          Add {selectedRequests.length} to Adjustments
-                        </Button>
-                      )}
-                    </div>
-
-                    <div className="border border-border rounded-lg overflow-hidden">
-                      <Table>
-                        <TableHeader>
-                          <TableRow className="bg-muted/50">
-                            <TableHead className="w-12">
-                              <input
-                                type="checkbox"
-                                checked={
-                                  selectedIds.length === selectedPeriodRecords.length &&
-                                  selectedPeriodRecords.length > 0
-                                }
-                                onChange={handleSelectAll}
-                                className="rounded"
-                                title="Select all"
-                              />
-                            </TableHead>
-
-                            <TableHead>Employee</TableHead>
-                            <TableHead>Type</TableHead>
-                            <TableHead>Date</TableHead>
-                            <TableHead>Time</TableHead>
-                            <TableHead>Reason</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {employeeRequests.map((req) => (
-                            <TableRow key={req.id} className="hover:bg-muted/30">
-                              <TableCell>
-                                <input
-                                  type="checkbox"
-                                  checked={selectedRequests.includes(req.id)}
-                                  onChange={() => handleRequestSelect(req.id)}
-                                  disabled={req.status !== "Approved"}
-                                  className="rounded"
-                                />
-                              </TableCell>
-                              <TableCell className="font-medium">{req.employee_name}</TableCell>
-                              <TableCell>
-                                <Badge variant={req.request_type === "Overtime" ? "default" : "secondary"}>
-                                  {req.request_type}
-                                </Badge>
-                              </TableCell>
-                              <TableCell>{format(new Date(req.date), "MMM d, yyyy")}</TableCell>
-                              <TableCell className="text-sm">
-                                {req.time_start} - {req.time_end}
-                              </TableCell>
-                              <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
-                                {req.reason}
-                              </TableCell>
-                              <TableCell>
-                                <Badge
-                                  variant={
-                                    req.status === "Approved"
-                                      ? "default"
-                                      : req.status === "Pending"
-                                        ? "outline"
-                                        : "destructive"
-                                  }
-                                >
-                                  {req.status}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="text-right">
-                                {req.status === "Pending" && (
-                                  <div className="flex items-center justify-end gap-1">
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      onClick={() => handleApproveRequest(req.id)}
-                                      className="h-8 text-green-600 hover:text-green-700 hover:bg-green-50"
-                                    >
-                                      <Check className="h-4 w-4" />
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      onClick={() => handleRejectRequest(req.id)}
-                                      className="h-8 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                    >
-                                      <XCircle className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                )}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </>
-                )}
-              </TabsContent>
-
-              <TabsContent value="adjustments" className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label className="text-lg font-medium text-foreground">Manual Adjustments</Label>
-                    <p className="text-muted-foreground text-sm">Add overtime, absences, or holiday pay adjustments</p>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={addEmployeeAdjustment}
-                    className="flex items-center gap-2"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Add Employee
-                  </Button>
-                </div>
-
-                {employeeAdjustments.length === 0 && (
-                  <div className="text-center py-8 text-muted-foreground bg-muted/10 rounded-lg border border-border">
-                    <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p>No manual adjustments added</p>
-                    <p className="text-sm">Add adjustments manually or import from approved requests</p>
-                  </div>
-                )}
-
-                {employeeAdjustments.map((adjustment, index) => (
-                  <Card key={index} className="border-border shadow-sm bg-card">
-                    <CardContent className="p-6">
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <Label className="text-sm font-medium text-foreground">Employee #{index + 1}</Label>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeEmployeeAdjustment(index)}
-                            className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-
-                        <div>
-                          <Label className="text-sm font-medium text-foreground">Employee</Label>
-                          <Select
-                            value={adjustment.employee_id}
-                            onValueChange={(value) => updateEmployeeAdjustment(index, 'employee_id', value)}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select employee" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {employees
-                                .filter(emp => !employeeAdjustments.some((a, i) => i !== index && a.employee_id === emp.id))
-                                .map((emp) => (
-                                  <SelectItem key={emp.id} value={emp.id}>
-                                    {emp.full_name} ({emp.pay_type})
-                                  </SelectItem>
-                                ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div className="border-t border-border pt-4">
-                          <Label className="text-sm font-medium text-foreground mb-3 block">Absence Deductions</Label>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <Label className="text-sm text-muted-foreground">Days Absent</Label>
-                              <Input
-                                type="number"
-                                min="0"
-                                step="1"
-                                placeholder="0"
-                                value={adjustment.absenceDays || ''}
-                                onChange={(e) =>
-                                  updateEmployeeAdjustment(index, 'absenceDays', parseInt(e.target.value) || 0)
-                                }
-                              />
-                            </div>
-
-                            <div>
-                              <Label className="text-sm text-muted-foreground">Amount Per Day</Label>
-                              <Input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                placeholder="0.00"
-                                value={adjustment.absenceAmountPerDay || ''}
-                                onChange={(e) =>
-                                  updateEmployeeAdjustment(index, 'absenceAmountPerDay', parseFloat(e.target.value) || 0)
-                                }
-                              />
-                            </div>
-                          </div>
-
-                          {adjustment.absenceDays > 0 && adjustment.absenceAmountPerDay > 0 && (
-                            <div className="text-sm text-foreground bg-muted p-3 rounded mt-3">
-                              <span className="font-medium">Total Absence Deduction:</span> -₱{(adjustment.absenceDays * adjustment.absenceAmountPerDay).toLocaleString()}
-                            </div>
-                          )}
-                        </div>
-                        <div className="border-t border-border pt-4">
-                          <Label className="text-sm font-medium text-foreground mb-3 block">
-                            Cash Advance Deduction
-                          </Label>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <Label className="text-sm text-muted-foreground">Amount</Label>
-                              <Input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                placeholder="0.00"
-                                value={adjustment.cashAdvance || ""}
-                                onChange={(e) =>
-                                  updateEmployeeAdjustment(index, "cashAdvance", parseFloat(e.target.value) || 0)
-                                }
-                              />
-                            </div>
-                          </div>
-
-                          {adjustment.cashAdvance && adjustment.cashAdvance > 0 && (
-                            <div className="text-sm text-foreground bg-muted p-3 rounded mt-3">
-                              <span className="font-medium">Cash Advance Deduction:</span>{" "}
-                              -₱{adjustment.cashAdvance.toLocaleString()}
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="border-t border-border pt-4">
-                          <Label className="text-sm font-medium text-foreground mb-3 block">
-                            Other Deductions & Tax
-                          </Label>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <Label className="text-sm text-muted-foreground">Other Amount (Loans)</Label>
-                              <Input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                placeholder="0.00"
-                                value={adjustment.otherDeductions || ""}
-                                onChange={(e) =>
-                                  updateEmployeeAdjustment(index, "otherDeductions", parseFloat(e.target.value) || 0)
-                                }
-                              />
-                            </div>
-                            <div>
-                              <Label className="text-sm text-muted-foreground">Withholding Tax</Label>
-                              <Input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                placeholder="0.00"
-                                value={adjustment.withholdingTax || ""}
-                                onChange={(e) =>
-                                  updateEmployeeAdjustment(index, "withholdingTax", parseFloat(e.target.value) || 0)
-                                }
-                              />
-                            </div>
-                          </div>
-
-                          {((adjustment.otherDeductions && adjustment.otherDeductions > 0) || (adjustment.withholdingTax && adjustment.withholdingTax > 0)) && (
-                            <div className="text-sm text-foreground bg-muted p-3 rounded mt-3">
-                              <span className="font-medium">Adjustment Total:</span>{" "}
-                              -₱{((adjustment.otherDeductions || 0) + (adjustment.withholdingTax || 0)).toLocaleString()}
-                            </div>
-                          )}
-                        </div>
-
-
-
-                        <div className="border-t border-border pt-4">
-                          <div className="flex items-center justify-between mb-3">
-                            <Label className="text-sm font-medium text-foreground">Overtime Pay</Label>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => addOvertimeEntry(index)}
-                            >
-                              <Plus className="h-4 w-4 mr-1" />
-                              Add Entry
-                            </Button>
-                          </div>
-
-                          {adjustment.overtimeEntries.length > 0 && (
-                            <div className="text-sm text-foreground bg-muted p-3 rounded mb-3">
-                              <span className="font-medium">Total Overtime Pay:</span> +₱
-                              {adjustment.overtimeEntries
-                                .reduce((sum, ot) => sum + (ot.hours * ot.ratePerHour), 0)
-                                .toLocaleString()}
-                            </div>
-                          )}
-
-                          {adjustment.overtimeEntries.map((ot, otIndex) => (
-                            <div key={otIndex} className="grid grid-cols-3 gap-3 items-end border border-border p-3 rounded mb-2 bg-muted/30">
-                              <div>
-                                <Label className="text-sm text-muted-foreground">Date</Label>
-                                <Popover>
-                                  <PopoverTrigger asChild>
-                                    <div className="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-3 cursor-pointer w-full justify-start text-left">
-                                      {ot.date ? format(ot.date, "PPP") : <span className="text-muted-foreground">Select date</span>}
-                                    </div>
-                                  </PopoverTrigger>
-                                  <PopoverContent className="w-auto p-0">
-                                    <Calendar
-                                      mode="single"
-                                      selected={ot.date}
-                                      onSelect={(date) => updateOvertimeEntry(index, otIndex, "date", date)}
-                                      initialFocus
-                                    />
-                                  </PopoverContent>
-                                </Popover>
-                              </div>
-
-                              <div>
-                                <Label className="text-sm text-muted-foreground">Hours</Label>
-                                <Input
-                                  type="number"
-                                  min="0"
-                                  step="0.5"
-                                  value={isNaN(ot.hours) ? "" : ot.hours}
-                                  onChange={(e) =>
-                                    updateOvertimeEntry(index, otIndex, "hours", parseFloat(e.target.value) || 0)
-                                  }
-                                />
-                              </div>
-
-                              <div>
-                                <Label className="text-sm text-muted-foreground">Rate Per Hour</Label>
-                                <Input
-                                  type="number"
-                                  min="0"
-                                  step="0.01"
-                                  value={isNaN(ot.ratePerHour) ? "" : ot.ratePerHour}
-                                  onChange={(e) =>
-                                    updateOvertimeEntry(index, otIndex, "ratePerHour", parseFloat(e.target.value) || 0)
-                                  }
-                                />
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-
-                        <div className="border-t border-border pt-4">
-                          <Label className="text-sm font-medium text-foreground mb-3 block">Holiday Pay</Label>
-                          <div className="space-y-3">
-                            <Popover>
-                              <PopoverTrigger asChild>
-                                <div className="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-3 cursor-pointer w-full justify-start text-left">
-                                  {adjustment.holidayDate ? format(adjustment.holidayDate, "PPP") : <span className="text-muted-foreground">Select holiday date</span>}
-                                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                </div>
-                              </PopoverTrigger>
-                              <PopoverContent className="w-auto p-0">
-                                <Calendar
-                                  mode="single"
-                                  selected={adjustment.holidayDate}
-                                  onSelect={(date) => updateEmployeeAdjustment(index, "holidayDate", date as Date)}
-                                  initialFocus
-                                />
-                              </PopoverContent>
-                            </Popover>
-
-                            <Input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              placeholder="Holiday pay amount"
-                              value={adjustment.holidayPay || ""}
-                              onChange={(e) =>
-                                updateEmployeeAdjustment(index, "holidayPay", parseFloat(e.target.value) || 0)
-                              }
-                            />
-                          </div>
-                        </div>
-
-                        {((adjustment.absenceDays > 0 && adjustment.absenceAmountPerDay > 0) ||
-                          (adjustment.overtimeEntries?.length > 0) ||
-                          (adjustment.holidayPay && adjustment.holidayPay > 0)) && (
-                            <div className="border-t border-border pt-4 bg-muted/30 p-4 rounded">
-                              <Label className="text-sm font-medium text-foreground mb-2 block">Net Adjustment Summary</Label>
-                              <div className="space-y-1 text-sm">
-                                {adjustment.overtimeEntries.length > 0 && (
-                                  <div className="text-muted-foreground">
-                                    Overtime: +₱
-                                    {adjustment.overtimeEntries.reduce(
-                                      (sum, ot) => sum + (ot.hours * ot.ratePerHour),
-                                      0
-                                    ).toLocaleString()}
-                                  </div>
-                                )}
-
-                                {adjustment.holidayPay && adjustment.holidayPay > 0 && (
-                                  <div className="text-muted-foreground">
-                                    Holiday Pay: +₱{adjustment.holidayPay.toLocaleString()}
-                                  </div>
-                                )}
-
-                                {adjustment.absenceDays > 0 && adjustment.absenceAmountPerDay > 0 && (
-                                  <div className="text-muted-foreground">
-                                    Absence: -₱
-                                    {(adjustment.absenceDays * adjustment.absenceAmountPerDay).toLocaleString()}
-                                  </div>
-                                )}
-
-                                <div className="font-medium text-foreground border-t border-border pt-2 mt-2">
-                                  {adjustment.cashAdvance && adjustment.cashAdvance > 0 && (
-                                    <div className="text-muted-foreground">
-                                      Cash Advance: -₱{adjustment.cashAdvance.toLocaleString()}
-                                    </div>
-                                  )}
-
-                                  {adjustment.otherDeductions && adjustment.otherDeductions > 0 && (
-                                    <div className="text-muted-foreground">
-                                      Other Deductions: -₱{adjustment.otherDeductions.toLocaleString()}
-                                    </div>
-                                  )}
-                                  Net Effect: {(() => {
-                                    const overtime = adjustment.overtimeEntries.reduce(
-                                      (sum, ot) => sum + (ot.hours * ot.ratePerHour),
-                                      0
-                                    )
-                                    const holiday = adjustment.holidayPay || 0
-                                    const absence = (adjustment.absenceDays || 0) * (adjustment.absenceAmountPerDay || 0)
-                                    const otherDeductions = adjustment.otherDeductions || 0
-                                    const cashAdvance = adjustment.cashAdvance || 0
-                                    const net = overtime + holiday - absence - cashAdvance - otherDeductions
-
-                                    return net >= 0 ? `+₱${net.toLocaleString()}` : `-₱${Math.abs(net).toLocaleString()}`
-                                  })()}
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </TabsContent>
-            </Tabs>
-
-            <form onSubmit={(e) => {
-              e.preventDefault()
-              handleBulkGeneratePayrollEnhanced()
-              setOpen(false)
-            }} className="pt-6 border-t">
-              <Button type="submit" className="w-full">
-                Generate Payroll
-              </Button>
-            </form>
-          </DialogContent>
-        </Dialog>
+        <Button 
+          onClick={() => router.push("/payroll/generate")}
+          className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg font-bold"
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Generate Payroll
+        </Button>
       </div>
 
       <Card className="border-0 shadow-sm overflow-hidden">
@@ -1853,8 +724,8 @@ export default function PayrollPage() {
                 </TableHeader>
                 <TableBody>
                   {paginatedPeriods.map((period) => (
-                    <TableRow 
-                      key={period.period_key} 
+                    <TableRow
+                      key={period.period_key}
                       className="hover:bg-muted/30 border-b border-border last:border-0 transition-colors cursor-pointer"
                       onClick={() => handleViewPeriodRecords(period)}
                     >
@@ -2117,6 +988,7 @@ export default function PayrollPage() {
                       <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">W/Tax</TableHead>
                       <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Loans</TableHead>
                       <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Absences</TableHead>
+                      <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Tardiness</TableHead>
                       <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Cash Advance</TableHead>
                       <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Total Deductions</TableHead>
                       <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Net After Deductions</TableHead>
@@ -2169,6 +1041,7 @@ export default function PayrollPage() {
                           <TableCell className="text-red-600/80 font-medium">₱{rec.withholding_tax?.toLocaleString() || 0}</TableCell>
                           <TableCell className="text-red-600/80 font-medium">₱{rec.loans?.toLocaleString() || 0}</TableCell>
                           <TableCell className="text-foreground">₱{rec.absences?.toLocaleString() || 0}</TableCell>
+                          <TableCell className="text-foreground">₱{rec.tardiness?.toLocaleString() || 0}</TableCell>
                           <TableCell className="text-foreground">₱{rec.cash_advance?.toLocaleString() || 0}</TableCell>
                           <TableCell className="text-foreground font-semibold">₱{rec.total_deductions?.toLocaleString()}</TableCell>
                           <TableCell className="text-foreground font-bold">₱{rec.net_after_deductions?.toLocaleString()}</TableCell>
@@ -2229,9 +1102,10 @@ export default function PayrollPage() {
                 const withholding_tax = editRecord.withholding_tax || 0
                 const loans = editRecord.loans || 0
                 const absences = editRecord.absences || 0
+                const tardiness = editRecord.tardiness || 0
                 const cash_advance = editRecord.cash_advance || 0
 
-                const totalDeductions = sss + philhealth + pagibig + withholding_tax + loans + absences + cash_advance
+                const totalDeductions = sss + philhealth + pagibig + withholding_tax + loans + absences + tardiness + cash_advance
 
                 const grossPay = (editRecord.basic_salary || 0) + (editRecord.overtime_pay || 0) + (editRecord.holiday_pay || 0) + (editRecord.allowances || 0)
                 const netPay = grossPay - totalDeductions
@@ -2245,6 +1119,7 @@ export default function PayrollPage() {
                     allowances: editRecord.allowances || 0,
                     holiday_pay: editRecord.holiday_pay || 0,
                     absences: absences,
+                    tardiness: tardiness,
                     cash_advance: cash_advance,
                     sss: sss,
                     philhealth: philhealth,
@@ -2389,6 +1264,21 @@ export default function PayrollPage() {
                       onChange={(e) =>
                         setEditRecord((prev) =>
                           prev ? { ...prev, absences: parseFloat(e.target.value) || 0 } : prev
+                        )
+                      }
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Tardiness (Late)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0.00"
+                      value={editRecord.tardiness || ""}
+                      onChange={(e) =>
+                        setEditRecord((prev) =>
+                          prev ? { ...prev, tardiness: parseFloat(e.target.value) || 0 } : prev
                         )
                       }
                     />

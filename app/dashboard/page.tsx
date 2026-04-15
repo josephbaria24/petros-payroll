@@ -87,7 +87,7 @@ import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from "@
 import { cn } from "@/lib/utils"
 import { Calendar } from "@/components/ui/calendar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { toast } from "sonner"
+import { toast } from "@/lib/toast"
 import { useProtectedPage } from "../hooks/useProtectedPage"
 
 function getStatus(net_pay: number): string {
@@ -130,7 +130,7 @@ type PayrollRecord = {
 }
 
 export default function DashboardPage() {
-  const { isChecking } = useProtectedPage(["admin", "hr"])
+  const { isChecking } = useProtectedPage(["admin", "hr"], "dashboard")
   const { activeOrganization } = useOrganization()
   const router = useRouter()
   const [role, setRole] = useState<string | null>(null)

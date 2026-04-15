@@ -26,7 +26,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
-import { toast } from "sonner"
+import { toast } from "@/lib/toast"
 import {
   Building2,
   Briefcase,
@@ -53,7 +53,7 @@ function loadSavedFilters(): string[] {
 }
 
 export default function EmployeesPage() {
-  useProtectedPage(["admin", "hr"])
+  useProtectedPage(["admin", "hr"], "employees")
   const { activeOrganization } = useOrganization()
   const [data, setData] = useState<Employee[]>([])
   const [loading, setLoading] = useState(true)
@@ -83,6 +83,8 @@ export default function EmployeesPage() {
     hours_per_week: "",
     leave_credits: "0",
     profile_picture_url: "",
+    working_days: [] as string[],
+    daily_rate: "",
   })
   const [open, setOpen] = useState(false)
 
@@ -102,6 +104,18 @@ export default function EmployeesPage() {
   }, [data, statusFilters])
 
   const activeFilterCount = ALL_STATUSES.length - statusFilters.length
+  
+  // Auto-calculate daily rate
+  useEffect(() => {
+    const salary = parseFloat(form.base_salary || "0")
+    if (salary > 0 && form.working_days.length > 0) {
+      const monthlySalary = form.pay_type === "semi-monthly" ? salary * 2 : salary
+      const daysPerWeek = form.working_days.length
+      // Formula: (Monthly * 12) / (52 * DaysPerWeek)
+      const calculatedDaily = (monthlySalary * 12) / (52 * daysPerWeek)
+      setForm(prev => ({ ...prev, daily_rate: calculatedDaily.toFixed(2) }))
+    }
+  }, [form.base_salary, form.pay_type, form.working_days.length])
 
   useEffect(() => {
     let ignore = false
@@ -186,6 +200,7 @@ export default function EmployeesPage() {
     hours_per_week: "",
     leave_credits: "0",
     profile_picture_url: "",
+    working_days: [] as string[],
   }
 
   async function handleDelete(id: string) {
@@ -253,7 +268,9 @@ export default function EmployeesPage() {
       shift: emp.shift,
       hours_per_week: emp.hours_per_week,
       leave_credits: emp.leave_credits || 0,
-      attendance_log_userid: emp.attendance_log_userid
+      attendance_log_userid: emp.attendance_log_userid,
+      working_days: emp.working_days || [],
+      daily_rate: emp.daily_rate || 0
     }
 
     if (!isMovingToPDN) {
@@ -334,6 +351,8 @@ export default function EmployeesPage() {
       hours_per_week: form.hours_per_week ? parseInt(form.hours_per_week) : null,
       leave_credits: form.leave_credits ? parseFloat(form.leave_credits) : 0,
       profile_picture_url: form.profile_picture_url || null,
+      working_days: form.working_days || [],
+      daily_rate: form.daily_rate ? parseFloat(form.daily_rate) : 0,
     }
 
     const table = activeOrganization === "pdn" ? "pdn_employees" : "employees"
@@ -432,6 +451,8 @@ export default function EmployeesPage() {
       hours_per_week: emp.hours_per_week?.toString() || "",
       leave_credits: emp.leave_credits.toString() || "0",
       profile_picture_url: emp.profile_picture_url || "",
+      working_days: emp.working_days || [],
+      daily_rate: emp.daily_rate?.toString() || "",
     })
     setEditingId(emp.id)
     setIsEditing(true)
@@ -660,8 +681,24 @@ export default function EmployeesPage() {
                         <p className="text-sm font-bold">₱{parseFloat(form.base_salary || "0").toLocaleString()}</p>
                       </div>
                       <div className="space-y-1">
+                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">Daily Rate (Per Day)</p>
+                        <p className="text-sm font-bold text-primary">₱{parseFloat(form.daily_rate || "0").toLocaleString()}</p>
+                      </div>
+                      <div className="space-y-1">
                         <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">Shift</p>
                         <p className="text-sm font-semibold">{form.shift}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">Days of Work</p>
+                        <div className="flex flex-wrap gap-1">
+                          {form.working_days.length > 0 ? (
+                            form.working_days.map(day => (
+                              <Badge key={day} variant="outline" className="text-[9px] font-black uppercase px-1.5 py-0 bg-primary/5 text-primary border-primary/20">{day}</Badge>
+                            ))
+                          ) : (
+                            <span className="text-sm font-medium">—</span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -695,7 +732,7 @@ export default function EmployeesPage() {
                         <Label htmlFor="employee_code">Employee Code</Label>
                         <Input
                           id="employee_code"
-                          value={form.employee_code}
+                          value={form.employee_code || ""}
                           onChange={(e) => setForm({ ...form, employee_code: e.target.value })}
                           placeholder="e.g., EMP001"
                         />
@@ -750,7 +787,7 @@ export default function EmployeesPage() {
                           <Input
                             id="full_name"
                             required
-                            value={form.full_name}
+                            value={form.full_name || ""}
                             onChange={(e) => setForm({ ...form, full_name: e.target.value })}
                             placeholder="e.g. Juan Dela Cruz"
                           />
@@ -762,7 +799,7 @@ export default function EmployeesPage() {
                             id="email"
                             type="email"
                             required
-                            value={form.email}
+                            value={form.email || ""}
                             onChange={(e) => setForm({ ...form, email: e.target.value })}
                             placeholder="e.g. juan@petrosphere.com.ph"
                           />
@@ -775,7 +812,7 @@ export default function EmployeesPage() {
                         <Label htmlFor="position">Position</Label>
                         <Input
                           id="position"
-                          value={form.position}
+                          value={form.position || ""}
                           onChange={(e) => setForm({ ...form, position: e.target.value })}
                           placeholder="Job title"
                         />
@@ -785,7 +822,7 @@ export default function EmployeesPage() {
                         <Label htmlFor="department">Department</Label>
                         <Input
                           id="department"
-                          value={form.department}
+                          value={form.department || ""}
                           onChange={(e) => setForm({ ...form, department: e.target.value })}
                           placeholder="Department name"
                         />
@@ -804,7 +841,7 @@ export default function EmployeesPage() {
                         <Label htmlFor="tin">TIN</Label>
                         <Input
                           id="tin"
-                          value={form.tin}
+                          value={form.tin || ""}
                           onChange={(e) => setForm({ ...form, tin: e.target.value })}
                           placeholder="Tax Identification Number"
                         />
@@ -814,7 +851,7 @@ export default function EmployeesPage() {
                         <Label htmlFor="sss">SSS</Label>
                         <Input
                           id="sss"
-                          value={form.sss}
+                          value={form.sss || ""}
                           onChange={(e) => setForm({ ...form, sss: e.target.value })}
                           placeholder="Social Security System"
                         />
@@ -824,7 +861,7 @@ export default function EmployeesPage() {
                         <Label htmlFor="philhealth">PhilHealth</Label>
                         <Input
                           id="philhealth"
-                          value={form.philhealth}
+                          value={form.philhealth || ""}
                           onChange={(e) => setForm({ ...form, philhealth: e.target.value })}
                           placeholder="PhilHealth Number"
                         />
@@ -834,7 +871,7 @@ export default function EmployeesPage() {
                         <Label htmlFor="pagibig">Pag-IBIG</Label>
                         <Input
                           id="pagibig"
-                          value={form.pagibig}
+                          value={form.pagibig || ""}
                           onChange={(e) => setForm({ ...form, pagibig: e.target.value })}
                           placeholder="Pag-IBIG Number"
                         />
@@ -854,10 +891,23 @@ export default function EmployeesPage() {
                         <Input
                           id="base_salary"
                           type="number"
-                          value={form.base_salary}
+                          value={form.base_salary || ""}
                           onChange={(e) => setForm({ ...form, base_salary: e.target.value })}
                           placeholder="0.00"
                         />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="daily_rate">Daily Rate (Per Day)</Label>
+                        <Input
+                          id="daily_rate"
+                          type="number"
+                          step="0.01"
+                          value={form.daily_rate || ""}
+                          onChange={(e) => setForm({ ...form, daily_rate: e.target.value })}
+                          placeholder="0.00"
+                        />
+                        <p className="text-[10px] text-muted-foreground font-medium italic">Calculated automatically but can be edited manually.</p>
                       </div>
 
                       <div className="space-y-2">
@@ -865,7 +915,7 @@ export default function EmployeesPage() {
                         <Input
                           id="allowance"
                           type="number"
-                          value={form.allowance}
+                          value={form.allowance || ""}
                           onChange={(e) => setForm({ ...form, allowance: e.target.value })}
                           placeholder="0.00"
                         />
@@ -910,7 +960,7 @@ export default function EmployeesPage() {
                         <Input
                           id="hours_per_week"
                           type="number"
-                          value={form.hours_per_week}
+                          value={form.hours_per_week || ""}
                           onChange={(e) => setForm({ ...form, hours_per_week: e.target.value })}
                           placeholder="40"
                         />
@@ -921,11 +971,45 @@ export default function EmployeesPage() {
                         <Input
                           id="leave_credits"
                           type="number"
-                          value={form.leave_credits}
+                          value={form.leave_credits || ""}
                           onChange={(e) => setForm({ ...form, leave_credits: e.target.value })}
                           placeholder="0"
                         />
                       </div>
+                    </div>
+                    
+                    <div className="space-y-3 pt-6 border-t border-border/50">
+                      <Label className="text-sm font-bold text-foreground">Days of Work</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => {
+                          const isSelected = form.working_days.includes(day)
+                          return (
+                            <button
+                              key={day}
+                              type="button"
+                              onClick={() => {
+                                setForm((prev) => ({
+                                  ...prev,
+                                  working_days: isSelected
+                                    ? prev.working_days.filter((d) => d !== day)
+                                    : [...prev.working_days, day],
+                                }))
+                              }}
+                              className={cn(
+                                "h-9 px-4 rounded-full text-xs font-bold transition-all border duration-200",
+                                isSelected
+                                  ? "bg-primary text-primary-foreground border-primary shadow-sm hover:translate-y-[-1px]"
+                                  : "bg-muted/30 text-muted-foreground border-border hover:bg-muted/50"
+                              )}
+                            >
+                              {day}
+                            </button>
+                          )
+                        })}
+                      </div>
+                      <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">
+                        {form.working_days.length} days selected
+                      </p>
                     </div>
                   </div>
 
