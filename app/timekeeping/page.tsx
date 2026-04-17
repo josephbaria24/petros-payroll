@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from "react"
 import { supabase } from "@/lib/supabaseClient"
 import { useOrganization } from "@/contexts/OrganizationContext"
+import { useHoliday } from "@/contexts/HolidayContext"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -168,14 +169,14 @@ function joinTo24Hour(hour: string, minute: string, period: string): string {
   return `${h.toString().padStart(2, '0')}:${minute.padStart(2, '0')}`;
 }
 
-const VisualTimePicker = ({ 
-  value, 
-  onChange, 
-  label 
-}: { 
-  value: string | null; 
-  onChange: (val: string) => void; 
-  label: string 
+const VisualTimePicker = ({
+  value,
+  onChange,
+  label
+}: {
+  value: string | null;
+  onChange: (val: string) => void;
+  label: string
 }) => {
   const { hour, minute, period } = splitTo12HourParts(value);
 
@@ -222,6 +223,7 @@ const COLORS = ['#0ea5e9', '#8b5cf6', '#f59e0b', '#10b981', '#ef4444', '#6366f1'
 export default function TimekeepingPage() {
   useProtectedPage(["admin", "hr"], "timekeeping")
   const { activeOrganization } = useOrganization()
+  const { refreshHolidays } = useHoliday()
   const [logs, setLogs] = useState<TimeLog[]>([])
   const [open, setOpen] = useState(false)
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
@@ -281,10 +283,10 @@ export default function TimekeepingPage() {
   function processRawLogsForOrg(org: string, logsData: any[], employeesData: any[], fallbackDateStr: string) {
     if (org === "pdn") {
       const enrichedLogs: TimeLog[] = []
-      
+
       employeesData.forEach(emp => {
         const empLogs = (logsData || []).filter((log: any) => (log.employee_id === emp.id || log.full_name === emp.full_name))
-        
+
         if (empLogs.length > 0) {
           empLogs.forEach((log: any) => {
             const timeInUTC = log.timestamp ? new Date(log.timestamp) : null
@@ -316,7 +318,7 @@ export default function TimekeepingPage() {
           const phTime = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Manila" }))
           const phHour = phTime.getHours()
           const isToday = fallbackDateStr === format(phTime, "yyyy-MM-dd")
-          
+
           // Weekend detection
           const [y, m, d_num] = fallbackDateStr.split("-").map(Number)
           const dateObj = new Date(y, m - 1, d_num)
@@ -363,7 +365,7 @@ export default function TimekeepingPage() {
       })
 
       const enrichedLogs: TimeLog[] = []
-      
+
       employeesData.forEach(emp => {
         const userId = emp.attendance_log_userid
         const userLogs = userId ? userGroups[userId] : []
@@ -413,7 +415,7 @@ export default function TimekeepingPage() {
           const phTime = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Manila" }))
           const phHour = phTime.getHours()
           const isToday = fallbackDateStr === format(phTime, "yyyy-MM-dd")
-          
+
           // Weekend detection
           const [y, m, d_num] = fallbackDateStr.split("-").map(Number)
           const dateObj = new Date(y, m - 1, d_num)
@@ -468,7 +470,7 @@ export default function TimekeepingPage() {
       ])
 
       const rawEnriched = processRawLogsForOrg("petrosphere", logsData || [], empData || [], start)
-      
+
       // Properly apply manual overrides from time_logs
       const overrideMap = new Map()
       manualLogs?.forEach(mLog => {
@@ -659,26 +661,26 @@ export default function TimekeepingPage() {
         if (error) throw error
       } else {
         const deletePromises = []
-        
+
         // Try deleting from time_logs
         deletePromises.push(supabase.from("time_logs").delete().eq("id", log.id))
-        
+
         // Try deleting from attendance_logs, ignore type mismatch if id is a uuid
-        deletePromises.push(supabase.from("attendance_logs").delete().eq("id", log.id).then(({error})=> {
-          if(error && error.code !== "22P02") throw error; // ignore invalid input syntax
+        deletePromises.push(supabase.from("attendance_logs").delete().eq("id", log.id).then(({ error }) => {
+          if (error && error.code !== "22P02") throw error; // ignore invalid input syntax
         }))
 
         if (log.in_id) {
           deletePromises.push(supabase.from("time_logs").delete().eq("id", log.in_id))
-          deletePromises.push(supabase.from("attendance_logs").delete().eq("id", log.in_id).then(({error})=> {
-            if(error && error.code !== "22P02") throw error;
+          deletePromises.push(supabase.from("attendance_logs").delete().eq("id", log.in_id).then(({ error }) => {
+            if (error && error.code !== "22P02") throw error;
           }))
         }
-        
+
         if (log.out_id && log.out_id !== log.in_id) {
           deletePromises.push(supabase.from("time_logs").delete().eq("id", log.out_id))
-          deletePromises.push(supabase.from("attendance_logs").delete().eq("id", log.out_id).then(({error})=> {
-            if(error && error.code !== "22P02") throw error;
+          deletePromises.push(supabase.from("attendance_logs").delete().eq("id", log.out_id).then(({ error }) => {
+            if (error && error.code !== "22P02") throw error;
           }))
         }
 
@@ -699,26 +701,26 @@ export default function TimekeepingPage() {
     const toastId = toast.loading(`${mode === 'permanent' ? 'Setting permanent' : 'Setting'} status to ${status}...`)
 
     try {
-      const isFullDayStatus = ["On Leave", "Work From Home", "Remote"].includes(status)
+      const isFullDayStatus = ["On Leave", "Work From Home", "Remote", "Holiday"].includes(status)
       const total_hours = isFullDayStatus ? 8 : 0
 
       // If permanent, update the employee record
       if (mode === 'permanent') {
         const isRemote = status === "Remote"
         const isWFH = status === "Work From Home"
-        
+
         if (activeOrganization === "pdn") {
-           const { error } = await supabase
+          const { error } = await supabase
             .from("pdn_employees")
             .update({ is_remote: isRemote, is_wfh: isWFH })
             .eq("id", employeeId)
-           if (error) throw error
+          if (error) throw error
         } else {
-           const { error } = await supabase
+          const { error } = await supabase
             .from("employees")
             .update({ is_remote: isRemote, is_wfh: isWFH })
             .eq("id", employeeId)
-           if (error) throw error
+          if (error) throw error
         }
       }
 
@@ -794,6 +796,113 @@ export default function TimekeepingPage() {
     }
   }
 
+  async function handleMarkAllAsHoliday() {
+    if (!selectedDate) return
+    const dateStr = format(selectedDate, "yyyy-MM-dd")
+
+    if (!window.confirm(`Are you sure you want to mark ALL employees as Holiday for ${format(selectedDate, "MMM dd, yyyy")}? This cannot be undone easily.`)) {
+      return
+    }
+
+    const toastId = toast.loading("Marking all employees as Holiday...")
+
+    try {
+      if (activeOrganization === "pdn") {
+        const { data: existingLogs } = await supabase
+          .from("pdn_attendance_logs")
+          .select("id, employee_id")
+          .eq("work_date", dateStr)
+
+        const existingMap = new Map((existingLogs || []).map(l => [l.employee_id, l.id]))
+
+        const toInsert: any[] = []
+        const toUpdate: any[] = []
+
+        employees.forEach(emp => {
+          const baseLog = {
+            employee_id: emp.id,
+            work_date: dateStr,
+            status: "Holiday",
+            total_hours: 8,
+            full_name: emp.full_name,
+            timestamp: `${dateStr}T00:00:00+00:00`
+          }
+          if (existingMap.has(emp.id)) {
+            toUpdate.push({ ...baseLog, id: existingMap.get(emp.id) })
+          } else {
+            toInsert.push(baseLog)
+          }
+        })
+
+        if (toInsert.length > 0) {
+          const { error } = await supabase.from("pdn_attendance_logs").insert(toInsert)
+          if (error) throw error
+        }
+
+        if (toUpdate.length > 0) {
+          const updatePromises = toUpdate.map(u =>
+            supabase.from("pdn_attendance_logs").update({
+              status: u.status,
+              total_hours: u.total_hours
+            }).eq("id", u.id)
+          );
+          const results = await Promise.all(updatePromises);
+          const err = results.find(r => r.error);
+          if (err) throw err.error;
+        }
+
+      } else {
+        const { data: existingLogs } = await supabase
+          .from("time_logs")
+          .select("id, employee_id")
+          .eq("date", dateStr)
+
+        const existingMap = new Map((existingLogs || []).map(l => [l.employee_id, l.id]))
+
+        const toInsert: any[] = []
+        const toUpdate: any[] = []
+
+        employees.forEach(emp => {
+          const baseLog = {
+            employee_id: emp.id,
+            date: dateStr,
+            status: "Holiday",
+            total_hours: 8,
+          }
+          if (existingMap.has(emp.id)) {
+            toUpdate.push({ ...baseLog, id: existingMap.get(emp.id) })
+          } else {
+            toInsert.push(baseLog)
+          }
+        })
+
+        if (toInsert.length > 0) {
+          const { error } = await supabase.from("time_logs").insert(toInsert)
+          if (error) throw error
+        }
+
+        if (toUpdate.length > 0) {
+          const updatePromises = toUpdate.map(u =>
+            supabase.from("time_logs").update({
+              status: u.status,
+              total_hours: u.total_hours
+            }).eq("id", u.id)
+          );
+          const results = await Promise.all(updatePromises);
+          const err = results.find(r => r.error);
+          if (err) throw err.error;
+        }
+      }
+
+      toast.success("Successfully marked all as Holiday", { id: toastId })
+      fetchLogs(selectedDate)
+      refreshHolidays()
+    } catch (err: any) {
+      console.error(err)
+      toast.error(err.message || "Failed to mark as Holiday", { id: toastId })
+    }
+  }
+
   function resetForm() {
     setForm({
       employee_id: "",
@@ -828,10 +937,10 @@ export default function TimekeepingPage() {
         if (data.status === "Remote") displayName += " (REM)"
         else if (data.status === "On Leave") displayName += " (LV)"
         else if (data.status === "Work From Home") displayName += " (WFH)"
-        
-        return { 
-          name: displayName, 
-          hours: Math.round(data.hours * 100) / 100 
+
+        return {
+          name: displayName,
+          hours: Math.round(data.hours * 100) / 100
         }
       })
       .sort((a, b) => b.hours - a.hours)
@@ -1127,12 +1236,25 @@ export default function TimekeepingPage() {
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="end">
-                <Calendar
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={(date) => setSelectedDate(date)}
-                  initialFocus
-                />
+                <div className="flex flex-col">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={(date) => setSelectedDate(date)}
+                    initialFocus
+                  />
+                  <div className="p-3 border-t border-border">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="w-full text-xs font-bold text-amber-600 bg-amber-100 hover:bg-amber-200 dark:bg-amber-500/10 dark:hover:bg-amber-500/20 shadow-none border-none"
+                      onClick={handleMarkAllAsHoliday}
+                    >
+                      <Activity className="w-4 h-4 mr-2" />
+                      Mark All as Holiday
+                    </Button>
+                  </div>
+                </div>
               </PopoverContent>
             </Popover>
 
@@ -1305,6 +1427,7 @@ export default function TimekeepingPage() {
                         <SelectItem value="Absent">Absent</SelectItem>
                         <SelectItem value="Late">Late</SelectItem>
                         <SelectItem value="On Leave">On Leave</SelectItem>
+                        <SelectItem value="Holiday">Holiday</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -1667,10 +1790,10 @@ export default function TimekeepingPage() {
         <div className="p-4 border-b border-border bg-muted/30 flex-shrink-0">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-8 w-8 -ml-2 sm:hidden hover:bg-muted" 
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 -ml-2 sm:hidden hover:bg-muted"
                 onClick={() => setPanelOpen(false)}
               >
                 <ChevronRight className="h-5 w-5" />
@@ -1762,36 +1885,36 @@ export default function TimekeepingPage() {
                           Edit Time Log
                         </DropdownMenuItem>
 
-                        <DropdownMenuItem 
+                        <DropdownMenuItem
                           className="text-xs font-bold gap-2 text-destructive focus:bg-destructive/10 focus:text-destructive"
                           onClick={() => handleDeleteLog(log)}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                           Delete Log
                         </DropdownMenuItem>
-                        
+
                         <DropdownMenuSeparator />
-                        
+
                         <DropdownMenuSub>
                           <DropdownMenuSubTrigger className="text-xs font-bold gap-2">
                             <Activity className="w-3.5 h-3.5" />
                             Set Status
                           </DropdownMenuSubTrigger>
                           <DropdownMenuSubContent className="w-40">
-                            <DropdownMenuItem 
+                            <DropdownMenuItem
                               className="text-xs font-bold"
                               onClick={() => handleSetStatus(log.employee_id, "Absent")}
                             >
                               Absent
                             </DropdownMenuItem>
 
-                            <DropdownMenuItem 
+                            <DropdownMenuItem
                               className="text-xs font-bold"
                               onClick={() => handleSetStatus(log.employee_id, "On Leave")}
                             >
                               On Leave
                             </DropdownMenuItem>
-                            
+
                             <DropdownMenuSeparator />
 
                             <DropdownMenuSub>
@@ -1845,8 +1968,8 @@ export default function TimekeepingPage() {
 
                   {["On Leave", "Absent", "Work From Home", "Remote", "Late", "Weekend"].includes(log.status) && !log.time_in ? (
                     <div className="mt-1">
-                      <Badge 
-                        variant="outline" 
+                      <Badge
+                        variant="outline"
                         className={cn(
                           "text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md",
                           log.status === "On Leave" && "bg-blue-500/10 text-blue-600 border-blue-500/20",

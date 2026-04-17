@@ -31,12 +31,6 @@ export function DatePicker({ holidays = [] }: DatePickerProps) {
       <SidebarGroupContent>
         <Calendar
           className="[&_[role=gridcell].bg-accent]:bg-sidebar-primary [&_[role=gridcell].bg-accent]:text-sidebar-primary-foreground [&_[role=gridcell]]:w-[33px]"
-          modifiers={{
-            holiday: holidayDates,
-          }}
-          modifiersClassNames={{
-            holiday: "bg-red-200 text-red-900 font-bold rounded-md",
-          }}
           
         />
 {upcomingHolidays.length > 0 && (

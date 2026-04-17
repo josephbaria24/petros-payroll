@@ -82,8 +82,11 @@ type AttendanceDetail = {
   employee_id: string
   employee_name: string
   totalLateMinutes: number
-  calculatedDeduction: number
+  calculatedDeduction: number // total
+  lateDeduction: number
+  absenceDeduction: number
   daysLate: number
+  daysAbsent: number
   dailyRate: number
   profile_picture_url?: string | null
   logs: any[]
@@ -289,6 +292,7 @@ export default function GeneratePayrollPage() {
 
         let totalLateMinutes = 0
         let daysLate = 0
+        let daysAbsent = 0
         const fullPeriodLogs: any[] = []
         let current = new Date(periodStart);
         
@@ -321,7 +325,12 @@ export default function GeneratePayrollPage() {
             dayLateMins = 0;
           }
 
-          if (dayLateMins > 0) {
+          let dayDeduction = 0;
+          if (finalStatus === "Absent") {
+            dayDeduction = dailyRate;
+            daysAbsent++;
+          } else if (dayLateMins > 0) {
+            dayDeduction = (dayLateMins / 60) * (dailyRate / 8);
             totalLateMinutes += dayLateMins;
             daysLate++;
           }
@@ -331,7 +340,7 @@ export default function GeneratePayrollPage() {
             time_in: firstIn ? extractPhilippineTime(firstIn.timestamp) : null,
             time_out: firstOut ? extractPhilippineTime(firstOut.timestamp) : null,
             lateMins: dayLateMins,
-            deduction: (dayLateMins / 60) * (dailyRate / 8),
+            deduction: dayDeduction,
             status: finalStatus,
             in_id: overrideLog?.id || firstIn?.id || null,
             out_id: firstOut?.id || null,
@@ -340,14 +349,19 @@ export default function GeneratePayrollPage() {
           current.setDate(current.getDate() + 1);
         }
         
-        const deduction = (dailyRate / 8) * (totalLateMinutes / 60)
+        const lateDeduction = (dailyRate / 8) * (totalLateMinutes / 60)
+        const absenceDeduction = dailyRate * daysAbsent
+        const totalDeduction = lateDeduction + absenceDeduction
 
         attendanceMap.set(emp.id, {
           employee_id: emp.id,
           employee_name: emp.full_name,
           totalLateMinutes,
-          calculatedDeduction: Math.round(deduction * 100) / 100,
+          calculatedDeduction: Math.round(totalDeduction * 100) / 100,
+          lateDeduction: Math.round(lateDeduction * 100) / 100,
+          absenceDeduction: Math.round(absenceDeduction * 100) / 100,
           daysLate,
+          daysAbsent,
           dailyRate: Math.round(dailyRate * 100) / 100,
           profile_picture_url: emp.profile_picture_url,
           logs: fullPeriodLogs
@@ -455,28 +469,30 @@ export default function GeneratePayrollPage() {
       toast.error("No employees selected")
       return
     }
-    const toApply = attendanceDetails.filter(d => selectedLateIds.has(d.employee_id) && d.daysLate > 0)
+    const toApply = attendanceDetails.filter(d => selectedLateIds.has(d.employee_id) && d.calculatedDeduction > 0)
     toApply.forEach(detail => {
       const idx = employeeAdjustments.findIndex(a => a.employee_id === detail.employee_id)
       if (idx !== -1) {
         const updated = [...employeeAdjustments]
-        updated[idx].lateDeduction = detail.calculatedDeduction
+        updated[idx].lateDeduction = detail.lateDeduction
+        updated[idx].absenceDays = detail.daysAbsent
+        updated[idx].absenceAmountPerDay = detail.dailyRate
         setEmployeeAdjustments(updated)
       } else {
         setEmployeeAdjustments(prev => [...prev, {
           employee_id: detail.employee_id,
-          absenceDays: 0,
-          absenceAmountPerDay: 0,
+          absenceDays: detail.daysAbsent,
+          absenceAmountPerDay: detail.dailyRate,
           overtimeEntries: [],
-          lateDeduction: detail.calculatedDeduction
+          lateDeduction: detail.lateDeduction
         }])
       }
     })
-    toast.success(`Applied late deductions for ${toApply.length} employee(s)`)
+    toast.success(`Applied attendance deductions for ${toApply.length} employee(s)`)
     setSelectedLateIds(new Set())
   }
 
-  const lateEmployees = useMemo(() => attendanceDetails.filter(d => d.daysLate > 0), [attendanceDetails])
+  const lateEmployees = useMemo(() => attendanceDetails.filter(d => d.calculatedDeduction > 0), [attendanceDetails])
 
   const toggleLateSelection = (id: string) => {
     setSelectedLateIds(prev => {
@@ -832,8 +848,8 @@ export default function GeneratePayrollPage() {
             <TabsContent value="attendance" className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
                <div className="flex items-center justify-between mb-4">
                  <div>
-                   <h2 className="text-xl font-black">Late Tracking</h2>
-                   <p className="text-sm text-muted-foreground font-medium">Automatic deduction calculation from logs</p>
+                   <h2 className="text-xl font-black">Attendance Tracker</h2>
+                   <p className="text-sm text-muted-foreground font-medium">Automatic deduction calculation (Lates & Absences)</p>
                  </div>
                  <div className="flex gap-2">
                     <Button variant="outline" size="sm" onClick={fetchAttendanceAndCalculateLates} disabled={attendanceLoading}>
@@ -887,7 +903,11 @@ export default function GeneratePayrollPage() {
                            </div>
                            <div onClick={() => { setSelectedAttendanceDetail(detail); setAttendanceDetailOpen(true); }}>
                              <CardTitle className="text-sm">{detail.employee_name}</CardTitle>
-                             <CardDescription className="text-[10px] font-bold uppercase tracking-wider">{detail.daysLate} Days Late</CardDescription>
+                             <CardDescription className="text-[10px] font-bold uppercase tracking-wider">
+                                {detail.daysLate > 0 && <span>{detail.daysLate} Late </span>}
+                                {detail.daysAbsent > 0 && <span>• {detail.daysAbsent} Absent</span>}
+                                {detail.daysLate === 0 && detail.daysAbsent === 0 && <span>On Time</span>}
+                             </CardDescription>
                            </div>
                          </div>
                          <div className="text-right" onClick={() => { setSelectedAttendanceDetail(detail); setAttendanceDetailOpen(true); }}>
@@ -931,8 +951,8 @@ export default function GeneratePayrollPage() {
                               <Badge key="idtag" className="bg-primary/10 text-primary border-0 text-[9px] uppercase">ID: {adj.employee_id.substring(0,6)}</Badge>
                             </div>
                             
-                            {adj.lateDeduction && (
-                              <div className="p-3 bg-red-50 rounded-xl border border-red-100 flex items-center justify-between group">
+                            {adj.lateDeduction && adj.lateDeduction > 0 ? (
+                              <div className="p-3 bg-red-50 rounded-xl border border-red-100 flex items-center justify-between group mb-2">
                                 <div>
                                   <p className="text-[9px] font-black text-red-400 uppercase tracking-widest">Attendance Late</p>
                                   <p className="text-sm font-black text-red-600">- ₱{adj.lateDeduction.toLocaleString()}</p>
@@ -941,7 +961,20 @@ export default function GeneratePayrollPage() {
                                   <X className="h-3 w-3" />
                                 </Button>
                               </div>
-                            )}
+                            ) : null}
+
+                            {adj.absenceDays && adj.absenceDays > 0 ? (
+                              <div className="p-3 bg-red-50 rounded-xl border border-red-100 flex items-center justify-between group">
+                                <div>
+                                  <p className="text-[9px] font-black text-red-400 uppercase tracking-widest">Attendance Absence</p>
+                                  <p className="text-sm font-black text-red-600">- ₱{(adj.absenceDays * adj.absenceAmountPerDay).toLocaleString()}</p>
+                                  <p className="text-[8px] text-red-400 font-bold">{adj.absenceDays} Days x ₱{adj.absenceAmountPerDay.toLocaleString()}</p>
+                                </div>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-red-300 hover:text-red-500 hover:bg-transparent" onClick={() => updateEmployeeAdjustment(index, "absenceDays", 0)}>
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            ) : null}
                           </div>
                           <div className="p-6 flex-1 grid grid-cols-2 lg:grid-cols-4 gap-6">
                             <div className="space-y-2">
@@ -987,10 +1020,14 @@ export default function GeneratePayrollPage() {
           </div>
           
           <div className="p-8 max-h-[60vh] overflow-y-auto space-y-4 bg-muted/5">
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-4 gap-4">
               <div className="p-4 bg-white rounded-2xl shadow-sm border border-border/30">
                 <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Total Lates</p>
                 <p className="text-xl font-black text-red-600">{selectedAttendanceDetail?.daysLate} Days</p>
+              </div>
+              <div className="p-4 bg-white rounded-2xl shadow-sm border border-border/30">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Total Absences</p>
+                <p className="text-xl font-black text-red-600">{selectedAttendanceDetail?.daysAbsent} Days</p>
               </div>
               <div className="p-4 bg-white rounded-2xl shadow-sm border border-border/30">
                 <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Total Minutes</p>
@@ -1021,7 +1058,7 @@ export default function GeneratePayrollPage() {
                     const isEditingStatus = editingCell?.rowIdx === i && editingCell?.field === "status";
 
                     return (
-                      <TableRow key={i} className={cn("hover:bg-muted/10 border-border/40", log.lateMins > 0 && "bg-red-50/20")}>
+                      <TableRow key={i} className={cn("hover:bg-muted/10 border-border/40", (log.lateMins > 0 || log.status === "Absent") && "bg-red-50/20")}>
                         <TableCell className="text-[11px] font-bold py-3 pl-4">{format(new Date(log.date), "MMM d, EEE")}</TableCell>
                         
                         {/* Time In */}

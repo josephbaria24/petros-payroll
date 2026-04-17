@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from "react"
 import { format, startOfWeek, endOfWeek, addDays, isSameDay, differenceInWeeks, isBefore, startOfDay } from "date-fns"
 import { supabase } from "@/lib/supabaseClient"
 import { useOrganization } from "@/contexts/OrganizationContext"
+import { useHoliday } from "@/contexts/HolidayContext"
 import { cn } from "@/lib/utils"
 import { 
   Clock, 
@@ -70,6 +71,7 @@ type TimeLog = {
 
 export default function TimeSheetPage() {
   const { activeOrganization } = useOrganization()
+  const { holidayMap } = useHoliday()
   const [loading, setLoading] = useState(true)
   const [employee, setEmployee] = useState<any>(null)
   const [todayLog, setTodayLog] = useState<any>(null)
@@ -502,6 +504,11 @@ export default function TimeSheetPage() {
                                   tooltipContent = `${hrs} Hours - ${computeWorkingHours(log) >= 8 ? "Full Day Completed" : "Partial Day"}`
                                 } else if (date.getDay() === 0 || date.getDay() === 6) {
                                   tooltipContent = "Weekend"
+                                }
+
+                                const hName = holidayMap[format(date, "yyyy-MM-dd")]
+                                if (hName) {
+                                  tooltipContent = log ? `${hName} (${tooltipContent})` : hName
                                 }
 
                                 return (

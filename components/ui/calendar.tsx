@@ -10,6 +10,9 @@ import { DayButton, DayPicker, getDefaultClassNames } from "react-day-picker"
 
 import { cn } from "@/lib/utils"
 import { Button, buttonVariants } from "@/components/ui/button"
+import { useHoliday } from "@/contexts/HolidayContext"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { format } from "date-fns"
 
 function Calendar({
   className,
@@ -19,11 +22,14 @@ function Calendar({
   buttonVariant = "ghost",
   formatters,
   components,
+  modifiers,
+  modifiersClassNames,
   ...props
 }: React.ComponentProps<typeof DayPicker> & {
   buttonVariant?: React.ComponentProps<typeof Button>["variant"]
 }) {
   const defaultClassNames = getDefaultClassNames()
+  const { holidayDates } = useHoliday()
 
   return (
     <DayPicker
@@ -124,6 +130,14 @@ function Calendar({
         hidden: cn("invisible", defaultClassNames.hidden),
         ...classNames,
       }}
+      modifiers={{
+        holiday: holidayDates,
+        ...modifiers,
+      }}
+      modifiersClassNames={{
+        holiday: "bg-orange-500 text-white font-black hover:bg-orange-600 hover:text-white rounded-md",
+        ...modifiersClassNames,
+      }}
       components={{
         Root: ({ className, rootRef, ...props }) => {
           return (
@@ -155,7 +169,25 @@ function Calendar({
             <ChevronDownIcon className={cn("size-4", className)} {...props} />
           )
         },
-        DayButton: CalendarDayButton,
+        DayButton: (props) => {
+          const { holidayMap } = useHoliday()
+          const dateStr = format(props.day.date, "yyyy-MM-dd")
+          const holidayName = holidayMap[dateStr]
+          
+          if (holidayName) {
+            return (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <CalendarDayButton {...props} />
+                </TooltipTrigger>
+                <TooltipContent side="top" className="bg-orange-600 text-white font-bold px-3 py-1.5 border-none shadow-xl">
+                  {holidayName}
+                </TooltipContent>
+              </Tooltip>
+            )
+          }
+          return <CalendarDayButton {...props} />
+        },
         WeekNumber: ({ children, ...props }) => {
           return (
             <td {...props}>

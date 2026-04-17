@@ -6,6 +6,7 @@ import { LayoutShell } from "@/components/layout-shell"
 import { ThemeWrapper } from "@/components/theme-wrapper"
 import { TeamTransition } from "@/components/team-transition"
 import { OrganizationProvider } from "@/contexts/OrganizationContext"
+import { HolidayProvider } from "@/contexts/HolidayContext"
 import { supabase } from "@/lib/supabaseClient"
 import { Toaster as SileoToaster } from "sileo"
 
@@ -14,11 +15,13 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     <SessionContextProvider supabaseClient={supabase}>
       <ThemeProvider attribute="class" defaultTheme="light" forcedTheme="light" enableSystem={false} disableTransitionOnChange>
         <OrganizationProvider>
-          <ThemeWrapper>
-            <TeamTransition />
-            <LayoutShell>{children}</LayoutShell>
-            <SileoToaster position="top-center" theme="dark" />
-          </ThemeWrapper>
+          <HolidayProvider>
+            <ThemeWrapper>
+              <TeamTransition />
+              <LayoutShell>{children}</LayoutShell>
+              <SileoToaster position="top-center" theme="dark" />
+            </ThemeWrapper>
+          </HolidayProvider>
         </OrganizationProvider>
       </ThemeProvider>
     </SessionContextProvider>
