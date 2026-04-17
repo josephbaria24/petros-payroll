@@ -681,34 +681,35 @@ export default function GeneratePayrollPage() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-background text-foreground overflow-hidden">
+    <div className="flex flex-col min-h-screen lg:h-screen bg-background text-foreground overflow-y-auto lg:overflow-hidden">
       {/* Header */}
-      <header className="flex items-center justify-between px-6 py-4 border-b border-border bg-card/50 backdrop-blur-md sticky top-0 z-50">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => router.push("/payroll")}>
-            <ChevronLeft className="h-5 w-5" />
+      <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 py-3 lg:px-6 lg:py-4 border-b border-border bg-card/50 backdrop-blur-md sticky top-0 z-50 gap-4 sm:gap-2">
+        <div className="flex items-center gap-3 lg:gap-4 w-full sm:w-auto">
+          <Button variant="ghost" size="icon" className="h-8 w-8 lg:h-10 lg:w-10" onClick={() => router.push("/payroll")}>
+            <ChevronLeft className="h-4 w-4 lg:h-5 lg:w-5" />
           </Button>
           <div>
-            <h1 className="text-2xl font-black tracking-tight">Generate Payroll</h1>
-            <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
-              Payroll Management <ArrowRight className="inline h-3 w-3" /> New Period
+            <h1 className="text-lg lg:text-2xl font-black tracking-tight leading-tight">Generate Payroll</h1>
+            <p className="text-[9px] lg:text-xs font-bold text-muted-foreground uppercase tracking-widest hidden xs:block">
+              Payroll Management <ArrowRight className="inline h-2 w-2 lg:h-3 lg:w-3" /> New Period
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className="px-3 py-1 bg-primary/5 text-primary border-primary/20 font-bold">
+        <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
+          <Badge variant="outline" className="px-2 py-0.5 lg:px-3 lg:py-1 bg-primary/5 text-primary border-primary/20 font-bold text-[10px] lg:text-xs">
             {activeOrganization?.toUpperCase() || "PETROSPHERE"}
           </Badge>
-          <Button className="bg-primary hover:bg-primary/90 font-bold shadow-lg" onClick={handleBulkGeneratePayroll}>
-            <Calculator className="h-4 w-4 mr-2" />
-            Generate All
+          <Button className="bg-primary hover:bg-primary/90 font-bold shadow-lg h-8 lg:h-10 text-xs lg:text-sm px-3 lg:px-4 shrink-0" onClick={handleBulkGeneratePayroll}>
+            <Calculator className="h-3.5 w-3.5 lg:h-4 lg:w-4 mr-1.5 lg:mr-2" />
+            <span className="hidden xs:inline">Generate All</span>
+            <span className="xs:hidden">Generate</span>
           </Button>
         </div>
       </header>
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-col lg:flex-row flex-1 overflow-y-auto lg:overflow-hidden">
         {/* Sidebar Config */}
-        <aside className="w-80 border-r border-border bg-muted/20 p-6 overflow-y-auto space-y-8">
+        <aside className="w-full lg:w-80 border-b lg:border-b-0 lg:border-r border-border bg-muted/20 p-4 lg:p-6 overflow-y-auto space-y-6 lg:space-y-8">
           <div className="space-y-4">
             <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Period Configuration</h3>
             
@@ -768,16 +769,18 @@ export default function GeneratePayrollPage() {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-y-auto p-8 relative">
+        <main className="flex-1 lg:overflow-y-auto p-4 lg:p-8 relative">
           <Tabs defaultValue="attendance" className="w-full">
-            <TabsList className="grid w-fit grid-cols-3 bg-muted/30 p-1 mb-8">
+            <div className="overflow-x-auto pb-2 mb-6 scrollbar-hide">
+              <TabsList className="flex w-max lg:grid lg:w-fit grid-cols-3 bg-muted/30 p-1">
               <TabsTrigger value="requests" className="font-bold px-6">
                 Requests 
                 {pendingRequests.length > 0 && <Badge className="ml-2 bg-red-500">{pendingRequests.length}</Badge>}
               </TabsTrigger>
               <TabsTrigger value="attendance" className="font-bold px-6">Attendance Logs</TabsTrigger>
               <TabsTrigger value="adjustments" className="font-bold px-6">Adjustments</TabsTrigger>
-            </TabsList>
+              </TabsList>
+            </div>
 
             <TabsContent value="requests" className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
                <Card className="border-border/50 shadow-sm overflow-hidden">
@@ -843,58 +846,59 @@ export default function GeneratePayrollPage() {
                   </TableBody>
                 </Table>
                </Card>
-            </TabsContent>
+             </TabsContent>
 
-            <TabsContent value="attendance" className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
-               <div className="flex items-center justify-between mb-4">
+             <TabsContent value="attendance" className="space-y-4 lg:space-y-6 animate-in fade-in slide-in-from-bottom-2 focus-visible:outline-none">
+               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
                  <div>
-                   <h2 className="text-xl font-black">Attendance Tracker</h2>
-                   <p className="text-sm text-muted-foreground font-medium">Automatic deduction calculation (Lates & Absences)</p>
+                   <h2 className="text-lg lg:text-xl font-black">Attendance Tracker</h2>
+                   <p className="text-[11px] lg:text-sm text-muted-foreground font-medium">Automatic deduction calculation (Lates & Absences)</p>
                  </div>
-                 <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={fetchAttendanceAndCalculateLates} disabled={attendanceLoading}>
-                      <TrendingUp className="h-4 w-4 mr-2" />
+                 <div className="flex gap-2 w-full sm:w-auto">
+                    <Button variant="outline" size="sm" className="flex-1 sm:flex-none h-9 text-xs font-bold" onClick={fetchAttendanceAndCalculateLates} disabled={attendanceLoading}>
+                      <TrendingUp className="h-3.5 w-3.5 mr-2" />
                       Recalculate
                     </Button>
-                    <Button size="sm" onClick={applyAttendanceDeductions} disabled={selectedLateIds.size === 0}>
-                      <CheckCircle2 className="h-4 w-4 mr-2" />
+                    <Button size="sm" className="flex-1 sm:flex-none h-9 text-xs font-bold" onClick={applyAttendanceDeductions} disabled={selectedLateIds.size === 0}>
+                      <CheckCircle2 className="h-3.5 w-3.5 mr-2" />
                       Apply Selected ({selectedLateIds.size})
                     </Button>
                  </div>
                </div>
 
                {attendanceLoading ? (
-                 <div className="h-64 flex flex-col items-center justify-center bg-muted/10 rounded-3xl border border-dashed border-border gap-4">
-                   <div className="h-10 w-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-                   <p className="font-bold text-muted-foreground">Analyzing check-ins...</p>
+                 <div className="h-48 lg:h-64 flex flex-col items-center justify-center bg-muted/10 rounded-2xl lg:rounded-3xl border border-dashed border-border gap-3 lg:gap-4">
+                   <div className="h-8 w-8 lg:h-10 lg:w-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                   <p className="text-xs lg:text-sm font-bold text-muted-foreground">Analyzing check-ins...</p>
                  </div>
                ) : (
                  <>
                  {lateEmployees.length > 0 && (
-                   <div className="flex items-center gap-2 mb-2">
+                   <div className="flex items-center gap-2 mb-3">
                      <Checkbox
                        id="select-all-lates"
                        checked={selectedLateIds.size === lateEmployees.length && lateEmployees.length > 0}
                        onCheckedChange={toggleSelectAllLates}
+                       className="h-4 w-4"
                      />
-                     <label htmlFor="select-all-lates" className="text-xs font-bold text-muted-foreground cursor-pointer select-none">
+                     <label htmlFor="select-all-lates" className="text-[10px] lg:text-xs font-bold text-muted-foreground cursor-pointer select-none">
                        {selectedLateIds.size === lateEmployees.length ? "Deselect All" : "Select All"} ({lateEmployees.length})
                      </label>
                    </div>
                  )}
-                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-2 gap-3 lg:gap-4">
                    {lateEmployees.map(detail => {
                      const isSelected = selectedLateIds.has(detail.employee_id)
                      return (
                      <Card key={detail.employee_id} className={cn("cursor-pointer transition-all shadow-sm group", isSelected ? "border-primary/60 bg-primary/[0.02] ring-1 ring-primary/20" : "hover:border-primary/40")}>
-                       <CardHeader className="flex flex-row items-center justify-between py-4">
+                       <CardHeader className="flex flex-row items-center justify-between py-3 lg:py-4 px-4">
                          <div className="flex items-center gap-3">
                            <Checkbox
                              checked={isSelected}
                              onCheckedChange={() => toggleLateSelection(detail.employee_id)}
-                             className="shrink-0"
+                             className="shrink-0 h-4 w-4"
                            />
-                           <div className="h-10 w-10 shrink-0 rounded-full bg-primary/10 flex items-center justify-center font-black text-primary overflow-hidden border-2 border-transparent group-hover:border-primary/20 transition-all" onClick={() => { setSelectedAttendanceDetail(detail); setAttendanceDetailOpen(true); }}>
+                           <div className="h-8 w-8 lg:h-10 lg:w-10 shrink-0 rounded-full bg-primary/10 flex items-center justify-center font-black text-primary overflow-hidden border-2 border-transparent group-hover:border-primary/20 transition-all text-xs lg:text-base" onClick={() => { setSelectedAttendanceDetail(detail); setAttendanceDetailOpen(true); }}>
                              {detail.profile_picture_url ? (
                                <img src={detail.profile_picture_url} className="w-full h-full object-cover" alt={detail.employee_name} />
                              ) : (
@@ -902,8 +906,8 @@ export default function GeneratePayrollPage() {
                              )}
                            </div>
                            <div onClick={() => { setSelectedAttendanceDetail(detail); setAttendanceDetailOpen(true); }}>
-                             <CardTitle className="text-sm">{detail.employee_name}</CardTitle>
-                             <CardDescription className="text-[10px] font-bold uppercase tracking-wider">
+                             <CardTitle className="text-xs lg:text-sm">{detail.employee_name}</CardTitle>
+                             <CardDescription className="text-[9px] lg:text-[10px] font-bold uppercase tracking-wider">
                                 {detail.daysLate > 0 && <span>{detail.daysLate} Late </span>}
                                 {detail.daysAbsent > 0 && <span>• {detail.daysAbsent} Absent</span>}
                                 {detail.daysLate === 0 && detail.daysAbsent === 0 && <span>On Time</span>}
@@ -911,16 +915,16 @@ export default function GeneratePayrollPage() {
                            </div>
                          </div>
                          <div className="text-right" onClick={() => { setSelectedAttendanceDetail(detail); setAttendanceDetailOpen(true); }}>
-                           <p className="text-lg font-black text-red-600">₱{detail.calculatedDeduction.toLocaleString()}</p>
-                           <p className="text-[10px] font-bold text-muted-foreground uppercase">{detail.totalLateMinutes} mins total</p>
+                           <p className="text-base lg:text-lg font-black text-red-600">₱{detail.calculatedDeduction.toLocaleString()}</p>
+                           <p className="text-[9px] lg:text-[10px] font-bold text-muted-foreground uppercase">{detail.totalLateMinutes} mins total</p>
                          </div>
                        </CardHeader>
                      </Card>
                    )})}
                    {lateEmployees.length === 0 && (
-                     <div className="col-span-full h-48 flex flex-col items-center justify-center bg-muted/10 rounded-3xl border border-dashed border-border">
-                        <Clock className="h-8 w-8 text-muted-foreground mb-2 opacity-30" />
-                        <p className="font-bold text-muted-foreground">Everything looks on time! No late arrivals found.</p>
+                     <div className="col-span-full h-32 lg:h-48 flex flex-col items-center justify-center bg-muted/10 rounded-2xl lg:rounded-3xl border border-dashed border-border p-4 text-center">
+                        <Clock className="h-6 w-6 lg:h-8 lg:w-8 text-muted-foreground mb-2 opacity-30" />
+                        <p className="text-xs lg:text-sm font-bold text-muted-foreground">Everything looks on time! No arrivals found.</p>
                      </div>
                    )}
                  </div>
@@ -928,14 +932,14 @@ export default function GeneratePayrollPage() {
                )}
             </TabsContent>
 
-            <TabsContent value="adjustments" className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
-               <div className="flex items-center justify-between">
+            <TabsContent value="adjustments" className="space-y-4 lg:space-y-6 animate-in fade-in slide-in-from-bottom-2 focus-visible:outline-none">
+               <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-3">
-                    <h2 className="text-xl font-black">Manual Adjustments</h2>
+                    <h2 className="text-lg lg:text-xl font-black">Manual Adjustments</h2>
                     <Badge variant="outline" className="font-bold">{employeeAdjustments.length}</Badge>
                   </div>
-                  <Button onClick={addEmployeeAdjustment} variant="outline" size="sm">
-                    <Plus className="h-4 w-4 mr-2" /> Add Employee
+                  <Button onClick={addEmployeeAdjustment} variant="outline" size="sm" className="h-8 text-[10px] sm:text-xs font-bold">
+                    <Plus className="h-3.5 w-3.5 mr-1" /> <span className="hidden xs:inline">Add Employee</span><span className="xs:hidden">Add</span>
                   </Button>
                </div>
 
@@ -943,58 +947,60 @@ export default function GeneratePayrollPage() {
                  {employeeAdjustments.map((adj, index) => {
                    const empName = attendanceDetails.find(d => d.employee_id === adj.employee_id)?.employee_name || "Unknown Employee"
                    return (
-                     <Card key={adj.employee_id} className="overflow-hidden border-border/60">
-                        <div className="flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-border">
-                          <div className="p-6 bg-muted/10 md:w-1/3">
-                            <div className="flex items-center gap-2 mb-4">
-                              <h3 className="font-black text-sm">{empName}</h3>
-                              <Badge key="idtag" className="bg-primary/10 text-primary border-0 text-[9px] uppercase">ID: {adj.employee_id.substring(0,6)}</Badge>
+                     <Card key={adj.employee_id} className="overflow-hidden border-border/60 shadow-sm">
+                        <div className="flex flex-col lg:flex-row divide-y lg:divide-y-0 lg:divide-x divide-border">
+                          <div className="p-4 lg:p-6 bg-muted/10 lg:w-1/3 space-y-3">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h3 className="font-black text-sm lg:text-base">{empName}</h3>
+                              <Badge key="idtag" className="bg-primary/10 text-primary border-0 text-[8px] lg:text-[9px] uppercase">ID: {adj.employee_id.substring(0,6)}</Badge>
                             </div>
                             
-                            {adj.lateDeduction && adj.lateDeduction > 0 ? (
-                              <div className="p-3 bg-red-50 rounded-xl border border-red-100 flex items-center justify-between group mb-2">
-                                <div>
-                                  <p className="text-[9px] font-black text-red-400 uppercase tracking-widest">Attendance Late</p>
-                                  <p className="text-sm font-black text-red-600">- ₱{adj.lateDeduction.toLocaleString()}</p>
+                            <div className="space-y-2">
+                              {adj.lateDeduction && adj.lateDeduction > 0 ? (
+                                <div className="p-2.5 bg-red-50 rounded-xl border border-red-100 flex items-center justify-between group">
+                                  <div>
+                                    <p className="text-[8px] font-black text-red-500 uppercase tracking-widest">Attendance Late</p>
+                                    <p className="text-xs font-black text-red-600">- ₱{adj.lateDeduction.toLocaleString()}</p>
+                                  </div>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-red-300 hover:text-red-500" onClick={() => updateEmployeeAdjustment(index, "lateDeduction", 0)}>
+                                    <X className="h-3 w-3" />
+                                  </Button>
                                 </div>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-red-300 hover:text-red-500 hover:bg-transparent" onClick={() => updateEmployeeAdjustment(index, "lateDeduction", 0)}>
-                                  <X className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            ) : null}
+                              ) : null}
 
-                            {adj.absenceDays && adj.absenceDays > 0 ? (
-                              <div className="p-3 bg-red-50 rounded-xl border border-red-100 flex items-center justify-between group">
-                                <div>
-                                  <p className="text-[9px] font-black text-red-400 uppercase tracking-widest">Attendance Absence</p>
-                                  <p className="text-sm font-black text-red-600">- ₱{(adj.absenceDays * adj.absenceAmountPerDay).toLocaleString()}</p>
-                                  <p className="text-[8px] text-red-400 font-bold">{adj.absenceDays} Days x ₱{adj.absenceAmountPerDay.toLocaleString()}</p>
+                              {adj.absenceDays && adj.absenceDays > 0 ? (
+                                <div className="p-2.5 bg-red-50 rounded-xl border border-red-100 flex items-center justify-between group">
+                                  <div>
+                                    <p className="text-[8px] font-black text-red-500 uppercase tracking-widest">Attendance Absence</p>
+                                    <p className="text-xs font-black text-red-600">- ₱{(adj.absenceDays * adj.absenceAmountPerDay).toLocaleString()}</p>
+                                    <p className="text-[7px] text-red-400 font-bold uppercase">{adj.absenceDays} Days x ₱{adj.absenceAmountPerDay.toLocaleString()}</p>
+                                  </div>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-red-300 hover:text-red-500" onClick={() => updateEmployeeAdjustment(index, "absenceDays", 0)}>
+                                    <X className="h-3 w-3" />
+                                  </Button>
                                 </div>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-red-300 hover:text-red-500 hover:bg-transparent" onClick={() => updateEmployeeAdjustment(index, "absenceDays", 0)}>
-                                  <X className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            ) : null}
+                              ) : null}
+                            </div>
                           </div>
-                          <div className="p-6 flex-1 grid grid-cols-2 lg:grid-cols-4 gap-6">
-                            <div className="space-y-2">
-                              <Label className="text-[10px] font-black text-muted-foreground uppercase">Absence Days</Label>
-                              <Input type="number" className="font-bold h-9" value={adj.absenceDays} onChange={(e) => updateEmployeeAdjustment(index, "absenceDays", parseFloat(e.target.value))} />
+                          <div className="p-4 lg:p-6 flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+                            <div className="space-y-1.5">
+                              <Label className="text-[9px] lg:text-[10px] font-black text-muted-foreground uppercase">Absence Days</Label>
+                              <Input type="number" className="font-bold h-8 lg:h-9 text-xs" value={adj.absenceDays} onChange={(e) => updateEmployeeAdjustment(index, "absenceDays", parseFloat(e.target.value))} />
                             </div>
-                            <div className="space-y-2">
-                              <Label className="text-[10px] font-black text-muted-foreground uppercase">Cash Advance</Label>
-                              <Input type="number" className="font-bold h-9" value={adj.cashAdvance || ""} onChange={(e) => updateEmployeeAdjustment(index, "cashAdvance", parseFloat(e.target.value))} />
+                            <div className="space-y-1.5">
+                              <Label className="text-[9px] lg:text-[10px] font-black text-muted-foreground uppercase">Cash Advance</Label>
+                              <Input type="number" className="font-bold h-8 lg:h-9 text-xs" value={adj.cashAdvance || ""} onChange={(e) => updateEmployeeAdjustment(index, "cashAdvance", parseFloat(e.target.value))} />
                             </div>
-                            <div className="space-y-2">
-                              <Label className="text-[10px] font-black text-muted-foreground uppercase">OT Hours</Label>
+                            <div className="space-y-1.5">
+                              <Label className="text-[9px] lg:text-[10px] font-black text-muted-foreground uppercase">OT Hours</Label>
                               <div className="flex items-center gap-2">
-                                <Badge className="h-9 px-3 bg-muted text-foreground border-border">{adj.overtimeEntries.reduce((s, o) => s + o.hours, 0)}h</Badge>
-                                <Button variant="ghost" size="sm" className="h-9 w-9 p-0 border border-border"><Plus className="h-4 w-4" /></Button>
+                                <Badge className="h-8 lg:h-9 px-3 bg-muted text-foreground border-border text-xs">{adj.overtimeEntries.reduce((s, o) => s + o.hours, 0)}h</Badge>
+                                <Button variant="ghost" size="sm" className="h-8 w-8 lg:h-9 lg:w-9 p-0 border border-border"><Plus className="h-4 w-4" /></Button>
                               </div>
                             </div>
-                            <div className="space-y-2">
-                              <Label className="text-[10px] font-black text-muted-foreground uppercase">Misc Deduct</Label>
-                              <Input type="number" className="font-bold h-9 border-red-100" value={adj.otherDeductions || ""} onChange={(e) => updateEmployeeAdjustment(index, "otherDeductions", parseFloat(e.target.value))} />
+                            <div className="space-y-1.5">
+                              <Label className="text-[9px] lg:text-[10px] font-black text-muted-foreground uppercase">Misc Deduct</Label>
+                              <Input type="number" className="font-bold h-8 lg:h-9 text-xs border-red-50" value={adj.otherDeductions || ""} onChange={(e) => updateEmployeeAdjustment(index, "otherDeductions", parseFloat(e.target.value))} />
                             </div>
                           </div>
                         </div>
@@ -1009,159 +1015,163 @@ export default function GeneratePayrollPage() {
 
        {/* Attendance Detail Modal */}
        <Dialog open={attendanceDetailOpen} onOpenChange={setAttendanceDetailOpen}>
-        <DialogContent className="max-w-3xl overflow-hidden rounded-3xl p-0 border-0 shadow-2xl">
-          <div className="p-8 bg-card border-b border-border/40">
+        <DialogContent className="w-[95%] sm:max-w-3xl overflow-hidden rounded-2xl lg:rounded-3xl p-0 border-0 shadow-2xl">
+          <div className="p-4 lg:p-8 bg-card border-b border-border/40">
             <DialogHeader>
-              <DialogTitle className="flex items-center justify-between">
-                <span className="text-2xl font-black">{selectedAttendanceDetail?.employee_name}</span>
-                <Badge variant="outline" className="font-bold border-primary text-primary">Daily Rate: ₱{selectedAttendanceDetail?.dailyRate.toLocaleString()}</Badge>
+              <DialogTitle className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <span className="text-xl lg:text-2xl font-black">{selectedAttendanceDetail?.employee_name}</span>
+                <Badge variant="outline" className="font-bold border-primary text-primary transition-colors text-[10px] lg:text-xs">Daily Rate: ₱{selectedAttendanceDetail?.dailyRate.toLocaleString()}</Badge>
               </DialogTitle>
             </DialogHeader>
           </div>
           
-          <div className="p-8 max-h-[60vh] overflow-y-auto space-y-4 bg-muted/5">
-            <div className="grid grid-cols-4 gap-4">
-              <div className="p-4 bg-white rounded-2xl shadow-sm border border-border/30">
-                <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Total Lates</p>
-                <p className="text-xl font-black text-red-600">{selectedAttendanceDetail?.daysLate} Days</p>
+          <div className="p-4 lg:p-8 max-h-[70vh] lg:max-h-[60vh] overflow-y-auto space-y-4 lg:space-y-6 bg-muted/5">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
+              <div className="p-3 lg:p-4 bg-white rounded-xl lg:rounded-2xl shadow-sm border border-border/30">
+                <p className="text-[9px] lg:text-[10px] font-bold text-muted-foreground uppercase mb-1">Total Lates</p>
+                <p className="text-sm lg:text-xl font-black text-red-600">{selectedAttendanceDetail?.daysLate} Days</p>
               </div>
-              <div className="p-4 bg-white rounded-2xl shadow-sm border border-border/30">
-                <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Total Absences</p>
-                <p className="text-xl font-black text-red-600">{selectedAttendanceDetail?.daysAbsent} Days</p>
+              <div className="p-3 lg:p-4 bg-white rounded-xl lg:rounded-2xl shadow-sm border border-border/30">
+                <p className="text-[9px] lg:text-[10px] font-bold text-muted-foreground uppercase mb-1">Total Absences</p>
+                <p className="text-sm lg:text-xl font-black text-red-600">{selectedAttendanceDetail?.daysAbsent} Days</p>
               </div>
-              <div className="p-4 bg-white rounded-2xl shadow-sm border border-border/30">
-                <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Total Minutes</p>
-                <p className="text-xl font-black">{selectedAttendanceDetail?.totalLateMinutes}m</p>
+              <div className="p-3 lg:p-4 bg-white rounded-xl lg:rounded-2xl shadow-sm border border-border/30">
+                <p className="text-[9px] lg:text-[10px] font-bold text-muted-foreground uppercase mb-1">Total Minutes</p>
+                <p className="text-sm lg:text-xl font-black">{selectedAttendanceDetail?.totalLateMinutes}m</p>
               </div>
-              <div className="p-4 bg-white rounded-2xl shadow-sm border border-border/30">
-                <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Calculated Cost</p>
-                <p className="text-xl font-black">₱{selectedAttendanceDetail?.calculatedDeduction.toLocaleString()}</p>
+              <div className="p-3 lg:p-4 bg-white rounded-xl lg:rounded-2xl shadow-sm border border-border/30">
+                <p className="text-[9px] lg:text-[10px] font-bold text-muted-foreground uppercase mb-1">Calculated Cost</p>
+                <p className="text-sm lg:text-xl font-black">₱{selectedAttendanceDetail?.calculatedDeduction.toLocaleString()}</p>
               </div>
             </div>
 
-            <div className="border border-border/60 rounded-2xl overflow-hidden bg-white">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/50">
-                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-muted-foreground pl-4">Date</TableHead>
-                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-muted-foreground text-center">Time In</TableHead>
-                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-muted-foreground text-center">Time Out</TableHead>
-                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-muted-foreground text-center">Late</TableHead>
-                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-muted-foreground text-center">Deduction</TableHead>
-                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-muted-foreground text-right pr-4">Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {selectedAttendanceDetail?.logs.map((log: LogEntry, i: number) => {
-                    const isEditingIn = editingCell?.rowIdx === i && editingCell?.field === "time_in";
-                    const isEditingOut = editingCell?.rowIdx === i && editingCell?.field === "time_out";
-                    const isEditingStatus = editingCell?.rowIdx === i && editingCell?.field === "status";
+            <div className="border border-border/60 rounded-xl lg:rounded-2xl overflow-hidden bg-white">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50">
+                      <TableHead className="text-[9px] lg:text-[10px] font-black uppercase tracking-widest text-muted-foreground pl-4">Date</TableHead>
+                      <TableHead className="text-[9px] lg:text-[10px] font-black uppercase tracking-widest text-muted-foreground text-center">Time In</TableHead>
+                      <TableHead className="text-[9px] lg:text-[10px] font-black uppercase tracking-widest text-muted-foreground text-center">Time Out</TableHead>
+                      <TableHead className="text-[9px] lg:text-[10px] font-black uppercase tracking-widest text-muted-foreground text-center">Late</TableHead>
+                      <TableHead className="text-[9px] lg:text-[10px] font-black uppercase tracking-widest text-muted-foreground text-center">Deduction</TableHead>
+                      <TableHead className="text-[9px] lg:text-[10px] font-black uppercase tracking-widest text-muted-foreground text-right pr-4">Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {selectedAttendanceDetail?.logs.map((log: LogEntry, i: number) => {
+                      const isEditingIn = editingCell?.rowIdx === i && editingCell?.field === "time_in";
+                      const isEditingOut = editingCell?.rowIdx === i && editingCell?.field === "time_out";
+                      const isEditingStatus = editingCell?.rowIdx === i && editingCell?.field === "status";
 
-                    return (
-                      <TableRow key={i} className={cn("hover:bg-muted/10 border-border/40", (log.lateMins > 0 || log.status === "Absent") && "bg-red-50/20")}>
-                        <TableCell className="text-[11px] font-bold py-3 pl-4">{format(new Date(log.date), "MMM d, EEE")}</TableCell>
-                        
-                        {/* Time In */}
-                        <TableCell 
-                          className="text-center font-mono text-[11px] cursor-pointer" 
-                          onDoubleClick={() => { setEditingCell({ rowIdx: i, field: "time_in" }); setEditValue(log.time_in || "08:00"); }}
-                        >
-                          {isEditingIn ? (
-                            <Input 
-                              type="time" 
-                              autoFocus 
-                              className="h-7 text-[11px] px-1 w-24 mx-auto font-bold" 
-                              value={editValue} 
-                              onChange={(e) => setEditValue(e.target.value)}
-                              onBlur={() => handleUpdateLog(log, "time_in", editValue)}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") handleUpdateLog(log, "time_in", editValue);
-                                if (e.key === "Escape") setEditingCell(null);
-                              }}
-                            />
-                          ) : (
-                            formatTo12Hour(log.time_in)
-                          )}
-                        </TableCell>
+                      return (
+                        <TableRow key={i} className={cn("hover:bg-muted/10 border-border/40", (log.lateMins > 0 || log.status === "Absent") && "bg-red-50/20")}>
+                          <TableCell className="text-[10px] lg:text-[11px] font-bold py-3 pl-4 whitespace-nowrap">{format(new Date(log.date), "MMM d, EEE")}</TableCell>
+                          
+                          {/* Time In */}
+                          <TableCell 
+                            className="text-center font-mono text-[10px] lg:text-[11px] cursor-pointer whitespace-nowrap" 
+                            onDoubleClick={() => { setEditingCell({ rowIdx: i, field: "time_in" }); setEditValue(log.time_in || "08:00"); }}
+                          >
+                            {isEditingIn ? (
+                              <Input 
+                                type="time" 
+                                autoFocus 
+                                className="h-7 text-[10px] px-1 w-20 lg:w-24 mx-auto font-bold" 
+                                value={editValue} 
+                                onChange={(e) => setEditValue(e.target.value)}
+                                onBlur={() => handleUpdateLog(log, "time_in", editValue)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") handleUpdateLog(log, "time_in", editValue);
+                                  if (e.key === "Escape") setEditingCell(null);
+                                }}
+                              />
+                            ) : (
+                              formatTo12Hour(log.time_in)
+                            )}
+                          </TableCell>
 
-                        {/* Time Out */}
-                        <TableCell 
-                          className="text-center font-mono text-[11px] cursor-pointer"
-                          onDoubleClick={() => { setEditingCell({ rowIdx: i, field: "time_out" }); setEditValue(log.time_out || "17:00"); }}
-                        >
-                          {isEditingOut ? (
-                            <Input 
-                              type="time" 
-                              autoFocus 
-                              className="h-7 text-[11px] px-1 w-24 mx-auto font-bold" 
-                              value={editValue} 
-                              onChange={(e) => setEditValue(e.target.value)}
-                              onBlur={() => handleUpdateLog(log, "time_out", editValue)}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") handleUpdateLog(log, "time_out", editValue);
-                                if (e.key === "Escape") setEditingCell(null);
-                              }}
-                            />
-                          ) : (
-                            formatTo12Hour(log.time_out)
-                          )}
-                        </TableCell>
+                          {/* Time Out */}
+                          <TableCell 
+                            className="text-center font-mono text-[10px] lg:text-[11px] cursor-pointer whitespace-nowrap"
+                            onDoubleClick={() => { setEditingCell({ rowIdx: i, field: "time_out" }); setEditValue(log.time_out || "17:00"); }}
+                          >
+                            {isEditingOut ? (
+                              <Input 
+                                type="time" 
+                                autoFocus 
+                                className="h-7 text-[10px] px-1 w-20 lg:w-24 mx-auto font-bold" 
+                                value={editValue} 
+                                onChange={(e) => setEditValue(e.target.value)}
+                                onBlur={() => handleUpdateLog(log, "time_out", editValue)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") handleUpdateLog(log, "time_out", editValue);
+                                  if (e.key === "Escape") setEditingCell(null);
+                                }}
+                              />
+                            ) : (
+                              formatTo12Hour(log.time_out)
+                            )}
+                          </TableCell>
 
-                        {/* Late Minutes */}
-                        <TableCell className="text-center">
-                          {log.lateMins > 0 ? (
-                            <Badge className="bg-red-500 font-bold text-[9px] h-5 px-1.5 border-0">{log.lateMins}m</Badge>
-                          ) : (
-                            <span className="opacity-10">-</span>
-                          )}
-                        </TableCell>
+                          {/* Late Minutes */}
+                          <TableCell className="text-center">
+                            {log.lateMins > 0 ? (
+                              <Badge className="bg-red-500 font-bold text-[8px] lg:text-[9px] h-4 lg:h-5 px-1 lg:px-1.5 border-0">{log.lateMins}m</Badge>
+                            ) : (
+                              <span className="opacity-10">-</span>
+                            )}
+                          </TableCell>
 
-                        {/* Individual Deduction */}
-                        <TableCell className="text-center">
-                          {log.deduction > 0 ? (
-                            <span className="text-[11px] font-black text-red-600">₱{log.deduction.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                          ) : (
-                            <span className="opacity-10">-</span>
-                          )}
-                        </TableCell>
+                          {/* Individual Deduction */}
+                          <TableCell className="text-center whitespace-nowrap">
+                            {log.deduction > 0 ? (
+                              <span className="text-[10px] lg:text-[11px] font-black text-red-600">₱{log.deduction.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            ) : (
+                              <span className="opacity-10">-</span>
+                            )}
+                          </TableCell>
 
-                        {/* Status */}
-                        <TableCell 
-                          className="text-right pr-4 cursor-pointer"
-                          onDoubleClick={() => { setEditingCell({ rowIdx: i, field: "status" }); setEditValue(log.status); }}
-                        >
-                          {isEditingStatus ? (
-                            <select 
-                              autoFocus
-                              className="h-7 text-[10px] px-1 bg-background border border-border rounded font-bold outline-none"
-                              value={editValue}
-                              onChange={(e) => handleUpdateLog(log, "status", e.target.value)}
-                              onBlur={() => setEditingCell(null)}
-                            >
-                              <option value="Present">Present</option>
-                              <option value="Absent">Absent</option>
-                              <option value="On Leave">On Leave</option>
-                              <option value="Weekend">Weekend</option>
-                              <option value="Holiday">Holiday</option>
-                            </select>
-                          ) : (
-                            <Badge 
-                              variant={log.status === "Present" ? "outline" : log.status === "Weekend" ? "secondary" : "destructive"} 
-                              className={cn("text-[9px] uppercase font-black px-2 py-0 h-5 border-0", log.status === "Present" && "bg-emerald-50 text-emerald-600 border border-emerald-100")}
-                            >
-                              {log.status}
-                            </Badge>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+                          {/* Status */}
+                          <TableCell 
+                            className="text-right pr-4 cursor-pointer"
+                            onDoubleClick={() => { setEditingCell({ rowIdx: i, field: "status" }); setEditValue(log.status); }}
+                          >
+                            {isEditingStatus ? (
+                              <select 
+                                autoFocus
+                                className="h-7 text-[9px] lg:text-[10px] px-1 bg-background border border-border rounded font-bold outline-none"
+                                value={editValue}
+                                onChange={(e) => handleUpdateLog(log, "status", e.target.value)}
+                                onBlur={() => setEditingCell(null)}
+                              >
+                                <option value="Present">Present</option>
+                                <option value="Absent">Absent</option>
+                                <option value="On Leave">On Leave</option>
+                                <option value="Weekend">Weekend</option>
+                                <option value="Holiday">Holiday</option>
+                                <option value="Work From Home">WFH</option>
+                                <option value="Remote">Remote</option>
+                              </select>
+                            ) : (
+                              <Badge 
+                                variant={log.status === "Present" ? "outline" : log.status === "Weekend" ? "secondary" : "destructive"} 
+                                className={cn("text-[8px] lg:text-[9px] uppercase font-black px-1.5 lg:px-2 py-0 h-4 lg:h-5 border-0", log.status === "Present" && "bg-emerald-50 text-emerald-600 border border-emerald-100")}
+                              >
+                                {log.status}
+                              </Badge>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
           </div>
-          <div className="p-6 bg-muted/10 flex justify-end gap-3">
-             <Button variant="ghost" className="font-bold" onClick={() => setAttendanceDetailOpen(false)}>Close Review</Button>
+          <div className="p-4 lg:p-6 bg-muted/10 flex justify-end gap-3">
+             <Button variant="ghost" className="font-bold text-xs lg:text-sm h-8 lg:h-10" onClick={() => setAttendanceDetailOpen(false)}>Close Review</Button>
           </div>
         </DialogContent>
        </Dialog>
