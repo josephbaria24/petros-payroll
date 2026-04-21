@@ -593,19 +593,19 @@ export default function PayrollPage() {
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-primary/20 bg-primary/5 shadow-sm">
               <PhilippinePeso className="h-3.5 w-3.5 text-primary" />
               <span className="text-[10px] font-bold text-primary/70 uppercase tracking-tighter">Total Net Pay</span>
-              <span className="text-sm font-bold text-primary">₱{summaryMetrics.totalNet.toLocaleString()}</span>
+              <span className="text-sm font-bold text-primary">Peso {summaryMetrics.totalNet.toLocaleString()}</span>
             </div>
 
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-border bg-card shadow-sm">
               <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />
               <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter">Basic Salary</span>
-              <span className="text-sm font-bold text-foreground">₱{summaryMetrics.totalBasicSalary.toLocaleString()}</span>
+              <span className="text-sm font-bold text-foreground">Peso {summaryMetrics.totalBasicSalary.toLocaleString()}</span>
             </div>
 
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-border bg-card shadow-sm">
               <TrendingUp className="h-3.5 w-3.5 text-amber-500" />
               <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter">Total Overtime</span>
-              <span className="text-sm font-bold text-foreground">₱{summaryMetrics.totalOvertime.toLocaleString()}</span>
+              <span className="text-sm font-bold text-foreground">Peso {summaryMetrics.totalOvertime.toLocaleString()}</span>
             </div>
 
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-border bg-card shadow-sm">
@@ -665,19 +665,19 @@ export default function PayrollPage() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mt-10 pt-8 border-t border-border/50">
                 <div className="space-y-1">
                   <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Total Net Pay</p>
-                  <p className="text-lg font-bold text-foreground">₱{periods[0].total_net_after_deductions.toLocaleString()}</p>
+                  <p className="text-lg font-bold text-foreground">Peso {periods[0].total_net_after_deductions.toLocaleString()}</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Basic Salary</p>
-                  <p className="text-lg font-bold text-foreground">₱{periods[0].total_basic_salary.toLocaleString()}</p>
+                  <p className="text-lg font-bold text-foreground">Peso {periods[0].total_basic_salary.toLocaleString()}</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Overtime Pay</p>
-                  <p className="text-lg font-bold text-foreground">₱{periods[0].total_overtime.toLocaleString()}</p>
+                  <p className="text-lg font-bold text-foreground">Peso {periods[0].total_overtime.toLocaleString()}</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Deductions</p>
-                  <p className="text-lg font-bold text-destructive">₱{periods[0].total_deductions.toLocaleString()}</p>
+                  <p className="text-lg font-bold text-destructive">Peso {periods[0].total_deductions.toLocaleString()}</p>
                 </div>
               </div>
             </CardContent>
@@ -745,7 +745,7 @@ export default function PayrollPage() {
                           </div>
                           <div className="flex items-center gap-1.5 text-xs">
                             <Calculator className="h-3 w-3 text-muted-foreground" />
-                            <span className="font-medium text-foreground">₱{period.total_net_after_deductions.toLocaleString()}</span>
+                            <span className="font-medium text-foreground">Peso {period.total_net_after_deductions.toLocaleString()}</span>
                           </div>
                         </div>
                       </TableCell>
@@ -1031,22 +1031,22 @@ export default function PayrollPage() {
                             </div>
                           </TableCell>
                           <TableCell className="text-muted-foreground">{rec.pay_type}</TableCell>
-                          <TableCell className="text-foreground">₱{rec.basic_salary.toLocaleString()}</TableCell>
-                          <TableCell className="text-foreground font-medium">₱{rec.overtime_pay.toLocaleString()}</TableCell>
-                          <TableCell className="text-foreground">₱{rec.holiday_pay?.toLocaleString() || 0}</TableCell>
-                          <TableCell className="text-foreground">₱{rec.allowances?.toLocaleString() || 0}</TableCell>
-                          <TableCell className="text-red-600/80 font-medium">₱{rec.sss?.toLocaleString() || 0}</TableCell>
-                          <TableCell className="text-red-600/80 font-medium">₱{rec.philhealth?.toLocaleString() || 0}</TableCell>
-                          <TableCell className="text-red-600/80 font-medium">₱{rec.pagibig?.toLocaleString() || 0}</TableCell>
-                          <TableCell className="text-red-600/80 font-medium">₱{rec.withholding_tax?.toLocaleString() || 0}</TableCell>
-                          <TableCell className="text-red-600/80 font-medium">₱{rec.loans?.toLocaleString() || 0}</TableCell>
-                          <TableCell className="text-foreground">₱{rec.absences?.toLocaleString() || 0}</TableCell>
-                          <TableCell className="text-foreground">₱{rec.tardiness?.toLocaleString() || 0}</TableCell>
-                          <TableCell className="text-foreground">₱{rec.cash_advance?.toLocaleString() || 0}</TableCell>
-                          <TableCell className="text-foreground font-semibold">₱{rec.total_deductions?.toLocaleString()}</TableCell>
-                          <TableCell className="text-foreground font-bold">₱{rec.net_after_deductions?.toLocaleString()}</TableCell>
+                          <TableCell className="text-foreground">Peso {rec.basic_salary.toLocaleString()}</TableCell>
+                          <TableCell className="text-foreground font-medium">Peso {rec.overtime_pay.toLocaleString()}</TableCell>
+                          <TableCell className="text-foreground">Peso {rec.holiday_pay?.toLocaleString() || 0}</TableCell>
+                          <TableCell className="text-foreground">Peso {rec.allowances?.toLocaleString() || 0}</TableCell>
+                          <TableCell className="text-red-600/80 font-medium">Peso {rec.sss?.toLocaleString() || 0}</TableCell>
+                          <TableCell className="text-red-600/80 font-medium">Peso {rec.philhealth?.toLocaleString() || 0}</TableCell>
+                          <TableCell className="text-red-600/80 font-medium">Peso {rec.pagibig?.toLocaleString() || 0}</TableCell>
+                          <TableCell className="text-red-600/80 font-medium">Peso {rec.withholding_tax?.toLocaleString() || 0}</TableCell>
+                          <TableCell className="text-red-600/80 font-medium">Peso {rec.loans?.toLocaleString() || 0}</TableCell>
+                          <TableCell className="text-foreground">Peso {rec.absences?.toLocaleString() || 0}</TableCell>
+                          <TableCell className="text-foreground">Peso {rec.tardiness?.toLocaleString() || 0}</TableCell>
+                          <TableCell className="text-foreground">Peso {rec.cash_advance?.toLocaleString() || 0}</TableCell>
+                          <TableCell className="text-foreground font-semibold">Peso {rec.total_deductions?.toLocaleString()}</TableCell>
+                          <TableCell className="text-foreground font-bold">Peso {rec.net_after_deductions?.toLocaleString()}</TableCell>
                           <TableCell className="text-foreground font-bold">
-                            ₱{rec.total_net?.toLocaleString() || 0}
+                            Peso {rec.total_net?.toLocaleString() || 0}
                           </TableCell>
                           <TableCell>
                             <span className={cn(
@@ -1411,14 +1411,14 @@ export default function PayrollPage() {
                   <div>
                     <span className="text-muted-foreground">Gross Pay (Basic + OT + Holiday + Allowance):</span>
                     <div className="font-medium text-foreground">
-                      ₱{((editRecord.basic_salary || 0) + (editRecord.overtime_pay || 0) + (editRecord.holiday_pay || 0) + (editRecord.allowances || 0)).toLocaleString()}
+                      Peso {((editRecord.basic_salary || 0) + (editRecord.overtime_pay || 0) + (editRecord.holiday_pay || 0) + (editRecord.allowances || 0)).toLocaleString()}
                     </div>
                   </div>
 
                   <div>
                     <span className="text-muted-foreground">Total Deductions:</span>
                     <div className="font-medium text-foreground text-red-600">
-                      ₱{(
+                      Peso {(
                         (editRecord.sss || 0) +
                         (editRecord.philhealth || 0) +
                         (editRecord.pagibig || 0) +
@@ -1435,7 +1435,7 @@ export default function PayrollPage() {
                   <div className="flex justify-between items-center">
                     <span className="text-base font-semibold text-foreground">Final Net Pay:</span>
                     <div className="text-xl font-bold text-primary">
-                      ₱{(
+                      Peso {(
                         ((editRecord.basic_salary || 0) + (editRecord.overtime_pay || 0) + (editRecord.holiday_pay || 0) + (editRecord.allowances || 0)) -
                         ((editRecord.sss || 0) + (editRecord.philhealth || 0) + (editRecord.pagibig || 0) + (editRecord.withholding_tax || 0) + (editRecord.loans || 0) + (editRecord.absences || 0) + (editRecord.cash_advance || 0))
                       ).toLocaleString()}

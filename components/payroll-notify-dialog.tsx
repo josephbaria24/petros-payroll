@@ -136,7 +136,7 @@ export function PayrollNotifyDialog({
                                     <div>
                                         <p className="text-sm font-medium text-foreground">{record.employee_name}</p>
                                         <p className="text-xs text-muted-foreground font-mono">
-                                            ₱{(record.total_net || record.net_pay || 0).toLocaleString()}
+                                            Peso {(record.total_net || record.net_pay || 0).toLocaleString()}
                                         </p>
                                     </div>
                                 </div>

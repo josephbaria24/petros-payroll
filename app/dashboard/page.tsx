@@ -575,7 +575,7 @@ export default function DashboardPage() {
                   <Tooltip
                     contentStyle={{ backgroundColor: 'var(--card)', borderRadius: '8px', border: '1px solid var(--border)', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontSize: '11px', color: 'var(--foreground)' }}
                     itemStyle={{ color: 'var(--foreground)' }}
-                    formatter={(value: any) => [`₱${value.toLocaleString()}`, 'Total Payout']}
+                    formatter={(value: any) => [`Peso ${value.toLocaleString()}`, 'Total Payout']}
                   />
                   <Area
                     type="monotone"
@@ -646,7 +646,7 @@ export default function DashboardPage() {
             <div className="p-3 bg-muted/30 rounded-lg border border-border flex items-center justify-between">
               <div className="space-y-0.5">
                 <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Total Payroll</p>
-                <p className="text-lg font-bold text-foreground">₱${totalPayroll.toLocaleString()}</p>
+                <p className="text-lg font-bold text-foreground">Peso {totalPayroll.toLocaleString()}</p>
               </div>
               <div className="h-8 w-8 rounded-full bg-background border border-border flex items-center justify-center shadow-sm">
                 <PhilippinePeso className="h-4 w-4 text-muted-foreground" />
@@ -687,7 +687,7 @@ export default function DashboardPage() {
                     cursor={{ fill: 'var(--muted)' }}
                     contentStyle={{ backgroundColor: 'var(--card)', borderRadius: '8px', border: '1px solid var(--border)', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontSize: '11px', color: 'var(--foreground)' }}
                     itemStyle={{ color: 'var(--foreground)' }}
-                    formatter={(value: any) => [`₱${value.toLocaleString()}`, 'Amount']}
+                    formatter={(value: any) => [`Peso ${value.toLocaleString()}`, 'Amount']}
                   />
                   <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={16}>
                     {categoryData.map((entry, index) => (
@@ -981,7 +981,7 @@ export default function DashboardPage() {
                       {new Date(record.period_end).toLocaleDateString()}
                     </TableCell>
                     <TableCell className="font-medium text-foreground">
-                      ₱${record.net_pay.toLocaleString()}
+                      Peso {record.net_pay.toLocaleString()}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {record.pay_type}

@@ -149,26 +149,37 @@ export function SidebarLeft({ ...props }: React.ComponentProps<typeof Sidebar>) 
 
     const groups = role === "admin" || role === "hr" ? adminItems : role === "employee" ? employeeItems : []
 
-    // Filter by permissions if HR
-    if (role === "hr") {
-      return groups.map(group => ({
-        ...group,
-        items: group.items.filter(item => {
-          // Determine permission key from URL
-          const key = item.url.replace("/", "")
-          return permissions[key] === true
-        })
-      })).filter(group => group.items.length > 0)
+    const navItemActive = (itemUrl: string) => {
+      if (itemUrl === "/") return pathname === "/"
+      return pathname === itemUrl || pathname.startsWith(`${itemUrl}/`)
     }
 
-    return groups.map(group => ({
+    // Filter by permissions if HR
+    if (role === "hr") {
+      return groups
+        .map((group) => ({
+          ...group,
+          items: group.items
+            .filter((item) => {
+              const key = item.url.replace("/", "")
+              return permissions[key] === true
+            })
+            .map((item) => ({
+              ...item,
+              isActive: navItemActive(item.url),
+            })),
+        }))
+        .filter((group) => group.items.length > 0)
+    }
+
+    return groups.map((group) => ({
       ...group,
-      items: group.items.map(item => ({
+      items: group.items.map((item) => ({
         ...item,
-        isActive: pathname.startsWith(item.url)
-      }))
+        isActive: navItemActive(item.url),
+      })),
     }))
-  }, [role, pathname, pendingCount])
+  }, [role, pathname, pendingCount, permissions])
 
   const navSecondary = []
 

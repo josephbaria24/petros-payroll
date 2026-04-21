@@ -271,7 +271,9 @@ export default function MyPayrollPage() {
   }
 
   const formatCurrency = (amount: number | null | undefined) => {
-    return amount ? `₱${amount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}` : '₱0.00'
+    return amount
+      ? `Peso ${amount.toLocaleString("en-PH", { minimumFractionDigits: 2 })}`
+      : "Peso 0.00"
   }
 
   const formatDate = (dateString: string) => {

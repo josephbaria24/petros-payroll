@@ -25,14 +25,15 @@ export function NavMain({
         <SidebarMenuItem key={item.title}>
           <SidebarMenuButton
             asChild
+            isActive={item.isActive}
             className={cn(
               "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-200 ease-in-out",
               item.isActive
-                ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-sm ring-1 ring-sidebar-border/50"
+                ? "bg-sidebar-accent/90 text-sidebar-accent-foreground font-semibold shadow-sm ring-1 ring-sidebar-border/60 ring-primary/20"
                 : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground hover:translate-x-1"
             )}
           >
-            <Link href={item.url}>
+            <Link href={item.url} aria-current={item.isActive ? "page" : undefined}>
               {/* Icon Container with dynamic color */}
               <div
                 className={cn(

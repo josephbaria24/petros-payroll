@@ -755,7 +755,7 @@ export default function GeneratePayrollPage() {
               </div>
               <div className="p-4 bg-muted/50 rounded-xl border border-border">
                 <p className="text-[10px] font-bold text-muted-foreground uppercase text-red-600">Late Deductions</p>
-                <p className="text-xl font-black text-red-600">₱{attendanceDetails.reduce((s, a) => s + a.calculatedDeduction, 0).toLocaleString()}</p>
+                <p className="text-xl font-black text-red-600">Peso {attendanceDetails.reduce((s, a) => s + a.calculatedDeduction, 0).toLocaleString()}</p>
               </div>
             </div>
           </div>
@@ -915,7 +915,7 @@ export default function GeneratePayrollPage() {
                            </div>
                          </div>
                          <div className="text-right" onClick={() => { setSelectedAttendanceDetail(detail); setAttendanceDetailOpen(true); }}>
-                           <p className="text-base lg:text-lg font-black text-red-600">₱{detail.calculatedDeduction.toLocaleString()}</p>
+                           <p className="text-base lg:text-lg font-black text-red-600">Peso {detail.calculatedDeduction.toLocaleString()}</p>
                            <p className="text-[9px] lg:text-[10px] font-bold text-muted-foreground uppercase">{detail.totalLateMinutes} mins total</p>
                          </div>
                        </CardHeader>
@@ -960,7 +960,7 @@ export default function GeneratePayrollPage() {
                                 <div className="p-2.5 bg-red-50 rounded-xl border border-red-100 flex items-center justify-between group">
                                   <div>
                                     <p className="text-[8px] font-black text-red-500 uppercase tracking-widest">Attendance Late</p>
-                                    <p className="text-xs font-black text-red-600">- ₱{adj.lateDeduction.toLocaleString()}</p>
+                                    <p className="text-xs font-black text-red-600">- Peso {adj.lateDeduction.toLocaleString()}</p>
                                   </div>
                                   <Button variant="ghost" size="icon" className="h-7 w-7 text-red-300 hover:text-red-500" onClick={() => updateEmployeeAdjustment(index, "lateDeduction", 0)}>
                                     <X className="h-3 w-3" />
@@ -972,8 +972,8 @@ export default function GeneratePayrollPage() {
                                 <div className="p-2.5 bg-red-50 rounded-xl border border-red-100 flex items-center justify-between group">
                                   <div>
                                     <p className="text-[8px] font-black text-red-500 uppercase tracking-widest">Attendance Absence</p>
-                                    <p className="text-xs font-black text-red-600">- ₱{(adj.absenceDays * adj.absenceAmountPerDay).toLocaleString()}</p>
-                                    <p className="text-[7px] text-red-400 font-bold uppercase">{adj.absenceDays} Days x ₱{adj.absenceAmountPerDay.toLocaleString()}</p>
+                                    <p className="text-xs font-black text-red-600">- Peso {(adj.absenceDays * adj.absenceAmountPerDay).toLocaleString()}</p>
+                                    <p className="text-[7px] text-red-400 font-bold uppercase">{adj.absenceDays} Days x Peso {adj.absenceAmountPerDay.toLocaleString()}</p>
                                   </div>
                                   <Button variant="ghost" size="icon" className="h-7 w-7 text-red-300 hover:text-red-500" onClick={() => updateEmployeeAdjustment(index, "absenceDays", 0)}>
                                     <X className="h-3 w-3" />
@@ -1020,7 +1020,7 @@ export default function GeneratePayrollPage() {
             <DialogHeader>
               <DialogTitle className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <span className="text-xl lg:text-2xl font-black">{selectedAttendanceDetail?.employee_name}</span>
-                <Badge variant="outline" className="font-bold border-primary text-primary transition-colors text-[10px] lg:text-xs">Daily Rate: ₱{selectedAttendanceDetail?.dailyRate.toLocaleString()}</Badge>
+                <Badge variant="outline" className="font-bold border-primary text-primary transition-colors text-[10px] lg:text-xs">Daily Rate: Peso {selectedAttendanceDetail?.dailyRate.toLocaleString()}</Badge>
               </DialogTitle>
             </DialogHeader>
           </div>
@@ -1041,7 +1041,7 @@ export default function GeneratePayrollPage() {
               </div>
               <div className="p-3 lg:p-4 bg-white rounded-xl lg:rounded-2xl shadow-sm border border-border/30">
                 <p className="text-[9px] lg:text-[10px] font-bold text-muted-foreground uppercase mb-1">Calculated Cost</p>
-                <p className="text-sm lg:text-xl font-black">₱{selectedAttendanceDetail?.calculatedDeduction.toLocaleString()}</p>
+                <p className="text-sm lg:text-xl font-black">Peso {selectedAttendanceDetail?.calculatedDeduction.toLocaleString()}</p>
               </div>
             </div>
 
@@ -1126,7 +1126,7 @@ export default function GeneratePayrollPage() {
                           {/* Individual Deduction */}
                           <TableCell className="text-center whitespace-nowrap">
                             {log.deduction > 0 ? (
-                              <span className="text-[10px] lg:text-[11px] font-black text-red-600">₱{log.deduction.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                              <span className="text-[10px] lg:text-[11px] font-black text-red-600">Peso {log.deduction.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                             ) : (
                               <span className="opacity-10">-</span>
                             )}

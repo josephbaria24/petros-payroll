@@ -78,28 +78,12 @@ import {
   PieChart,
   Pie,
 } from "recharts"
-import {
-  format,
-  startOfWeek,
-  endOfWeek,
-  startOfMonth,
-  endOfMonth,
-  startOfYear,
-  endOfYear
-} from "date-fns"
+import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 import { useProtectedPage } from "../hooks/useProtectedPage"
 import confetti from "canvas-confetti"
-import jsPDF from "jspdf"
-import html2canvas from "html2canvas-pro"
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs"
+import { useRouter } from "next/navigation"
 import { useIsMobile } from "@/hooks/use-mobile"
-import { utils, writeFile } from "xlsx"
 
 type TimeLog = {
   id: string
@@ -242,21 +226,8 @@ export default function TimekeepingPage() {
   })
   const [employees, setEmployees] = useState<{ id: string; full_name: string; attendance_log_userid?: number | null }[]>([])
 
-  // PDF Export States
-  const [exportOpen, setExportOpen] = useState(false)
-  const [exportLoading, setExportLoading] = useState(false)
-  const [exportSections, setExportSections] = useState({
-    summary: true,
-    activity: true,
-    hours: true,
-    status: true,
-    tardiness: true,
-    logs: true,
-    achievement: true
-  })
   const isMobile = useIsMobile()
-  const [exportFormat, setExportFormat] = useState<"pdf" | "excel">("pdf")
-  const [exportTimeframe, setExportTimeframe] = useState<"day" | "week" | "month" | "year">("day")
+  const router = useRouter()
 
   useEffect(() => {
     const loadData = async () => {
@@ -1045,132 +1016,6 @@ export default function TimekeepingPage() {
     }
   }, [earliestLog?.id, selectedDate]);
 
-  // PDF Export Logic
-  async function handleExportPDF() {
-    setExportLoading(true)
-    const toastId = toast.loading("Generating PDF Report...")
-
-    try {
-      const doc = new jsPDF('p', 'mm', 'a4')
-      const pageWidth = doc.internal.pageSize.getWidth()
-      const margin = 10
-      const contentWidth = pageWidth - (margin * 2)
-      let currentY = 20
-
-      // Add Header
-      doc.setFontSize(22)
-      doc.setTextColor(14, 165, 233) // primary color
-      doc.text("PETROSPHERE", margin, currentY)
-      currentY += 8
-      doc.setFontSize(14)
-      doc.setTextColor(100, 116, 139) // muted foreground
-      doc.text("Timekeeping & Attendance Report", margin, currentY)
-      currentY += 6
-      doc.setFontSize(10)
-      doc.text(`Report Date: ${selectedDate ? format(selectedDate, "MMMM dd, yyyy") : "-"}`, margin, currentY)
-      currentY += 10
-      doc.setDrawColor(226, 232, 240)
-      doc.line(margin, currentY, pageWidth - margin, currentY)
-      currentY += 15
-
-      const sections = [
-        { id: 'earliest-bird-banner', enabled: exportSections.achievement },
-        { id: 'summary-metrics', enabled: exportSections.summary },
-        { id: 'activity-chart', enabled: exportSections.activity },
-        { id: 'status-chart', enabled: exportSections.status },
-        { id: 'hours-chart', enabled: exportSections.hours },
-        { id: 'tardiness-chart', enabled: exportSections.tardiness },
-        { id: 'attendance-logs-list', enabled: exportSections.logs },
-      ]
-
-      for (const section of sections) {
-        if (!section.enabled) continue
-
-        const element = document.getElementById(section.id)
-        if (!element) continue
-
-        // Capture element
-        const canvas = await html2canvas(element, { scale: 2, backgroundColor: '#ffffff', useCORS: true })
-        const imgData = canvas.toDataURL('image/png')
-
-        const pdfImgHeight = (canvas.height * contentWidth) / canvas.width
-
-        // Check if we need a new page
-        if (currentY + pdfImgHeight > doc.internal.pageSize.getHeight() - margin) {
-          doc.addPage()
-          currentY = 20
-        }
-
-        doc.addImage(imgData, 'PNG', margin, currentY, contentWidth, pdfImgHeight)
-        currentY += pdfImgHeight + 10
-      }
-
-      doc.save(`Petrosphere_Report_${format(selectedDate || new Date(), "yyyy-MM-dd")}.pdf`)
-      toast.success("PDF Report generated successfully!", { id: toastId })
-      setExportOpen(false)
-    } catch (error) {
-      console.error("PDF Export Error:", error)
-      toast.error("Failed to generate PDF Report", { id: toastId })
-    } finally {
-      setExportLoading(false)
-    }
-  }
-
-  async function handleExportExcel() {
-    setExportLoading(true)
-    const toastId = toast.loading("Generating Excel Report...")
-
-    try {
-      // Data to show in report
-      let reportLogs = logs
-      if (exportTimeframe !== "day" && selectedDate) {
-        let start = selectedDate, end = selectedDate
-        if (exportTimeframe === "week") { start = startOfWeek(selectedDate); end = endOfWeek(selectedDate) }
-        else if (exportTimeframe === "month") { start = startOfMonth(selectedDate); end = endOfMonth(selectedDate) }
-        else if (exportTimeframe === "year") { start = startOfYear(selectedDate); end = endOfYear(selectedDate) }
-        reportLogs = await fetchLogsInRange(format(start, "yyyy-MM-dd"), format(end, "yyyy-MM-dd"))
-      }
-
-      // Prepare data for Excel
-      const excelData = reportLogs.map(log => ({
-        "Employee Name": log.employee_name || "Unknown",
-        "Date": log.date,
-        "Time In": log.time_in_display || "-",
-        "Time Out": log.time_out_display || "-",
-        "Total Hours": log.total_hours,
-        "Overtime Hours": log.overtime_hours,
-        "Status": log.status
-      }))
-
-      // Create Worksheet
-      const ws = utils.json_to_sheet(excelData)
-      const wb = utils.book_new()
-      utils.book_append_sheet(wb, ws, "Attendance Logs")
-
-      // Auto-size columns
-      const maxWidths = excelData.reduce((acc: any, row) => {
-        Object.keys(row).forEach((key, i) => {
-          const val = row[key as keyof typeof row]?.toString() || ""
-          acc[i] = Math.max(acc[i] || 10, val.length + 2)
-        })
-        return acc
-      }, [])
-      ws["!cols"] = maxWidths.map((w: number) => ({ wch: w }))
-
-      // Download
-      const fileName = `Petrosphere_Attendance_${format(selectedDate || new Date(), "yyyy-MM-dd")}.xlsx`
-      writeFile(wb, fileName)
-
-      toast.success("Excel Report generated successfully!", { id: toastId })
-      setExportOpen(false)
-    } catch (error) {
-      console.error("Excel Export Error:", error)
-      toast.error("Failed to generate Excel Report", { id: toastId })
-    } finally {
-      setExportLoading(false)
-    }
-  }
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-background text-foreground">
@@ -1258,101 +1103,16 @@ export default function TimekeepingPage() {
               </PopoverContent>
             </Popover>
 
-            {/* Export Report Dialog */}
-            <Dialog open={exportOpen} onOpenChange={setExportOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-2 font-semibold border-primary/20 hover:bg-primary/5 px-2 md:px-3">
-                  <BarChart3 className="w-4 h-4 text-primary" />
-                  <span className="hidden md:inline">Export Report</span>
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="lg:w-[40vw] w-[90vw]">
-                <DialogHeader>
-                  <DialogTitle className="flex items-center gap-2">
-                    <BarChart3 className="w-5 h-5 text-primary" />
-                    Export Report Options
-                  </DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <Tabs value={exportFormat} onValueChange={(v) => setExportFormat(v as any)} className="w-full">
-                    <TabsList className="grid w-full grid-cols-2 mb-4">
-                      <TabsTrigger value="pdf" className="text-xs font-bold">PDF (Visual)</TabsTrigger>
-                      <TabsTrigger value="excel" className="text-xs font-bold">Excel (Data)</TabsTrigger>
-                    </TabsList>
-
-                    <div className="space-y-4 pt-0">
-                      <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider mb-1">Timeframe:</p>
-                      <Select value={exportTimeframe} onValueChange={(v) => setExportTimeframe(v as any)}>
-                        <SelectTrigger className="text-xs font-bold">
-                          <SelectValue placeholder="Select timeframe" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="day">Full Day ({selectedDate ? format(selectedDate, "MMM dd") : "Today"})</SelectItem>
-                          <SelectItem value="week">Weekly Report (Past 7 Days)</SelectItem>
-                          <SelectItem value="month">Monthly Report ({selectedDate ? format(selectedDate, "MMMM") : "Current Month"})</SelectItem>
-                          <SelectItem value="year">Full Annual Report ({selectedDate ? format(selectedDate, "yyyy") : "Current Year"})</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <TabsContent value="pdf" className="space-y-4 pt-4">
-                      <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider mb-2">Sections to include:</p>
-                      <div className="space-y-2 border border-border rounded-xl p-3 bg-muted/20">
-                        {Object.entries({
-                          achievement: "🏆 Early Bird Achievement",
-                          summary: "📊 Summary Statistics",
-                          activity: "📈 Check-in Activity Chart",
-                          status: "⭕ Session Status Distribution",
-                          hours: "👤 Hours by Employee Chart",
-                          tardiness: "📉 Tardiness Analytics",
-                          logs: "📄 Detailed Attendance Logs"
-                        }).map(([key, label]) => (
-                          <div key={key} className="flex items-center justify-between p-1.5 rounded-lg hover:bg-muted/50 transition-colors">
-                            <Label htmlFor={`export-${key}`} className="text-xs font-semibold cursor-pointer flex-1">
-                              {label}
-                            </Label>
-                            <Input
-                              id={`export-${key}`}
-                              type="checkbox"
-                              className="h-3.5 w-3.5 rounded border-primary"
-                              checked={exportSections[key as keyof typeof exportSections]}
-                              onChange={(e) => setExportSections({ ...exportSections, [key]: e.target.checked })}
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    </TabsContent>
-
-                    <TabsContent value="excel" className="space-y-4 pt-0">
-                      <div className="flex flex-col items-center justify-center p-8 border border-dashed border-border rounded-xl bg-muted/10 text-center space-y-3">
-                        <div className="h-12 w-12 rounded-full bg-emerald-500/10 flex items-center justify-center">
-                          <BarChart3 className="h-6 w-6 text-emerald-600" />
-                        </div>
-                        <div className="space-y-1">
-                          <p className="text-sm font-bold">Excel Log Export</p>
-                          <p className="text-xs text-muted-foreground leading-relaxed">
-                            Generates a structured spreadsheet containing all detailed attendance records for {selectedDate ? format(selectedDate, "MMM dd") : "today"}.
-                          </p>
-                        </div>
-                      </div>
-                    </TabsContent>
-                  </Tabs>
-                </div>
-
-                <Button
-                  onClick={exportFormat === "pdf" ? handleExportPDF : handleExportExcel}
-                  className="w-full gap-2 py-6 rounded-xl font-bold text-sm shadow-lg shadow-primary/10"
-                  disabled={exportLoading || (exportFormat === "pdf" && !Object.values(exportSections).some(v => v))}
-                >
-                  {exportLoading ? (
-                    <div className="h-4 w-4 border-2 border-background border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    exportFormat === "pdf" ? <BarChart3 className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />
-                  )}
-                  {exportFormat === "pdf" ? "Generate Professional PDF" : "Download Excel Spreadsheet"}
-                </Button>
-              </DialogContent>
-            </Dialog>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-2 font-semibold border-primary/20 hover:bg-primary/5 px-2 md:px-3"
+              onClick={() => router.push("/reports?tab=payroll-attendance-pdf")}
+            >
+              <BarChart3 className="w-4 h-4 text-primary" />
+              <span className="hidden md:inline">Export Report</span>
+            </Button>
 
             {/* Add Log Dialog */}
             <Dialog open={open} onOpenChange={(v) => {

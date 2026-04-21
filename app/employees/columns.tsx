@@ -214,7 +214,7 @@ export const columns: ColumnDef<Employee>[] = [
     header: "Base Salary",
     cell: ({ row }) => {
       const amount = parseFloat(row.getValue("base_salary") || "0")
-      return <div className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors">₱{amount.toLocaleString()}</div>
+      return <div className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors">Peso {amount.toLocaleString()}</div>
     },
   },
   {
@@ -222,7 +222,7 @@ export const columns: ColumnDef<Employee>[] = [
     header: "Allowance",
     cell: ({ row }) => {
       const amount = parseFloat(row.getValue("allowance") || "0")
-      return <div className="text-xs text-muted-foreground group-hover:text-primary/80 transition-colors">₱{amount.toLocaleString()}</div>
+      return <div className="text-xs text-muted-foreground group-hover:text-primary/80 transition-colors">Peso {amount.toLocaleString()}</div>
     },
   },
   {

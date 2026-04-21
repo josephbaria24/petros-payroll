@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { Suspense, useEffect, useState, useMemo } from "react"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { supabase } from "@/lib/supabaseClient"
 import { useOrganization } from "@/contexts/OrganizationContext"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
@@ -13,6 +14,7 @@ import { useProtectedPage } from "../hooks/useProtectedPage"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
+import { PayrollAttendanceReportSection } from "@/components/payroll-attendance-report-section"
 
 declare global {
   interface Window {
@@ -103,9 +105,25 @@ const statusVariants: Record<string, string> = {
   "Cancelled": "bg-muted/50 text-muted-foreground border-border",
 }
 
-export default function ReportsPage() {
+const REPORT_TAB_IDS = new Set([
+  "employee-details",
+  "monthly-payroll",
+  "deductions",
+  "expenses",
+  "payroll-attendance-pdf",
+])
+
+function ReportsContent() {
   useProtectedPage(["admin", "hr"], "reports")
   const { activeOrganization } = useOrganization()
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const pathname = usePathname()
+
+  const activeReportTab = useMemo(() => {
+    const t = searchParams.get("tab")
+    return t && REPORT_TAB_IDS.has(t) ? t : "employee-details"
+  }, [searchParams])
 
   const [payrollSummary, setPayrollSummary] = useState<PayrollSummary>({
     totalGross: 0,
@@ -643,20 +661,20 @@ export default function ReportsPage() {
   }
 
   return (
-    <div className="space-y-8 p-6 min-h-screen bg-background text-foreground">
+    <div className="space-y-4 p-4 min-h-screen bg-background text-foreground">
       {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-semibold text-foreground">Reports & Analytics</h1>
-          <p className="text-muted-foreground">Comprehensive payroll and financial reporting dashboard</p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="space-y-0.5">
+          <h1 className="text-xl font-bold text-foreground">Reports & Analytics</h1>
+          <p className="text-xs text-muted-foreground">Comprehensive payroll and financial reporting dashboard</p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 p-4 bg-card rounded-lg border border-border">
-          <div className="space-y-1">
-            <span className="text-xs font-medium text-muted-foreground uppercase">Filter by Period</span>
-            <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 p-2 bg-card rounded-md border border-border">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-semibold text-muted-foreground uppercase whitespace-nowrap">Filter:</span>
+            <div className="flex items-center gap-1.5">
               <Select value={selectedYear} onValueChange={setSelectedYear}>
-                <SelectTrigger className="w-[120px] h-9">
+                <SelectTrigger className="w-[100px] h-8 text-xs">
                   <SelectValue placeholder="Year" />
                 </SelectTrigger>
                 <SelectContent>
@@ -668,7 +686,7 @@ export default function ReportsPage() {
               </Select>
 
               <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                <SelectTrigger className="w-[140px] h-9">
+                <SelectTrigger className="w-[110px] h-8 text-xs">
                   <SelectValue placeholder="Month" />
                 </SelectTrigger>
                 <SelectContent>
@@ -684,143 +702,153 @@ export default function ReportsPage() {
       </div>
 
       {/* Primary Summary Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card className="border border-border shadow-sm bg-card">
-          <CardHeader className="pb-2">
+          <CardHeader className="p-3 pb-1">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-medium text-muted-foreground">Total Gross Payroll</p>
-              <PhilippinePeso className="h-4 w-4 text-muted-foreground" />
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase">Total Gross Payroll</p>
+              <PhilippinePeso className="h-3.5 w-3.5 text-muted-foreground" />
             </div>
           </CardHeader>
-          <CardContent className="pt-0">
-            <div className="text-2xl font-bold text-foreground">₱{payrollSummary.totalGross.toLocaleString()}</div>
+          <CardContent className="px-3 pb-3 pt-0">
+            <div className="text-lg font-bold text-foreground">Peso {payrollSummary.totalGross.toLocaleString()}</div>
           </CardContent>
         </Card>
 
         <Card className="border border-border shadow-sm bg-card">
-          <CardHeader className="pb-2">
+          <CardHeader className="p-3 pb-1">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-medium text-muted-foreground">Total Allowances</p>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase">Total Allowances</p>
+              <TrendingUp className="h-3.5 w-3.5 text-muted-foreground" />
             </div>
           </CardHeader>
-          <CardContent className="pt-0">
-            <div className="text-2xl font-bold text-foreground">₱{payrollSummary.totalAllowances.toLocaleString()}</div>
+          <CardContent className="px-3 pb-3 pt-0">
+            <div className="text-lg font-bold text-foreground">Peso {payrollSummary.totalAllowances.toLocaleString()}</div>
           </CardContent>
         </Card>
 
         <Card className="border border-border shadow-sm bg-card">
-          <CardHeader className="pb-2">
+          <CardHeader className="p-3 pb-1">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-medium text-muted-foreground">Total Deductions</p>
-              <Calculator className="h-4 w-4 text-muted-foreground" />
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase">Total Deductions</p>
+              <Calculator className="h-3.5 w-3.5 text-muted-foreground" />
             </div>
           </CardHeader>
-          <CardContent className="pt-0">
-            <div className="text-2xl font-bold text-foreground">₱{payrollSummary.totalDeductions.toLocaleString()}</div>
+          <CardContent className="px-3 pb-3 pt-0">
+            <div className="text-lg font-bold text-foreground">Peso {payrollSummary.totalDeductions.toLocaleString()}</div>
           </CardContent>
         </Card>
 
         <Card className="border border-border shadow-sm bg-card">
-          <CardHeader className="pb-2">
+          <CardHeader className="p-3 pb-1">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-medium text-muted-foreground">Total Net Pay</p>
-              <FileText className="h-4 w-4 text-muted-foreground" />
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase">Total Net Pay</p>
+              <FileText className="h-3.5 w-3.5 text-muted-foreground" />
             </div>
           </CardHeader>
-          <CardContent className="pt-0">
-            <div className="text-2xl font-bold text-foreground">₱{payrollSummary.totalNetPay.toLocaleString()}</div>
+          <CardContent className="px-3 pb-3 pt-0">
+            <div className="text-lg font-bold text-foreground">Peso {payrollSummary.totalNetPay.toLocaleString()}</div>
           </CardContent>
         </Card>
       </div>
 
       {/* Secondary Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card className="border border-border shadow-sm bg-card">
-          <CardContent className="p-4">
+          <CardContent className="p-3">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Employees</p>
-                <div className="text-lg font-bold text-foreground">{additionalMetrics.totalEmployees}</div>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase">Total Employees</p>
+                <div className="text-base font-bold text-foreground">{additionalMetrics.totalEmployees}</div>
               </div>
-              <Users className="h-5 w-5 text-muted-foreground" />
+              <Users className="h-4 w-4 text-muted-foreground" />
             </div>
           </CardContent>
         </Card>
 
         <Card className="border border-border shadow-sm bg-card">
-          <CardContent className="p-4">
+          <CardContent className="p-3">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Expenses</p>
-                <div className="text-lg font-bold text-foreground">₱{additionalMetrics.totalExpenses.toLocaleString()}</div>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase">Total Expenses</p>
+                <div className="text-base font-bold text-foreground">Peso {additionalMetrics.totalExpenses.toLocaleString()}</div>
               </div>
-              <Building2 className="h-5 w-5 text-muted-foreground" />
+              <Building2 className="h-4 w-4 text-muted-foreground" />
             </div>
           </CardContent>
         </Card>
 
         <Card className="border border-border shadow-sm bg-card">
-          <CardContent className="p-4">
+          <CardContent className="p-3">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Payroll Records</p>
-                <div className="text-lg font-bold text-foreground">{additionalMetrics.totalRecords}</div>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase">Payroll Records</p>
+                <div className="text-base font-bold text-foreground">{additionalMetrics.totalRecords}</div>
               </div>
-              <BarChart3 className="h-5 w-5 text-muted-foreground" />
+              <BarChart3 className="h-4 w-4 text-muted-foreground" />
             </div>
           </CardContent>
         </Card>
 
         <Card className="border border-border shadow-sm bg-card">
-          <CardContent className="p-4">
+          <CardContent className="p-3">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Avg. Gross Pay</p>
-                <div className="text-lg font-bold text-foreground">₱{additionalMetrics.averageGrossPay.toLocaleString()}</div>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase">Avg. Gross Pay</p>
+                <div className="text-base font-bold text-foreground">Peso {additionalMetrics.averageGrossPay.toLocaleString()}</div>
               </div>
-              <PieChart className="h-5 w-5 text-muted-foreground" />
+              <PieChart className="h-4 w-4 text-muted-foreground" />
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Reports Tabs */}
-      <Tabs defaultValue="employee-details" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="employee-details" className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
+      {/* Reports Tabs — ?tab=payroll-attendance-pdf opens Payroll PDF (e.g. from Timekeeping) */}
+      <Tabs
+        value={activeReportTab}
+        onValueChange={(v) => {
+          router.replace(`${pathname}?tab=${encodeURIComponent(v)}`, { scroll: false })
+        }}
+        className="space-y-4"
+      >
+        <TabsList className="flex items-center gap-1 p-1 h-auto bg-muted/50 w-full md:w-max">
+          <TabsTrigger value="employee-details" className="flex items-center gap-1.5 px-3 py-1.5 text-xs">
+            <Users className="h-3.5 w-3.5" />
             Employee Details
           </TabsTrigger>
-          <TabsTrigger value="monthly-payroll" className="flex items-center gap-2">
-            <Calendar className="h-4 w-4" />
+          <TabsTrigger value="monthly-payroll" className="flex items-center gap-1.5 px-3 py-1.5 text-xs">
+            <Calendar className="h-3.5 w-3.5" />
             Monthly Payroll
           </TabsTrigger>
-          <TabsTrigger value="deductions" className="flex items-center gap-2">
-            <Calculator className="h-4 w-4" />
+          <TabsTrigger value="deductions" className="flex items-center gap-1.5 px-3 py-1.5 text-xs">
+            <Calculator className="h-3.5 w-3.5" />
             Deductions
           </TabsTrigger>
-          <TabsTrigger value="expenses" className="flex items-center gap-2">
-            <Building2 className="h-4 w-4" />
+          <TabsTrigger value="expenses" className="flex items-center gap-1.5 px-3 py-1.5 text-xs">
+            <Building2 className="h-3.5 w-3.5" />
             Expenses
+          </TabsTrigger>
+          <TabsTrigger value="payroll-attendance-pdf" className="flex items-center gap-1.5 px-3 py-1.5 text-xs">
+            <FileText className="h-3.5 w-3.5" />
+            Payroll PDF
           </TabsTrigger>
         </TabsList>
 
         {/* Employee Details Tab */}
         <TabsContent value="employee-details">
           <Card className="border border-border shadow-sm bg-card overflow-hidden">
-            <CardHeader>
+            <CardHeader className="p-4 pb-2">
               <div className="flex justify-between items-center">
                 <div>
-                  <h3 className="text-lg font-medium text-foreground">Employee Payroll Details</h3>
-                  <p className="text-muted-foreground">Detailed breakdown of employee payroll records</p>
+                  <h3 className="text-sm font-semibold text-foreground">Employee Payroll Details</h3>
+                  <p className="text-[10px] text-muted-foreground">Detailed breakdown of employee payroll records</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   {/* Column Visibility Toggle */}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="outline" className="flex items-center gap-2">
-                        <TrendingUp className="h-4 w-4 transition-transform group-hover:rotate-12" />
+                      <Button variant="outline" size="sm" className="h-8 text-xs flex items-center gap-1.5">
+                        <TrendingUp className="h-3.5 w-3.5 transition-transform group-hover:rotate-12" />
                         Columns
                       </Button>
                     </DropdownMenuTrigger>
@@ -842,10 +870,11 @@ export default function ReportsPage() {
                   <Button
                     onClick={() => setIsExportDialogOpen(true)}
                     variant="outline"
-                    className="flex items-center gap-2"
+                    size="sm"
+                    className="h-8 text-xs flex items-center gap-1.5"
                   >
-                    <Download className="h-4 w-4" />
-                    Export to Excel
+                    <Download className="h-3.5 w-3.5" />
+                    Export
                   </Button>
                 </div>
               </div>
@@ -862,47 +891,46 @@ export default function ReportsPage() {
                   <div className="overflow-x-auto">
                     <Table>
                       <TableHeader>
-                        <TableRow className="border-b border-slate-200">
-                          {visibleColumns.employee_id && <TableHead className="text-center font-medium text-slate-900">Employee ID</TableHead>}
-                          {visibleColumns.full_name && <TableHead className="text-center font-medium text-slate-900">Full Name</TableHead>}
-                          {visibleColumns.pay_type && <TableHead className="text-center font-medium text-slate-900">Pay Type</TableHead>}
-                          {visibleColumns.period && <TableHead className="text-center font-medium text-slate-900">Period</TableHead>}
-                          {visibleColumns.basic_salary && <TableHead className="text-center font-medium text-slate-900">Basic Salary</TableHead>}
-                          {visibleColumns.allowances && <TableHead className="text-center font-medium text-slate-900">Allowances</TableHead>}
-                          {visibleColumns.overtime && <TableHead className="text-center font-medium text-slate-900">Overtime</TableHead>}
-                          {visibleColumns.holiday_pay && <TableHead className="text-center font-medium text-slate-900">Holiday Pay</TableHead>}
-                          {visibleColumns.gross_pay && <TableHead className="text-center font-medium text-slate-900">Gross Pay</TableHead>}
-                          {visibleColumns.absences && <TableHead className="text-center font-medium text-slate-900">Absences</TableHead>}
-                          {visibleColumns.cash_advance && <TableHead className="text-center font-medium text-slate-900">Cash Advance</TableHead>}
-                          {visibleColumns.total_deductions && <TableHead className="text-center font-medium text-slate-900">Total Deductions</TableHead>}
-                          {visibleColumns.net_pay && <TableHead className="text-center font-medium text-slate-900">Net Pay</TableHead>}
-                          {visibleColumns.status && <TableHead className="text-center font-medium text-slate-900">Status</TableHead>}
+                        <TableRow className="border-b border-slate-200 bg-slate-50/50">
+                          {visibleColumns.employee_id && <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Employee ID</TableHead>}
+                          {visibleColumns.full_name && <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Full Name</TableHead>}
+                          {visibleColumns.pay_type && <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Type</TableHead>}
+                          {visibleColumns.period && <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Period</TableHead>}
+                          {visibleColumns.basic_salary && <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Salary</TableHead>}
+                          {visibleColumns.allowances && <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Allow</TableHead>}
+                          {visibleColumns.overtime && <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">OT</TableHead>}
+                          {visibleColumns.holiday_pay && <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Holiday</TableHead>}
+                          {visibleColumns.gross_pay && <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Gross</TableHead>}
+                          {visibleColumns.absences && <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Abs</TableHead>}
+                          {visibleColumns.cash_advance && <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">C.A.</TableHead>}
+                          {visibleColumns.total_deductions && <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Deduct</TableHead>}
+                          {visibleColumns.net_pay && <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Net Pay</TableHead>}
+                          {visibleColumns.status && <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Status</TableHead>}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {paginatedDetails.map((emp) => (
                           <TableRow key={emp.id} className="border-b border-slate-100 hover:bg-slate-50 transition">
-                            {visibleColumns.employee_id && <TableCell className="py-4 text-center font-medium text-slate-900">{emp.employee_code}</TableCell>}
-                            {visibleColumns.full_name && <TableCell className="py-4 text-center font-medium text-slate-900">{emp.full_name}</TableCell>}
-                            {visibleColumns.pay_type && <TableCell className="py-4 text-center text-slate-600">{emp.pay_type}</TableCell>}
+                            {visibleColumns.employee_id && <TableCell className="py-2 text-center text-xs font-medium text-slate-900">{emp.employee_code}</TableCell>}
+                            {visibleColumns.full_name && <TableCell className="py-2 text-center text-xs font-medium text-slate-900">{emp.full_name}</TableCell>}
+                            {visibleColumns.pay_type && <TableCell className="py-2 text-center text-xs text-slate-600">{emp.pay_type}</TableCell>}
                             {visibleColumns.period && (
-                              <TableCell className="py-4 text-center text-sm text-slate-600">
+                              <TableCell className="py-2 text-center text-[11px] text-slate-600">
                                 {new Date(emp.period_start).toLocaleDateString()} - {new Date(emp.period_end).toLocaleDateString()}
                               </TableCell>
                             )}
-                            {visibleColumns.basic_salary && <TableCell className="py-4 text-center text-slate-900">₱{emp.basic_salary.toLocaleString()}</TableCell>}
-                            {visibleColumns.allowances && <TableCell className="py-4 text-center text-slate-900">₱{emp.allowances.toLocaleString()}</TableCell>}
-                            {visibleColumns.overtime && <TableCell className="py-4 text-center text-slate-900">₱{emp.overtime_pay.toLocaleString()}</TableCell>}
-                            {visibleColumns.holiday_pay && <TableCell className="py-4 text-center text-slate-900">₱{emp.holiday_pay.toLocaleString()}</TableCell>}
-                            {visibleColumns.gross_pay && <TableCell className="py-4 text-center text-slate-900">₱{(emp.gross_pay || emp.basic_salary).toLocaleString()}</TableCell>}
-                            {visibleColumns.absences && <TableCell className="py-4 text-center text-slate-900">₱{emp.absences.toLocaleString()}</TableCell>}
-                            {visibleColumns.cash_advance && <TableCell className="py-4 text-center text-slate-900">₱{emp.cash_advance.toLocaleString()}</TableCell>}
-                            {visibleColumns.total_deductions && <TableCell className="py-4 text-center text-slate-900">₱{emp.total_deductions.toLocaleString()}</TableCell>}
-                            {visibleColumns.net_pay && <TableCell className="py-4 text-center font-bold text-slate-900">₱{(emp.net_pay + emp.allowances).toLocaleString()}</TableCell>}
+                            {visibleColumns.basic_salary && <TableCell className="py-2 text-center text-xs text-slate-900">Peso {emp.basic_salary.toLocaleString()}</TableCell>}
+                            {visibleColumns.allowances && <TableCell className="py-2 text-center text-xs text-slate-900">Peso {emp.allowances.toLocaleString()}</TableCell>}
+                            {visibleColumns.overtime && <TableCell className="py-2 text-center text-xs text-slate-900">Peso {emp.overtime_pay.toLocaleString()}</TableCell>}
+                            {visibleColumns.holiday_pay && <TableCell className="py-2 text-center text-xs text-slate-900">Peso {emp.holiday_pay.toLocaleString()}</TableCell>}
+                            {visibleColumns.gross_pay && <TableCell className="py-2 text-center text-xs text-slate-900">Peso {(emp.gross_pay || emp.basic_salary).toLocaleString()}</TableCell>}
+                            {visibleColumns.absences && <TableCell className="py-2 text-center text-xs text-slate-900">Peso {emp.absences.toLocaleString()}</TableCell>}
+                            {visibleColumns.cash_advance && <TableCell className="py-2 text-center text-xs text-slate-900">Peso {emp.cash_advance.toLocaleString()}</TableCell>}
+                            {visibleColumns.total_deductions && <TableCell className="py-2 text-center text-xs text-slate-900">Peso {emp.total_deductions.toLocaleString()}</TableCell>}
+                            {visibleColumns.net_pay && <TableCell className="py-2 text-center text-xs font-bold text-slate-900">Peso {(emp.net_pay + emp.allowances).toLocaleString()}</TableCell>}
                             {visibleColumns.status && (
-                              <TableCell className="py-4 text-center">
-                                <span className={`px-2 py-1 rounded-full text-xs font-medium border ${statusVariants[emp.status] || "bg-slate-100 text-slate-600 border-slate-200"
-
+                              <TableCell className="py-2 text-center">
+                                <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium border ${statusVariants[emp.status] || "bg-slate-100 text-slate-600 border-slate-200"
                                   }`}>
                                   {emp.status}
                                 </span>
@@ -916,20 +944,20 @@ export default function ReportsPage() {
 
                   {/* Pagination Controls */}
                   {totalPages > 1 && (
-                    <div className="flex items-center justify-between p-4 border-t border-slate-100 bg-slate-50/50">
-                      <p className="text-sm text-slate-500">
-                        Showing <span className="font-medium text-slate-700">{startIndex + 1}</span> to <span className="font-medium text-slate-700">{Math.min(startIndex + pageSize, employeePayrollDetails.length)}</span> of <span className="font-medium text-slate-700">{employeePayrollDetails.length}</span> results
+                    <div className="flex items-center justify-between p-2 px-4 border-t border-slate-100 bg-slate-50/50">
+                      <p className="text-[10px] text-slate-500">
+                        Showing <span className="font-medium text-slate-700">{startIndex + 1}</span> to <span className="font-medium text-slate-700">{Math.min(startIndex + pageSize, employeePayrollDetails.length)}</span> of <span className="font-medium text-slate-700">{employeePayrollDetails.length}</span>
                       </p>
                       <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                          disabled={currentPage === 1}
-                          className="h-8 w-8 p-0"
-                        >
-                          <ChevronLeft className="h-4 w-4" />
-                        </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                            disabled={currentPage === 1}
+                            className="h-7 w-7 p-0"
+                          >
+                            <ChevronLeft className="h-3.5 w-3.5" />
+                          </Button>
                         <div className="flex items-center gap-1">
                           {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                             let pageNum;
@@ -944,15 +972,15 @@ export default function ReportsPage() {
                             }
 
                             return (
-                              <Button
-                                key={pageNum}
-                                variant={currentPage === pageNum ? "default" : "outline"}
-                                size="sm"
-                                onClick={() => setCurrentPage(pageNum)}
-                                className={`h-8 w-8 p-0 ${currentPage === pageNum ? "bg-slate-900" : ""}`}
-                              >
-                                {pageNum}
-                              </Button>
+                                <Button
+                                  key={pageNum}
+                                  variant={currentPage === pageNum ? "default" : "outline"}
+                                  size="sm"
+                                  onClick={() => setCurrentPage(pageNum)}
+                                  className={`h-7 w-7 p-0 text-[10px] ${currentPage === pageNum ? "bg-slate-900" : ""}`}
+                                >
+                                  {pageNum}
+                                </Button>
                             );
                           })}
                         </div>
@@ -961,9 +989,9 @@ export default function ReportsPage() {
                           size="sm"
                           onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                           disabled={currentPage === totalPages}
-                          className="h-8 w-8 p-0"
+                          className="h-7 w-7 p-0"
                         >
-                          <ChevronRight className="h-4 w-4" />
+                          <ChevronRight className="h-3.5 w-3.5" />
                         </Button>
                       </div>
                     </div>
@@ -977,10 +1005,10 @@ export default function ReportsPage() {
         {/* Monthly Payroll Tab */}
         <TabsContent value="monthly-payroll">
           <Card className="border border-border shadow-sm bg-card overflow-hidden">
-            <CardHeader>
+            <CardHeader className="p-4 pb-2">
               <div>
-                <h3 className="text-lg font-medium text-foreground">Monthly Payroll Summary</h3>
-                <p className="text-muted-foreground">Payroll breakdown organized by month</p>
+                <h3 className="text-sm font-semibold text-foreground">Monthly Payroll Summary</h3>
+                <p className="text-[10px] text-muted-foreground">Payroll breakdown organized by month</p>
               </div>
             </CardHeader>
             <CardContent>
@@ -1000,36 +1028,36 @@ export default function ReportsPage() {
                     <div className="overflow-x-auto">
                       <Table>
                         <TableHeader>
-                          <TableRow className="border-b border-slate-200">
-                            <TableHead className="text-center font-medium text-slate-900">Month</TableHead>
-                            <TableHead className="text-center font-medium text-slate-900">Employees</TableHead>
-                            <TableHead className="text-center font-medium text-slate-900">Gross Pay</TableHead>
-                            <TableHead className="text-center font-medium text-slate-900">Allowances</TableHead>
-                            <TableHead className="text-center font-medium text-slate-900">SSS</TableHead>
-                            <TableHead className="text-center font-medium text-slate-900">PhilHealth</TableHead>
-                            <TableHead className="text-center font-medium text-slate-900">Pag-IBIG</TableHead>
-                            <TableHead className="text-center font-medium text-slate-900">W. Tax</TableHead>
-                            <TableHead className="text-center font-medium text-slate-900">Loans</TableHead>
-                            <TableHead className="text-center font-medium text-slate-900">Cash Advance</TableHead>
-                            <TableHead className="text-center font-medium text-slate-900">Deductions</TableHead>
-                            <TableHead className="text-center font-medium text-slate-900">Net Pay</TableHead>
+                          <TableRow className="border-b border-slate-200 bg-slate-50/50">
+                            <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Month</TableHead>
+                            <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Emps</TableHead>
+                            <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Gross</TableHead>
+                            <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Allow</TableHead>
+                            <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">SSS</TableHead>
+                            <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">PhilH</TableHead>
+                            <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">PagIBIG</TableHead>
+                            <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">W.Tax</TableHead>
+                            <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Loans</TableHead>
+                            <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">C.Adv</TableHead>
+                            <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Ded</TableHead>
+                            <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Net Pay</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {paginatedMonthlySummary.map((summary) => (
                             <TableRow key={`${summary.year}-${summary.month}`} className="border-b border-slate-100 hover:bg-slate-50 transition">
-                              <TableCell className="py-4 text-center font-medium text-slate-900">{summary.monthYear}</TableCell>
-                              <TableCell className="py-4 text-center text-slate-900">{summary.totalEmployees}</TableCell>
-                              <TableCell className="py-4 text-center text-slate-900">₱{summary.totalGrossPay.toLocaleString()}</TableCell>
-                              <TableCell className="py-4 text-center text-slate-900">₱{summary.totalAllowances.toLocaleString()}</TableCell>
-                              <TableCell className="py-4 text-center text-slate-900">₱{summary.totalSSS.toLocaleString()}</TableCell>
-                              <TableCell className="py-4 text-center text-slate-900">₱{summary.totalPhilHealth.toLocaleString()}</TableCell>
-                              <TableCell className="py-4 text-center text-slate-900">₱{summary.totalPagIbig.toLocaleString()}</TableCell>
-                              <TableCell className="py-4 text-center text-slate-900">₱{summary.totalWithholdingTax.toLocaleString()}</TableCell>
-                              <TableCell className="py-4 text-center text-slate-900">₱{summary.totalLoans.toLocaleString()}</TableCell>
-                              <TableCell className="py-4 text-center text-slate-900">₱{summary.totalCashAdvance.toLocaleString()}</TableCell>
-                              <TableCell className="py-4 text-center text-slate-900">₱{summary.totalDeductions.toLocaleString()}</TableCell>
-                              <TableCell className="py-4 text-center font-bold text-slate-900">₱{summary.totalNetPay.toLocaleString()}</TableCell>
+                              <TableCell className="py-2 text-center text-xs font-semibold text-slate-900">{summary.monthYear}</TableCell>
+                              <TableCell className="py-2 text-center text-xs text-slate-900">{summary.totalEmployees}</TableCell>
+                              <TableCell className="py-2 text-center text-xs text-slate-900">Peso {summary.totalGrossPay.toLocaleString()}</TableCell>
+                              <TableCell className="py-2 text-center text-xs text-slate-900">Peso {summary.totalAllowances.toLocaleString()}</TableCell>
+                              <TableCell className="py-2 text-center text-xs text-slate-900">Peso {summary.totalSSS.toLocaleString()}</TableCell>
+                              <TableCell className="py-2 text-center text-xs text-slate-900">Peso {summary.totalPhilHealth.toLocaleString()}</TableCell>
+                              <TableCell className="py-2 text-center text-xs text-slate-900">Peso {summary.totalPagIbig.toLocaleString()}</TableCell>
+                              <TableCell className="py-2 text-center text-xs text-slate-900">Peso {summary.totalWithholdingTax.toLocaleString()}</TableCell>
+                              <TableCell className="py-2 text-center text-xs text-slate-900">Peso {summary.totalLoans.toLocaleString()}</TableCell>
+                              <TableCell className="py-2 text-center text-xs text-slate-900">Peso {summary.totalCashAdvance.toLocaleString()}</TableCell>
+                              <TableCell className="py-2 text-center text-xs text-slate-900">Peso {summary.totalDeductions.toLocaleString()}</TableCell>
+                              <TableCell className="py-2 text-center text-xs font-bold text-slate-900">Peso {summary.totalNetPay.toLocaleString()}</TableCell>
                             </TableRow>
                           ))}
                           {monthlyPayrollSummary.length > 1 && currentMonthlyPage === totalMonthlyPages && (
@@ -1039,34 +1067,34 @@ export default function ReportsPage() {
                                 {monthlyPayrollSummary.reduce((sum, s) => sum + s.totalEmployees, 0)}
                               </TableCell>
                               <TableCell className="py-4 text-center text-slate-900">
-                                ₱{monthlyPayrollSummary.reduce((sum, s) => sum + s.totalGrossPay, 0).toLocaleString()}
+                                Peso {monthlyPayrollSummary.reduce((sum, s) => sum + s.totalGrossPay, 0).toLocaleString()}
                               </TableCell>
                               <TableCell className="py-4 text-center text-slate-900">
-                                ₱{monthlyPayrollSummary.reduce((sum, s) => sum + s.totalAllowances, 0).toLocaleString()}
+                                Peso {monthlyPayrollSummary.reduce((sum, s) => sum + s.totalAllowances, 0).toLocaleString()}
                               </TableCell>
                               <TableCell className="py-4 text-center text-slate-900">
-                                ₱{monthlyPayrollSummary.reduce((sum, s) => sum + s.totalSSS, 0).toLocaleString()}
+                                Peso {monthlyPayrollSummary.reduce((sum, s) => sum + s.totalSSS, 0).toLocaleString()}
                               </TableCell>
                               <TableCell className="py-4 text-center text-slate-900">
-                                ₱{monthlyPayrollSummary.reduce((sum, s) => sum + s.totalPhilHealth, 0).toLocaleString()}
+                                Peso {monthlyPayrollSummary.reduce((sum, s) => sum + s.totalPhilHealth, 0).toLocaleString()}
                               </TableCell>
                               <TableCell className="py-4 text-center text-slate-900">
-                                ₱{monthlyPayrollSummary.reduce((sum, s) => sum + s.totalPagIbig, 0).toLocaleString()}
+                                Peso {monthlyPayrollSummary.reduce((sum, s) => sum + s.totalPagIbig, 0).toLocaleString()}
                               </TableCell>
                               <TableCell className="py-4 text-center text-slate-900">
-                                ₱{monthlyPayrollSummary.reduce((sum, s) => sum + s.totalWithholdingTax, 0).toLocaleString()}
+                                Peso {monthlyPayrollSummary.reduce((sum, s) => sum + s.totalWithholdingTax, 0).toLocaleString()}
                               </TableCell>
                               <TableCell className="py-4 text-center text-slate-900">
-                                ₱{monthlyPayrollSummary.reduce((sum, s) => sum + s.totalLoans, 0).toLocaleString()}
+                                Peso {monthlyPayrollSummary.reduce((sum, s) => sum + s.totalLoans, 0).toLocaleString()}
                               </TableCell>
                               <TableCell className="py-4 text-center text-slate-900">
-                                ₱{monthlyPayrollSummary.reduce((sum, s) => sum + s.totalCashAdvance, 0).toLocaleString()}
+                                Peso {monthlyPayrollSummary.reduce((sum, s) => sum + s.totalCashAdvance, 0).toLocaleString()}
                               </TableCell>
                               <TableCell className="py-4 text-center text-slate-900">
-                                ₱{monthlyPayrollSummary.reduce((sum, s) => sum + s.totalDeductions, 0).toLocaleString()}
+                                Peso {monthlyPayrollSummary.reduce((sum, s) => sum + s.totalDeductions, 0).toLocaleString()}
                               </TableCell>
                               <TableCell className="py-4 text-center text-slate-900">
-                                ₱{monthlyPayrollSummary.reduce((sum, s) => sum + s.totalNetPay, 0).toLocaleString()}
+                                Peso {monthlyPayrollSummary.reduce((sum, s) => sum + s.totalNetPay, 0).toLocaleString()}
                               </TableCell>
                             </TableRow>
                           )}
@@ -1076,9 +1104,9 @@ export default function ReportsPage() {
 
                     {/* Pagination Controls */}
                     {totalMonthlyPages > 1 && (
-                      <div className="flex items-center justify-between p-4 border-t border-slate-100 bg-slate-50/50">
-                        <p className="text-sm text-slate-500">
-                          Showing <span className="font-medium text-slate-700">{startMonthlyIndex + 1}</span> to <span className="font-medium text-slate-700">{Math.min(startMonthlyIndex + pageSize, monthlyPayrollSummary.length)}</span> of <span className="font-medium text-slate-700">{monthlyPayrollSummary.length}</span> results
+                      <div className="flex items-center justify-between p-2 px-4 border-t border-slate-100 bg-slate-50/50">
+                        <p className="text-[10px] text-slate-500">
+                          Showing <span className="font-medium text-slate-700">{startMonthlyIndex + 1}</span> to <span className="font-medium text-slate-700">{Math.min(startMonthlyIndex + pageSize, monthlyPayrollSummary.length)}</span> of <span className="font-medium text-slate-700">{monthlyPayrollSummary.length}</span>
                         </p>
                         <div className="flex items-center gap-2">
                           <Button
@@ -1086,9 +1114,9 @@ export default function ReportsPage() {
                             size="sm"
                             onClick={() => setCurrentMonthlyPage(prev => Math.max(1, prev - 1))}
                             disabled={currentMonthlyPage === 1}
-                            className="h-8 w-8 p-0"
+                            className="h-7 w-7 p-0"
                           >
-                            <ChevronLeft className="h-4 w-4" />
+                            <ChevronLeft className="h-3.5 w-3.5" />
                           </Button>
                           <div className="flex items-center gap-1">
                             {Array.from({ length: Math.min(5, totalMonthlyPages) }, (_, i) => {
@@ -1109,7 +1137,7 @@ export default function ReportsPage() {
                                   variant={currentMonthlyPage === pageNum ? "default" : "outline"}
                                   size="sm"
                                   onClick={() => setCurrentMonthlyPage(pageNum)}
-                                  className={`h-8 w-8 p-0 ${currentMonthlyPage === pageNum ? "bg-slate-900 text-white" : ""}`}
+                                  className={`h-7 w-7 p-0 text-[10px] ${currentMonthlyPage === pageNum ? "bg-slate-900 text-white" : ""}`}
                                 >
                                   {pageNum}
                                 </Button>
@@ -1121,9 +1149,9 @@ export default function ReportsPage() {
                             size="sm"
                             onClick={() => setCurrentMonthlyPage(prev => Math.min(totalMonthlyPages, prev + 1))}
                             disabled={currentMonthlyPage === totalMonthlyPages}
-                            className="h-8 w-8 p-0"
+                            className="h-7 w-7 p-0"
                           >
-                            <ChevronRight className="h-4 w-4" />
+                            <ChevronRight className="h-3.5 w-3.5" />
                           </Button>
                         </div>
                       </div>
@@ -1139,10 +1167,10 @@ export default function ReportsPage() {
         {/* Deductions Tab */}
         <TabsContent value="deductions">
           <Card className="border-0 shadow-sm">
-            <CardHeader>
+            <CardHeader className="p-4 pb-2">
               <div>
-                <h3 className="text-lg font-medium text-foreground">Employee Deductions (Detailed)</h3>
-                <p className="text-muted-foreground">Breakdown of all deduction types by employee</p>
+                <h3 className="text-sm font-semibold text-foreground">Employee Deductions (Detailed)</h3>
+                <p className="text-[10px] text-muted-foreground">Breakdown of all deduction types by employee</p>
               </div>
             </CardHeader>
             <CardContent>
@@ -1162,34 +1190,33 @@ export default function ReportsPage() {
                     <div className="overflow-x-auto">
                       <Table>
                         <TableHeader>
-                          <TableRow className="border-b border-slate-200">
-                            <TableHead className="text-center font-medium text-slate-900">Employee</TableHead>
-                            <TableHead className="text-center font-medium text-slate-900">SSS</TableHead>
-                            <TableHead className="text-center font-medium text-slate-900">PhilHealth</TableHead>
-                            <TableHead className="text-center font-medium text-slate-900">Pag-IBIG</TableHead>
-                            <TableHead className="text-center font-medium text-slate-900">Withholding Tax</TableHead>
-                            <TableHead className="text-center font-medium text-slate-900">Loans</TableHead>
-                            <TableHead className="text-center font-medium text-slate-900">Uniform</TableHead>
-                            <TableHead className="text-center font-medium text-slate-900">Tardiness</TableHead>
-                            <TableHead className="text-center font-medium text-slate-900">Cash Advance</TableHead>
-                            <TableHead className="text-center font-medium text-slate-900">Total</TableHead>
-
+                          <TableRow className="border-b border-slate-200 bg-slate-50/50">
+                            <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Employee</TableHead>
+                            <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">SSS</TableHead>
+                            <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">PhilH</TableHead>
+                            <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">PagIBIG</TableHead>
+                            <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">W.Tax</TableHead>
+                            <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Loans</TableHead>
+                            <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Unif</TableHead>
+                            <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Tard</TableHead>
+                            <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">C.Adv</TableHead>
+                            <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Total</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {paginatedDeductionsDetails.map(emp => (
                             <TableRow key={emp.id} className="border-b border-slate-100 hover:bg-slate-50 transition">
-                              <TableCell className="py-4 text-center font-medium text-slate-900">{emp.full_name}</TableCell>
-                              <TableCell className="py-4 text-center text-slate-900">₱{emp.sss.toLocaleString()}</TableCell>
-                              <TableCell className="py-4 text-center text-slate-900">₱{emp.philhealth.toLocaleString()}</TableCell>
-                              <TableCell className="py-4 text-center text-slate-900">₱{emp.pagibig.toLocaleString()}</TableCell>
-                              <TableCell className="py-4 text-center text-slate-900">₱{emp.withholding_tax.toLocaleString()}</TableCell>
-                              <TableCell className="py-4 text-center text-slate-900">₱{emp.loans.toLocaleString()}</TableCell>
-                              <TableCell className="py-4 text-center text-slate-900">₱{emp.uniform.toLocaleString()}</TableCell>
-                              <TableCell className="py-4 text-center text-slate-900">₱{emp.tardiness.toLocaleString()}</TableCell>
-                              <TableCell className="py-4 text-center text-slate-900">₱{emp.cash_advance.toLocaleString()}</TableCell>
-                              <TableCell className="py-4 text-center font-bold text-slate-900">
-                                ₱{(emp.total_deductions + emp.cash_advance).toLocaleString()}
+                              <TableCell className="py-2 text-center text-xs font-semibold text-slate-900">{emp.full_name}</TableCell>
+                              <TableCell className="py-2 text-center text-xs text-slate-900">Peso {emp.sss.toLocaleString()}</TableCell>
+                              <TableCell className="py-2 text-center text-xs text-slate-900">Peso {emp.philhealth.toLocaleString()}</TableCell>
+                              <TableCell className="py-2 text-center text-xs text-slate-900">Peso {emp.pagibig.toLocaleString()}</TableCell>
+                              <TableCell className="py-2 text-center text-xs text-slate-900">Peso {emp.withholding_tax.toLocaleString()}</TableCell>
+                              <TableCell className="py-2 text-center text-xs text-slate-900">Peso {emp.loans.toLocaleString()}</TableCell>
+                              <TableCell className="py-2 text-center text-xs text-slate-900">Peso {emp.uniform.toLocaleString()}</TableCell>
+                              <TableCell className="py-2 text-center text-xs text-slate-900">Peso {emp.tardiness.toLocaleString()}</TableCell>
+                              <TableCell className="py-2 text-center text-xs text-slate-900">Peso {emp.cash_advance.toLocaleString()}</TableCell>
+                              <TableCell className="py-2 text-center text-xs font-bold text-slate-900">
+                                Peso {(emp.total_deductions + emp.cash_advance).toLocaleString()}
                               </TableCell>
                             </TableRow>
                           ))}
@@ -1199,9 +1226,9 @@ export default function ReportsPage() {
 
                     {/* Pagination Controls */}
                     {totalDeductionsPages > 1 && (
-                      <div className="flex items-center justify-between p-4 border-t border-slate-100 bg-slate-50/50">
-                        <p className="text-sm text-slate-500">
-                          Showing <span className="font-medium text-slate-700">{startDeductionsIndex + 1}</span> to <span className="font-medium text-slate-700">{Math.min(startDeductionsIndex + pageSize, employeePayrollDetails.length)}</span> of <span className="font-medium text-slate-700">{employeePayrollDetails.length}</span> results
+                      <div className="flex items-center justify-between p-2 px-4 border-t border-slate-100 bg-slate-50/50">
+                        <p className="text-[10px] text-slate-500">
+                          Showing <span className="font-medium text-slate-700">{startDeductionsIndex + 1}</span> to <span className="font-medium text-slate-700">{Math.min(startDeductionsIndex + pageSize, employeePayrollDetails.length)}</span> of <span className="font-medium text-slate-700">{employeePayrollDetails.length}</span>
                         </p>
                         <div className="flex items-center gap-2">
                           <Button
@@ -1209,9 +1236,9 @@ export default function ReportsPage() {
                             size="sm"
                             onClick={() => setCurrentDeductionsPage(prev => Math.max(1, prev - 1))}
                             disabled={currentDeductionsPage === 1}
-                            className="h-8 w-8 p-0"
+                            className="h-7 w-7 p-0"
                           >
-                            <ChevronLeft className="h-4 w-4" />
+                            <ChevronLeft className="h-3.5 w-3.5" />
                           </Button>
                           <div className="flex items-center gap-1">
                             {Array.from({ length: Math.min(5, totalDeductionsPages) }, (_, i) => {
@@ -1232,7 +1259,7 @@ export default function ReportsPage() {
                                   variant={currentDeductionsPage === pageNum ? "default" : "outline"}
                                   size="sm"
                                   onClick={() => setCurrentDeductionsPage(pageNum)}
-                                  className={`h-8 w-8 p-0 ${currentDeductionsPage === pageNum ? "bg-slate-900 text-white" : ""}`}
+                                  className={`h-7 w-7 p-0 text-[10px] ${currentDeductionsPage === pageNum ? "bg-slate-900 text-white" : ""}`}
                                 >
                                   {pageNum}
                                 </Button>
@@ -1244,9 +1271,9 @@ export default function ReportsPage() {
                             size="sm"
                             onClick={() => setCurrentDeductionsPage(prev => Math.min(totalDeductionsPages, prev + 1))}
                             disabled={currentDeductionsPage === totalDeductionsPages}
-                            className="h-8 w-8 p-0"
+                            className="h-7 w-7 p-0"
                           >
-                            <ChevronRight className="h-4 w-4" />
+                            <ChevronRight className="h-3.5 w-3.5" />
                           </Button>
                         </div>
                       </div>
@@ -1258,13 +1285,17 @@ export default function ReportsPage() {
           </Card>
         </TabsContent>
 
+        <TabsContent value="payroll-attendance-pdf" className="space-y-4">
+          <PayrollAttendanceReportSection />
+        </TabsContent>
+
         {/* Expenses Tab */}
         <TabsContent value="expenses">
           <Card className="border border-border shadow-sm bg-card overflow-hidden">
-            <CardHeader>
+            <CardHeader className="p-4 pb-2">
               <div>
-                <h3 className="text-lg font-medium text-foreground">Company Expenses</h3>
-                <p className="text-muted-foreground">Overview of company operational expenses</p>
+                <h3 className="text-sm font-semibold text-foreground">Company Expenses</h3>
+                <p className="text-[10px] text-muted-foreground">Overview of company operational expenses</p>
               </div>
             </CardHeader>
             <CardContent>
@@ -1283,20 +1314,20 @@ export default function ReportsPage() {
                   <div className="border border-slate-200 rounded-lg overflow-hidden">
                     <Table>
                       <TableHeader>
-                        <TableRow className="border-b border-slate-200">
-                          <TableHead className="text-center font-medium text-slate-900">Date</TableHead>
-                          <TableHead className="text-center font-medium text-slate-900">Name</TableHead>
-                          <TableHead className="text-center font-medium text-slate-900">Category</TableHead>
-                          <TableHead className="text-center font-medium text-slate-900">Amount</TableHead>
+                        <TableRow className="border-b border-slate-200 bg-slate-50/50">
+                          <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Date</TableHead>
+                          <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Name</TableHead>
+                          <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Category</TableHead>
+                          <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Amount</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {paginatedExpenses.map((e) => (
                           <TableRow key={e.id} className="border-b border-slate-100 hover:bg-slate-50 transition">
-                            <TableCell className="py-4 text-center text-slate-900">{new Date(e.incurred_on).toLocaleDateString()}</TableCell>
-                            <TableCell className="py-4 text-center font-medium text-slate-900">{e.expense_name}</TableCell>
-                            <TableCell className="py-4 text-center text-slate-600">{e.category}</TableCell>
-                            <TableCell className="py-4 text-center font-medium text-slate-900">₱{e.amount.toLocaleString()}</TableCell>
+                            <TableCell className="py-2 text-center text-[11px] text-slate-900">{new Date(e.incurred_on).toLocaleDateString()}</TableCell>
+                            <TableCell className="py-2 text-center text-xs font-semibold text-slate-900">{e.expense_name}</TableCell>
+                            <TableCell className="py-2 text-center text-xs text-slate-600">{e.category}</TableCell>
+                            <TableCell className="py-2 text-center text-xs font-bold text-slate-900">Peso {e.amount.toLocaleString()}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -1304,9 +1335,9 @@ export default function ReportsPage() {
 
                     {/* Pagination Controls */}
                     {totalExpensesPages > 1 && (
-                      <div className="flex items-center justify-between p-4 border-t border-slate-100 bg-slate-50/50">
-                        <p className="text-sm text-slate-500">
-                          Showing <span className="font-medium text-slate-700">{startExpensesIndex + 1}</span> to <span className="font-medium text-slate-700">{Math.min(startExpensesIndex + pageSize, expenses.length)}</span> of <span className="font-medium text-slate-700">{expenses.length}</span> results
+                      <div className="flex items-center justify-between p-2 px-4 border-t border-slate-100 bg-slate-50/50">
+                        <p className="text-[10px] text-slate-500">
+                          Showing <span className="font-medium text-slate-700">{startExpensesIndex + 1}</span> to <span className="font-medium text-slate-700">{Math.min(startExpensesIndex + pageSize, expenses.length)}</span> of <span className="font-medium text-slate-700">{expenses.length}</span>
                         </p>
                         <div className="flex items-center gap-2">
                           <Button
@@ -1314,9 +1345,9 @@ export default function ReportsPage() {
                             size="sm"
                             onClick={() => setCurrentExpensesPage(prev => Math.max(1, prev - 1))}
                             disabled={currentExpensesPage === 1}
-                            className="h-8 w-8 p-0"
+                            className="h-7 w-7 p-0"
                           >
-                            <ChevronLeft className="h-4 w-4" />
+                            <ChevronLeft className="h-3.5 w-3.5" />
                           </Button>
                           <div className="flex items-center gap-1">
                             {Array.from({ length: Math.min(5, totalExpensesPages) }, (_, i) => {
@@ -1337,7 +1368,7 @@ export default function ReportsPage() {
                                   variant={currentExpensesPage === pageNum ? "default" : "outline"}
                                   size="sm"
                                   onClick={() => setCurrentExpensesPage(pageNum)}
-                                  className={`h-8 w-8 p-0 ${currentExpensesPage === pageNum ? "bg-slate-900 text-white" : ""}`}
+                                  className={`h-7 w-7 p-0 text-[10px] ${currentExpensesPage === pageNum ? "bg-slate-900 text-white" : ""}`}
                                 >
                                   {pageNum}
                                 </Button>
@@ -1349,9 +1380,9 @@ export default function ReportsPage() {
                             size="sm"
                             onClick={() => setCurrentExpensesPage(prev => Math.min(totalExpensesPages, prev + 1))}
                             disabled={currentExpensesPage === totalExpensesPages}
-                            className="h-8 w-8 p-0"
+                            className="h-7 w-7 p-0"
                           >
-                            <ChevronRight className="h-4 w-4" />
+                            <ChevronRight className="h-3.5 w-3.5" />
                           </Button>
                         </div>
                       </div>
@@ -1446,5 +1477,19 @@ export default function ReportsPage() {
         </DialogContent>
       </Dialog>
     </div>
+  )
+}
+
+export default function ReportsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[50vh] items-center justify-center p-6 text-sm text-muted-foreground">
+          Loading reports…
+        </div>
+      }
+    >
+      <ReportsContent />
+    </Suspense>
   )
 }
