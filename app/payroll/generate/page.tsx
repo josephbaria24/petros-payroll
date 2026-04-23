@@ -24,7 +24,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "@/lib/toast"
-import { format } from "date-fns"
+import { format, startOfDay } from "date-fns"
+import { computeProratedBasicAndAllowance } from "@/lib/payroll-proration"
 import {
   ChevronLeft,
   Calendar as CalendarIcon,
@@ -39,7 +40,8 @@ import {
   Check,
   Calculator,
   ArrowRight,
-  Info
+  Info,
+  RefreshCw,
 } from "lucide-react"
 import {
   Tabs,
@@ -143,6 +145,33 @@ type EmployeeRequest = {
   status: string
 }
 
+type MandatoryDeductionRow = {
+  employee_id: string
+  full_name: string
+  sss: number
+  philhealth: number
+  pagibig: number
+  applySss: boolean
+  applyPhilhealth: boolean
+  applyPagibig: boolean
+}
+
+function aggregateMandatoryFromDbDeductions(
+  rows: { type: string; amount: number | string }[]
+): { sss: number; philhealth: number; pagibig: number } {
+  let sss = 0
+  let philhealth = 0
+  let pagibig = 0
+  for (const d of rows) {
+    const t = (d.type || "").toLowerCase()
+    const amt = Number(d.amount) || 0
+    if (t.includes("sss")) sss += amt
+    else if (t.includes("philhealth")) philhealth += amt
+    else if (t.includes("pagibig") || t.includes("hdmf")) pagibig += amt
+  }
+  return { sss, philhealth, pagibig }
+}
+
 function extractPhilippineTime(timestamp: string): string {
   if (!timestamp || !timestamp.includes('T')) return "";
   return timestamp.split('T')[1].substring(0, 5);
@@ -182,6 +211,8 @@ export default function GeneratePayrollPage() {
   const [selectedLateIds, setSelectedLateIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(false)
   const [attendanceDeductionConfirmOpen, setAttendanceDeductionConfirmOpen] = useState(false)
+  const [mandatoryDeductionRows, setMandatoryDeductionRows] = useState<MandatoryDeductionRow[]>([])
+  const [mandatoryDeductionsLoading, setMandatoryDeductionsLoading] = useState(false)
 
   const fetchEmployees = async () => {useState(false)}
 
@@ -199,6 +230,100 @@ export default function GeneratePayrollPage() {
       setEmployeeAdjustments([])
     }
   }, [periodStart, periodEnd, activeOrganization])
+
+  useEffect(() => {
+    if (!periodStart || !periodEnd || !activeOrganization) {
+      setMandatoryDeductionRows([])
+      setMandatoryDeductionsLoading(false)
+      return
+    }
+    let cancelled = false
+    setMandatoryDeductionRows([])
+    setMandatoryDeductionsLoading(true)
+    async function loadMandatoryDeductions() {
+      try {
+        const empTable = activeOrganization === "pdn" ? "pdn_employees" : "employees"
+        const dedTable = activeOrganization === "pdn" ? "pdn_deductions" : "deductions"
+        const { data: emps } = await supabase
+          .from(empTable)
+          .select("id, full_name, base_salary")
+          .neq("employment_status", "Inactive")
+        const { data: deds } = await supabase.from(dedTable).select("*")
+        if (cancelled) return
+        const next: MandatoryDeductionRow[] = (emps || [])
+          .filter((e) => e.base_salary)
+          .map((emp) => {
+            const empDeds = (deds || []).filter((d) => d.employee_id === emp.id)
+            const { sss, philhealth, pagibig } = aggregateMandatoryFromDbDeductions(empDeds)
+            return {
+              employee_id: emp.id,
+              full_name: emp.full_name || "Unknown",
+              sss: Math.round(sss * 100) / 100,
+              philhealth: Math.round(philhealth * 100) / 100,
+              pagibig: Math.round(pagibig * 100) / 100,
+              applySss: true,
+              applyPhilhealth: true,
+              applyPagibig: true,
+            }
+          })
+        setMandatoryDeductionRows(next)
+      } catch (e) {
+        console.error(e)
+        if (!cancelled) toast.error("Could not load deduction defaults")
+      } finally {
+        if (!cancelled) setMandatoryDeductionsLoading(false)
+      }
+    }
+    void loadMandatoryDeductions()
+    return () => {
+      cancelled = true
+    }
+  }, [periodStart, periodEnd, activeOrganization])
+
+  const patchMandatoryDeductionRow = (employeeId: string, patch: Partial<MandatoryDeductionRow>) => {
+    setMandatoryDeductionRows((prev) =>
+      prev.map((r) => (r.employee_id === employeeId ? { ...r, ...patch } : r))
+    )
+  }
+
+  const reloadMandatoryDeductionsFromDb = async () => {
+    if (!periodStart || !periodEnd || !activeOrganization) {
+      toast.error("Select a period first")
+      return
+    }
+    setMandatoryDeductionsLoading(true)
+    try {
+      const empTable = activeOrganization === "pdn" ? "pdn_employees" : "employees"
+      const dedTable = activeOrganization === "pdn" ? "pdn_deductions" : "deductions"
+      const { data: emps } = await supabase
+        .from(empTable)
+        .select("id, full_name, base_salary")
+        .neq("employment_status", "Inactive")
+      const { data: deds } = await supabase.from(dedTable).select("*")
+      const next: MandatoryDeductionRow[] = (emps || [])
+        .filter((e) => e.base_salary)
+        .map((emp) => {
+          const empDeds = (deds || []).filter((d) => d.employee_id === emp.id)
+          const { sss, philhealth, pagibig } = aggregateMandatoryFromDbDeductions(empDeds)
+          return {
+            employee_id: emp.id,
+            full_name: emp.full_name || "Unknown",
+            sss: Math.round(sss * 100) / 100,
+            philhealth: Math.round(philhealth * 100) / 100,
+            pagibig: Math.round(pagibig * 100) / 100,
+            applySss: true,
+            applyPhilhealth: true,
+            applyPagibig: true,
+          }
+        })
+      setMandatoryDeductionRows(next)
+      toast.success("Deductions reset from database")
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Failed to reload deductions")
+    } finally {
+      setMandatoryDeductionsLoading(false)
+    }
+  }
 
   async function fetchEmployeeRequests() {
     if (!periodStart || !periodEnd) return
@@ -649,20 +774,41 @@ export default function GeneratePayrollPage() {
       const { data: allEmployees } = await supabase.from(empTable).select("*")
       const { data: allDeductions } = await supabase.from(dedTable).select("*")
 
+      const periodSliceStart = startOfDay(periodStart)
+      const periodSliceEnd = startOfDay(periodEnd)
+
       const recordsToInsert = []
       for (const emp of allEmployees || []) {
         if (!emp.base_salary) continue
 
+        const { basicSalary, allowance } = computeProratedBasicAndAllowance(
+          emp,
+          periodSliceStart,
+          periodSliceEnd
+        )
+
         const empDeductions = (allDeductions || []).filter(d => d.employee_id === emp.id)
-        let sss = 0, philhealth = 0, pagibig = 0, loans = 0
-        
+        let loans = 0
         empDeductions.forEach(d => {
           const t = d.type.toLowerCase()
-          if (t.includes("sss")) sss += d.amount
-          else if (t.includes("philhealth")) philhealth += d.amount
-          else if (t.includes("pagibig") || t.includes("hdmf")) pagibig += d.amount
-          else loans += d.amount
+          if (t.includes("sss") || t.includes("philhealth") || t.includes("pagibig") || t.includes("hdmf")) return
+          loans += Number(d.amount) || 0
         })
+
+        const mdRow = mandatoryDeductionRows.find((r) => r.employee_id === emp.id)
+        let sss = 0
+        let philhealth = 0
+        let pagibig = 0
+        if (mdRow) {
+          sss = mdRow.applySss ? Math.round((Number(mdRow.sss) || 0) * 100) / 100 : 0
+          philhealth = mdRow.applyPhilhealth ? Math.round((Number(mdRow.philhealth) || 0) * 100) / 100 : 0
+          pagibig = mdRow.applyPagibig ? Math.round((Number(mdRow.pagibig) || 0) * 100) / 100 : 0
+        } else {
+          const m = aggregateMandatoryFromDbDeductions(empDeductions)
+          sss = m.sss
+          philhealth = m.philhealth
+          pagibig = m.pagibig
+        }
 
         const adj = employeeAdjustments.find(a => a.employee_id === emp.id)
         const late = adj?.lateDeduction || 0
@@ -674,16 +820,16 @@ export default function GeneratePayrollPage() {
         const withholding = adj?.withholdingTax || 0
 
         const totalDeductions = sss + philhealth + pagibig + loans + absence + late + other + cashAdvance + withholding
-        const gross = emp.base_salary + overtime + holiday + (emp.allowance || 0)
+        const gross = basicSalary + overtime + holiday + allowance
 
         recordsToInsert.push({
           employee_id: emp.id,
           period_start: format(periodStart, "yyyy-MM-dd"),
           period_end: format(periodEnd, "yyyy-MM-dd"),
-          basic_salary: emp.base_salary,
+          basic_salary: basicSalary,
           overtime_pay: overtime,
           holiday_pay: holiday,
-          allowances: emp.allowance || 0,
+          allowances: allowance,
           absences: absence,
           tardiness: late,
           sss, philhealth, pagibig,
@@ -808,7 +954,8 @@ export default function GeneratePayrollPage() {
           <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl flex gap-3">
             <Info className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
             <p className="text-[11px] font-bold text-blue-900 leading-relaxed">
-              Calculations are based on 15-day semi-monthly logic. 8:31 AM marks the start of deductions.
+              Base pay and allowances are prorated to your selected dates using each employee&apos;s pay type, daily rate
+              (or derived rate), and working days. 8:31 AM marks the start of late deductions.
             </p>
           </div>
         </aside>
@@ -817,13 +964,14 @@ export default function GeneratePayrollPage() {
         <main className="flex-1 lg:overflow-y-auto p-4 lg:p-8 relative">
           <Tabs defaultValue="attendance" className="w-full">
             <div className="overflow-x-auto pb-2 mb-6 scrollbar-hide">
-              <TabsList className="flex w-max lg:grid lg:w-fit grid-cols-3 bg-muted/30 p-1">
-              <TabsTrigger value="requests" className="font-bold px-6">
+              <TabsList className="flex w-max lg:grid lg:w-fit lg:grid-cols-4 bg-muted/30 p-1">
+              <TabsTrigger value="requests" className="font-bold px-4 lg:px-6">
                 Requests 
                 {pendingRequests.length > 0 && <Badge className="ml-2 bg-red-500">{pendingRequests.length}</Badge>}
               </TabsTrigger>
-              <TabsTrigger value="attendance" className="font-bold px-6">Attendance Logs</TabsTrigger>
-              <TabsTrigger value="adjustments" className="font-bold px-6">Adjustments</TabsTrigger>
+              <TabsTrigger value="attendance" className="font-bold px-4 lg:px-6">Attendance</TabsTrigger>
+              <TabsTrigger value="deductions" className="font-bold px-4 lg:px-6">Deductions</TabsTrigger>
+              <TabsTrigger value="adjustments" className="font-bold px-4 lg:px-6">Adjustments</TabsTrigger>
               </TabsList>
             </div>
 
@@ -975,6 +1123,134 @@ export default function GeneratePayrollPage() {
                  </div>
                  </>
                )}
+            </TabsContent>
+
+            <TabsContent value="deductions" className="space-y-4 lg:space-y-6 animate-in fade-in slide-in-from-bottom-2 focus-visible:outline-none">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
+                <div>
+                  <h2 className="text-lg lg:text-xl font-black">Mandatory contributions</h2>
+                  <p className="text-[11px] lg:text-sm text-muted-foreground font-medium">
+                    Defaults come from the deductions table. Uncheck to skip an item for this run, or edit amounts before generating.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-9 text-xs font-bold shrink-0"
+                  onClick={() => void reloadMandatoryDeductionsFromDb()}
+                  disabled={mandatoryDeductionsLoading || !periodStart || !periodEnd}
+                >
+                  <RefreshCw className={cn("h-3.5 w-3.5 mr-2", mandatoryDeductionsLoading && "animate-spin")} />
+                  Reset from DB
+                </Button>
+              </div>
+
+              <Card className="border-border/50 shadow-sm overflow-hidden">
+                <CardContent className="p-0">
+                  {mandatoryDeductionsLoading && mandatoryDeductionRows.length === 0 ? (
+                    <div className="h-40 flex items-center justify-center text-sm font-bold text-muted-foreground">
+                      Loading deduction defaults…
+                    </div>
+                  ) : mandatoryDeductionRows.length === 0 ? (
+                    <div className="h-40 flex items-center justify-center text-sm font-bold text-muted-foreground px-4 text-center">
+                      Select a period and ensure employees have a base salary to preview SSS, PhilHealth, and Pag-IBIG.
+                    </div>
+                  ) : (
+                    <div className="max-h-[min(60vh,520px)] overflow-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-muted/30 hover:bg-muted/30">
+                            <TableHead className="min-w-[140px] font-bold">Employee</TableHead>
+                            <TableHead className="text-center min-w-[120px] font-bold">SSS</TableHead>
+                            <TableHead className="text-center min-w-[120px] font-bold">PhilHealth</TableHead>
+                            <TableHead className="text-center min-w-[120px] font-bold">Pag-IBIG</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {mandatoryDeductionRows.map((row) => (
+                            <TableRow key={row.employee_id}>
+                              <TableCell className="font-bold text-sm align-middle">{row.full_name}</TableCell>
+                              <TableCell className="align-middle">
+                                <div className="flex items-center justify-center gap-2">
+                                  <Checkbox
+                                    checked={row.applySss}
+                                    onCheckedChange={(v) =>
+                                      patchMandatoryDeductionRow(row.employee_id, { applySss: v === true })
+                                    }
+                                    className="shrink-0"
+                                  />
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    min={0}
+                                    disabled={!row.applySss}
+                                    className={cn("h-8 w-[5.5rem] text-xs font-bold text-center", !row.applySss && "opacity-50")}
+                                    value={Number.isFinite(row.sss) ? row.sss : 0}
+                                    onChange={(e) =>
+                                      patchMandatoryDeductionRow(row.employee_id, {
+                                        sss: Math.round((parseFloat(e.target.value) || 0) * 100) / 100,
+                                      })
+                                    }
+                                  />
+                                </div>
+                              </TableCell>
+                              <TableCell className="align-middle">
+                                <div className="flex items-center justify-center gap-2">
+                                  <Checkbox
+                                    checked={row.applyPhilhealth}
+                                    onCheckedChange={(v) =>
+                                      patchMandatoryDeductionRow(row.employee_id, { applyPhilhealth: v === true })
+                                    }
+                                    className="shrink-0"
+                                  />
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    min={0}
+                                    disabled={!row.applyPhilhealth}
+                                    className={cn("h-8 w-[5.5rem] text-xs font-bold text-center", !row.applyPhilhealth && "opacity-50")}
+                                    value={Number.isFinite(row.philhealth) ? row.philhealth : 0}
+                                    onChange={(e) =>
+                                      patchMandatoryDeductionRow(row.employee_id, {
+                                        philhealth: Math.round((parseFloat(e.target.value) || 0) * 100) / 100,
+                                      })
+                                    }
+                                  />
+                                </div>
+                              </TableCell>
+                              <TableCell className="align-middle">
+                                <div className="flex items-center justify-center gap-2">
+                                  <Checkbox
+                                    checked={row.applyPagibig}
+                                    onCheckedChange={(v) =>
+                                      patchMandatoryDeductionRow(row.employee_id, { applyPagibig: v === true })
+                                    }
+                                    className="shrink-0"
+                                  />
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    min={0}
+                                    disabled={!row.applyPagibig}
+                                    className={cn("h-8 w-[5.5rem] text-xs font-bold text-center", !row.applyPagibig && "opacity-50")}
+                                    value={Number.isFinite(row.pagibig) ? row.pagibig : 0}
+                                    onChange={(e) =>
+                                      patchMandatoryDeductionRow(row.employee_id, {
+                                        pagibig: Math.round((parseFloat(e.target.value) || 0) * 100) / 100,
+                                      })
+                                    }
+                                  />
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </TabsContent>
 
             <TabsContent value="adjustments" className="space-y-4 lg:space-y-6 animate-in fade-in slide-in-from-bottom-2 focus-visible:outline-none">
