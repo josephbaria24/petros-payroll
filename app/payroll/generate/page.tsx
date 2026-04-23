@@ -42,6 +42,7 @@ import {
   ArrowRight,
   Info,
   RefreshCw,
+  Divide,
 } from "lucide-react"
 import {
   Tabs,
@@ -170,6 +171,10 @@ function aggregateMandatoryFromDbDeductions(
     else if (t.includes("pagibig") || t.includes("hdmf")) pagibig += amt
   }
   return { sss, philhealth, pagibig }
+}
+
+function scaleMandatoryAmount(value: number, factor: number): number {
+  return Math.round((Number(value) || 0) * factor * 100) / 100
 }
 
 function extractPhilippineTime(timestamp: string): string {
@@ -1162,9 +1167,9 @@ export default function GeneratePayrollPage() {
                         <TableHeader>
                           <TableRow className="bg-muted/30 hover:bg-muted/30">
                             <TableHead className="min-w-[140px] font-bold">Employee</TableHead>
-                            <TableHead className="text-center min-w-[120px] font-bold">SSS</TableHead>
-                            <TableHead className="text-center min-w-[120px] font-bold">PhilHealth</TableHead>
-                            <TableHead className="text-center min-w-[120px] font-bold">Pag-IBIG</TableHead>
+                            <TableHead className="text-center min-w-[155px] font-bold">SSS</TableHead>
+                            <TableHead className="text-center min-w-[155px] font-bold">PhilHealth</TableHead>
+                            <TableHead className="text-center min-w-[155px] font-bold">Pag-IBIG</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -1172,7 +1177,7 @@ export default function GeneratePayrollPage() {
                             <TableRow key={row.employee_id}>
                               <TableCell className="font-bold text-sm align-middle">{row.full_name}</TableCell>
                               <TableCell className="align-middle">
-                                <div className="flex items-center justify-center gap-2">
+                                <div className="flex items-center justify-center gap-1.5">
                                   <Checkbox
                                     checked={row.applySss}
                                     onCheckedChange={(v) =>
@@ -1185,7 +1190,7 @@ export default function GeneratePayrollPage() {
                                     step="0.01"
                                     min={0}
                                     disabled={!row.applySss}
-                                    className={cn("h-8 w-[5.5rem] text-xs font-bold text-center", !row.applySss && "opacity-50")}
+                                    className={cn("h-8 w-[4.75rem] text-xs font-bold text-center", !row.applySss && "opacity-50")}
                                     value={Number.isFinite(row.sss) ? row.sss : 0}
                                     onChange={(e) =>
                                       patchMandatoryDeductionRow(row.employee_id, {
@@ -1193,10 +1198,57 @@ export default function GeneratePayrollPage() {
                                       })
                                     }
                                   />
+                                  <div className="flex flex-col gap-0 shrink-0 border border-border/60 rounded-md p-0.5 bg-muted/20">
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-6 w-6 rounded-sm p-0 text-muted-foreground hover:text-foreground"
+                                      disabled={!row.applySss}
+                                      title="Use half (×½)"
+                                      onClick={() =>
+                                        patchMandatoryDeductionRow(row.employee_id, {
+                                          sss: scaleMandatoryAmount(row.sss, 0.5),
+                                        })
+                                      }
+                                    >
+                                      <Divide className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-6 w-6 rounded-sm p-0 text-muted-foreground hover:text-foreground"
+                                      disabled={!row.applySss}
+                                      title="Use one quarter (×¼)"
+                                      onClick={() =>
+                                        patchMandatoryDeductionRow(row.employee_id, {
+                                          sss: scaleMandatoryAmount(row.sss, 0.25),
+                                        })
+                                      }
+                                    >
+                                      <span className="text-[11px] font-black leading-none">¼</span>
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-6 w-6 rounded-sm p-0 text-muted-foreground hover:text-foreground"
+                                      disabled={!row.applySss}
+                                      title="Use one eighth (×⅛)"
+                                      onClick={() =>
+                                        patchMandatoryDeductionRow(row.employee_id, {
+                                          sss: scaleMandatoryAmount(row.sss, 0.125),
+                                        })
+                                      }
+                                    >
+                                      <span className="text-[10px] font-black leading-none">⅛</span>
+                                    </Button>
+                                  </div>
                                 </div>
                               </TableCell>
                               <TableCell className="align-middle">
-                                <div className="flex items-center justify-center gap-2">
+                                <div className="flex items-center justify-center gap-1.5">
                                   <Checkbox
                                     checked={row.applyPhilhealth}
                                     onCheckedChange={(v) =>
@@ -1209,7 +1261,7 @@ export default function GeneratePayrollPage() {
                                     step="0.01"
                                     min={0}
                                     disabled={!row.applyPhilhealth}
-                                    className={cn("h-8 w-[5.5rem] text-xs font-bold text-center", !row.applyPhilhealth && "opacity-50")}
+                                    className={cn("h-8 w-[4.75rem] text-xs font-bold text-center", !row.applyPhilhealth && "opacity-50")}
                                     value={Number.isFinite(row.philhealth) ? row.philhealth : 0}
                                     onChange={(e) =>
                                       patchMandatoryDeductionRow(row.employee_id, {
@@ -1217,10 +1269,57 @@ export default function GeneratePayrollPage() {
                                       })
                                     }
                                   />
+                                  <div className="flex flex-col gap-0 shrink-0 border border-border/60 rounded-md p-0.5 bg-muted/20">
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-6 w-6 rounded-sm p-0 text-muted-foreground hover:text-foreground"
+                                      disabled={!row.applyPhilhealth}
+                                      title="Use half (×½)"
+                                      onClick={() =>
+                                        patchMandatoryDeductionRow(row.employee_id, {
+                                          philhealth: scaleMandatoryAmount(row.philhealth, 0.5),
+                                        })
+                                      }
+                                    >
+                                      <Divide className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-6 w-6 rounded-sm p-0 text-muted-foreground hover:text-foreground"
+                                      disabled={!row.applyPhilhealth}
+                                      title="Use one quarter (×¼)"
+                                      onClick={() =>
+                                        patchMandatoryDeductionRow(row.employee_id, {
+                                          philhealth: scaleMandatoryAmount(row.philhealth, 0.25),
+                                        })
+                                      }
+                                    >
+                                      <span className="text-[11px] font-black leading-none">¼</span>
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-6 w-6 rounded-sm p-0 text-muted-foreground hover:text-foreground"
+                                      disabled={!row.applyPhilhealth}
+                                      title="Use one eighth (×⅛)"
+                                      onClick={() =>
+                                        patchMandatoryDeductionRow(row.employee_id, {
+                                          philhealth: scaleMandatoryAmount(row.philhealth, 0.125),
+                                        })
+                                      }
+                                    >
+                                      <span className="text-[10px] font-black leading-none">⅛</span>
+                                    </Button>
+                                  </div>
                                 </div>
                               </TableCell>
                               <TableCell className="align-middle">
-                                <div className="flex items-center justify-center gap-2">
+                                <div className="flex items-center justify-center gap-1.5">
                                   <Checkbox
                                     checked={row.applyPagibig}
                                     onCheckedChange={(v) =>
@@ -1233,7 +1332,7 @@ export default function GeneratePayrollPage() {
                                     step="0.01"
                                     min={0}
                                     disabled={!row.applyPagibig}
-                                    className={cn("h-8 w-[5.5rem] text-xs font-bold text-center", !row.applyPagibig && "opacity-50")}
+                                    className={cn("h-8 w-[4.75rem] text-xs font-bold text-center", !row.applyPagibig && "opacity-50")}
                                     value={Number.isFinite(row.pagibig) ? row.pagibig : 0}
                                     onChange={(e) =>
                                       patchMandatoryDeductionRow(row.employee_id, {
@@ -1241,6 +1340,53 @@ export default function GeneratePayrollPage() {
                                       })
                                     }
                                   />
+                                  <div className="flex flex-col gap-0 shrink-0 border border-border/60 rounded-md p-0.5 bg-muted/20">
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-6 w-6 rounded-sm p-0 text-muted-foreground hover:text-foreground"
+                                      disabled={!row.applyPagibig}
+                                      title="Use half (×½)"
+                                      onClick={() =>
+                                        patchMandatoryDeductionRow(row.employee_id, {
+                                          pagibig: scaleMandatoryAmount(row.pagibig, 0.5),
+                                        })
+                                      }
+                                    >
+                                      <Divide className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-6 w-6 rounded-sm p-0 text-muted-foreground hover:text-foreground"
+                                      disabled={!row.applyPagibig}
+                                      title="Use one quarter (×¼)"
+                                      onClick={() =>
+                                        patchMandatoryDeductionRow(row.employee_id, {
+                                          pagibig: scaleMandatoryAmount(row.pagibig, 0.25),
+                                        })
+                                      }
+                                    >
+                                      <span className="text-[11px] font-black leading-none">¼</span>
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-6 w-6 rounded-sm p-0 text-muted-foreground hover:text-foreground"
+                                      disabled={!row.applyPagibig}
+                                      title="Use one eighth (×⅛)"
+                                      onClick={() =>
+                                        patchMandatoryDeductionRow(row.employee_id, {
+                                          pagibig: scaleMandatoryAmount(row.pagibig, 0.125),
+                                        })
+                                      }
+                                    >
+                                      <span className="text-[10px] font-black leading-none">⅛</span>
+                                    </Button>
+                                  </div>
                                 </div>
                               </TableCell>
                             </TableRow>
