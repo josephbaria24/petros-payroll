@@ -679,11 +679,11 @@ export default function EmployeesPage() {
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
                       <div className="space-y-1">
                         <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">Base Salary</p>
-                        <p className="text-sm font-bold">Peso {parseFloat(form.base_salary || "0").toLocaleString()}</p>
+                        <p className="text-sm font-bold">₱{parseFloat(form.base_salary || "0").toLocaleString()}</p>
                       </div>
                       <div className="space-y-1">
                         <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">Daily Rate (Per Day)</p>
-                        <p className="text-sm font-bold text-primary">Peso {parseFloat(form.daily_rate || "0").toLocaleString()}</p>
+                        <p className="text-sm font-bold text-primary">₱{parseFloat(form.daily_rate || "0").toLocaleString()}</p>
                       </div>
                       <div className="space-y-1">
                         <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">Shift</p>

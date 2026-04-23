@@ -120,7 +120,7 @@ export function buildChartBundle(
     const idx = [...names.keys()].slice(0, stackN)
     if (styles.deductions === "stackedBar") {
       out.deductionsBar = stackedHorizontalBarChartPng(
-        "Deduction mix by employee (Peso)",
+        "Deduction mix by employee (₱)",
         idx.map((i) => names[i] ?? ""),
         [
           {

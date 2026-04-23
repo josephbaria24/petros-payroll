@@ -413,7 +413,7 @@ export default function TimeSheetPage() {
                 { label: "This Pay Period", value: stats.periodHours, unit: "hrs", icon: Timer },
                 { label: "Total Hours", value: stats.totalHours, unit: "hrs", icon: Clock },
                 { label: "Total Hours Paid", value: stats.totalHours, unit: "hrs", icon: CheckCircle2 },
-                { label: "Total Wages", value: stats.wages.toLocaleString(), unit: "Peso", icon: PhilippinePeso, isCurrency: true },
+                { label: "Total Wages", value: stats.wages.toLocaleString(), unit: "₱", icon: PhilippinePeso, isCurrency: true },
               ].map((metric, i) => (
                 <Card key={i} className="border border-border shadow-md bg-card hover:shadow-lg transition-all rounded-2xl overflow-hidden group">
                   <CardContent className="p-6 space-y-3">

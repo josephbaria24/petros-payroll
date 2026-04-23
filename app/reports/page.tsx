@@ -711,7 +711,7 @@ function ReportsContent() {
             </div>
           </CardHeader>
           <CardContent className="px-3 pb-3 pt-0">
-            <div className="text-lg font-bold text-foreground">Peso {payrollSummary.totalGross.toLocaleString()}</div>
+            <div className="text-lg font-bold text-foreground">₱{payrollSummary.totalGross.toLocaleString()}</div>
           </CardContent>
         </Card>
 
@@ -723,7 +723,7 @@ function ReportsContent() {
             </div>
           </CardHeader>
           <CardContent className="px-3 pb-3 pt-0">
-            <div className="text-lg font-bold text-foreground">Peso {payrollSummary.totalAllowances.toLocaleString()}</div>
+            <div className="text-lg font-bold text-foreground">₱{payrollSummary.totalAllowances.toLocaleString()}</div>
           </CardContent>
         </Card>
 
@@ -735,7 +735,7 @@ function ReportsContent() {
             </div>
           </CardHeader>
           <CardContent className="px-3 pb-3 pt-0">
-            <div className="text-lg font-bold text-foreground">Peso {payrollSummary.totalDeductions.toLocaleString()}</div>
+            <div className="text-lg font-bold text-foreground">₱{payrollSummary.totalDeductions.toLocaleString()}</div>
           </CardContent>
         </Card>
 
@@ -747,7 +747,7 @@ function ReportsContent() {
             </div>
           </CardHeader>
           <CardContent className="px-3 pb-3 pt-0">
-            <div className="text-lg font-bold text-foreground">Peso {payrollSummary.totalNetPay.toLocaleString()}</div>
+            <div className="text-lg font-bold text-foreground">₱{payrollSummary.totalNetPay.toLocaleString()}</div>
           </CardContent>
         </Card>
       </div>
@@ -771,7 +771,7 @@ function ReportsContent() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-[10px] font-semibold text-muted-foreground uppercase">Total Expenses</p>
-                <div className="text-base font-bold text-foreground">Peso {additionalMetrics.totalExpenses.toLocaleString()}</div>
+                <div className="text-base font-bold text-foreground">₱{additionalMetrics.totalExpenses.toLocaleString()}</div>
               </div>
               <Building2 className="h-4 w-4 text-muted-foreground" />
             </div>
@@ -795,7 +795,7 @@ function ReportsContent() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-[10px] font-semibold text-muted-foreground uppercase">Avg. Gross Pay</p>
-                <div className="text-base font-bold text-foreground">Peso {additionalMetrics.averageGrossPay.toLocaleString()}</div>
+                <div className="text-base font-bold text-foreground">₱{additionalMetrics.averageGrossPay.toLocaleString()}</div>
               </div>
               <PieChart className="h-4 w-4 text-muted-foreground" />
             </div>
@@ -919,15 +919,15 @@ function ReportsContent() {
                                 {new Date(emp.period_start).toLocaleDateString()} - {new Date(emp.period_end).toLocaleDateString()}
                               </TableCell>
                             )}
-                            {visibleColumns.basic_salary && <TableCell className="py-2 text-center text-xs text-slate-900">Peso {emp.basic_salary.toLocaleString()}</TableCell>}
-                            {visibleColumns.allowances && <TableCell className="py-2 text-center text-xs text-slate-900">Peso {emp.allowances.toLocaleString()}</TableCell>}
-                            {visibleColumns.overtime && <TableCell className="py-2 text-center text-xs text-slate-900">Peso {emp.overtime_pay.toLocaleString()}</TableCell>}
-                            {visibleColumns.holiday_pay && <TableCell className="py-2 text-center text-xs text-slate-900">Peso {emp.holiday_pay.toLocaleString()}</TableCell>}
-                            {visibleColumns.gross_pay && <TableCell className="py-2 text-center text-xs text-slate-900">Peso {(emp.gross_pay || emp.basic_salary).toLocaleString()}</TableCell>}
-                            {visibleColumns.absences && <TableCell className="py-2 text-center text-xs text-slate-900">Peso {emp.absences.toLocaleString()}</TableCell>}
-                            {visibleColumns.cash_advance && <TableCell className="py-2 text-center text-xs text-slate-900">Peso {emp.cash_advance.toLocaleString()}</TableCell>}
-                            {visibleColumns.total_deductions && <TableCell className="py-2 text-center text-xs text-slate-900">Peso {emp.total_deductions.toLocaleString()}</TableCell>}
-                            {visibleColumns.net_pay && <TableCell className="py-2 text-center text-xs font-bold text-slate-900">Peso {(emp.net_pay + emp.allowances).toLocaleString()}</TableCell>}
+                            {visibleColumns.basic_salary && <TableCell className="py-2 text-center text-xs text-slate-900">₱{emp.basic_salary.toLocaleString()}</TableCell>}
+                            {visibleColumns.allowances && <TableCell className="py-2 text-center text-xs text-slate-900">₱{emp.allowances.toLocaleString()}</TableCell>}
+                            {visibleColumns.overtime && <TableCell className="py-2 text-center text-xs text-slate-900">₱{emp.overtime_pay.toLocaleString()}</TableCell>}
+                            {visibleColumns.holiday_pay && <TableCell className="py-2 text-center text-xs text-slate-900">₱{emp.holiday_pay.toLocaleString()}</TableCell>}
+                            {visibleColumns.gross_pay && <TableCell className="py-2 text-center text-xs text-slate-900">₱{(emp.gross_pay || emp.basic_salary).toLocaleString()}</TableCell>}
+                            {visibleColumns.absences && <TableCell className="py-2 text-center text-xs text-slate-900">₱{emp.absences.toLocaleString()}</TableCell>}
+                            {visibleColumns.cash_advance && <TableCell className="py-2 text-center text-xs text-slate-900">₱{emp.cash_advance.toLocaleString()}</TableCell>}
+                            {visibleColumns.total_deductions && <TableCell className="py-2 text-center text-xs text-slate-900">₱{emp.total_deductions.toLocaleString()}</TableCell>}
+                            {visibleColumns.net_pay && <TableCell className="py-2 text-center text-xs font-bold text-slate-900">₱{(emp.net_pay + emp.allowances).toLocaleString()}</TableCell>}
                             {visibleColumns.status && (
                               <TableCell className="py-2 text-center">
                                 <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium border ${statusVariants[emp.status] || "bg-slate-100 text-slate-600 border-slate-200"
@@ -1048,16 +1048,16 @@ function ReportsContent() {
                             <TableRow key={`${summary.year}-${summary.month}`} className="border-b border-slate-100 hover:bg-slate-50 transition">
                               <TableCell className="py-2 text-center text-xs font-semibold text-slate-900">{summary.monthYear}</TableCell>
                               <TableCell className="py-2 text-center text-xs text-slate-900">{summary.totalEmployees}</TableCell>
-                              <TableCell className="py-2 text-center text-xs text-slate-900">Peso {summary.totalGrossPay.toLocaleString()}</TableCell>
-                              <TableCell className="py-2 text-center text-xs text-slate-900">Peso {summary.totalAllowances.toLocaleString()}</TableCell>
-                              <TableCell className="py-2 text-center text-xs text-slate-900">Peso {summary.totalSSS.toLocaleString()}</TableCell>
-                              <TableCell className="py-2 text-center text-xs text-slate-900">Peso {summary.totalPhilHealth.toLocaleString()}</TableCell>
-                              <TableCell className="py-2 text-center text-xs text-slate-900">Peso {summary.totalPagIbig.toLocaleString()}</TableCell>
-                              <TableCell className="py-2 text-center text-xs text-slate-900">Peso {summary.totalWithholdingTax.toLocaleString()}</TableCell>
-                              <TableCell className="py-2 text-center text-xs text-slate-900">Peso {summary.totalLoans.toLocaleString()}</TableCell>
-                              <TableCell className="py-2 text-center text-xs text-slate-900">Peso {summary.totalCashAdvance.toLocaleString()}</TableCell>
-                              <TableCell className="py-2 text-center text-xs text-slate-900">Peso {summary.totalDeductions.toLocaleString()}</TableCell>
-                              <TableCell className="py-2 text-center text-xs font-bold text-slate-900">Peso {summary.totalNetPay.toLocaleString()}</TableCell>
+                              <TableCell className="py-2 text-center text-xs text-slate-900">₱{summary.totalGrossPay.toLocaleString()}</TableCell>
+                              <TableCell className="py-2 text-center text-xs text-slate-900">₱{summary.totalAllowances.toLocaleString()}</TableCell>
+                              <TableCell className="py-2 text-center text-xs text-slate-900">₱{summary.totalSSS.toLocaleString()}</TableCell>
+                              <TableCell className="py-2 text-center text-xs text-slate-900">₱{summary.totalPhilHealth.toLocaleString()}</TableCell>
+                              <TableCell className="py-2 text-center text-xs text-slate-900">₱{summary.totalPagIbig.toLocaleString()}</TableCell>
+                              <TableCell className="py-2 text-center text-xs text-slate-900">₱{summary.totalWithholdingTax.toLocaleString()}</TableCell>
+                              <TableCell className="py-2 text-center text-xs text-slate-900">₱{summary.totalLoans.toLocaleString()}</TableCell>
+                              <TableCell className="py-2 text-center text-xs text-slate-900">₱{summary.totalCashAdvance.toLocaleString()}</TableCell>
+                              <TableCell className="py-2 text-center text-xs text-slate-900">₱{summary.totalDeductions.toLocaleString()}</TableCell>
+                              <TableCell className="py-2 text-center text-xs font-bold text-slate-900">₱{summary.totalNetPay.toLocaleString()}</TableCell>
                             </TableRow>
                           ))}
                           {monthlyPayrollSummary.length > 1 && currentMonthlyPage === totalMonthlyPages && (
@@ -1067,34 +1067,34 @@ function ReportsContent() {
                                 {monthlyPayrollSummary.reduce((sum, s) => sum + s.totalEmployees, 0)}
                               </TableCell>
                               <TableCell className="py-4 text-center text-slate-900">
-                                Peso {monthlyPayrollSummary.reduce((sum, s) => sum + s.totalGrossPay, 0).toLocaleString()}
+                                ₱{monthlyPayrollSummary.reduce((sum, s) => sum + s.totalGrossPay, 0).toLocaleString()}
                               </TableCell>
                               <TableCell className="py-4 text-center text-slate-900">
-                                Peso {monthlyPayrollSummary.reduce((sum, s) => sum + s.totalAllowances, 0).toLocaleString()}
+                                ₱{monthlyPayrollSummary.reduce((sum, s) => sum + s.totalAllowances, 0).toLocaleString()}
                               </TableCell>
                               <TableCell className="py-4 text-center text-slate-900">
-                                Peso {monthlyPayrollSummary.reduce((sum, s) => sum + s.totalSSS, 0).toLocaleString()}
+                                ₱{monthlyPayrollSummary.reduce((sum, s) => sum + s.totalSSS, 0).toLocaleString()}
                               </TableCell>
                               <TableCell className="py-4 text-center text-slate-900">
-                                Peso {monthlyPayrollSummary.reduce((sum, s) => sum + s.totalPhilHealth, 0).toLocaleString()}
+                                ₱{monthlyPayrollSummary.reduce((sum, s) => sum + s.totalPhilHealth, 0).toLocaleString()}
                               </TableCell>
                               <TableCell className="py-4 text-center text-slate-900">
-                                Peso {monthlyPayrollSummary.reduce((sum, s) => sum + s.totalPagIbig, 0).toLocaleString()}
+                                ₱{monthlyPayrollSummary.reduce((sum, s) => sum + s.totalPagIbig, 0).toLocaleString()}
                               </TableCell>
                               <TableCell className="py-4 text-center text-slate-900">
-                                Peso {monthlyPayrollSummary.reduce((sum, s) => sum + s.totalWithholdingTax, 0).toLocaleString()}
+                                ₱{monthlyPayrollSummary.reduce((sum, s) => sum + s.totalWithholdingTax, 0).toLocaleString()}
                               </TableCell>
                               <TableCell className="py-4 text-center text-slate-900">
-                                Peso {monthlyPayrollSummary.reduce((sum, s) => sum + s.totalLoans, 0).toLocaleString()}
+                                ₱{monthlyPayrollSummary.reduce((sum, s) => sum + s.totalLoans, 0).toLocaleString()}
                               </TableCell>
                               <TableCell className="py-4 text-center text-slate-900">
-                                Peso {monthlyPayrollSummary.reduce((sum, s) => sum + s.totalCashAdvance, 0).toLocaleString()}
+                                ₱{monthlyPayrollSummary.reduce((sum, s) => sum + s.totalCashAdvance, 0).toLocaleString()}
                               </TableCell>
                               <TableCell className="py-4 text-center text-slate-900">
-                                Peso {monthlyPayrollSummary.reduce((sum, s) => sum + s.totalDeductions, 0).toLocaleString()}
+                                ₱{monthlyPayrollSummary.reduce((sum, s) => sum + s.totalDeductions, 0).toLocaleString()}
                               </TableCell>
                               <TableCell className="py-4 text-center text-slate-900">
-                                Peso {monthlyPayrollSummary.reduce((sum, s) => sum + s.totalNetPay, 0).toLocaleString()}
+                                ₱{monthlyPayrollSummary.reduce((sum, s) => sum + s.totalNetPay, 0).toLocaleString()}
                               </TableCell>
                             </TableRow>
                           )}
@@ -1207,16 +1207,16 @@ function ReportsContent() {
                           {paginatedDeductionsDetails.map(emp => (
                             <TableRow key={emp.id} className="border-b border-slate-100 hover:bg-slate-50 transition">
                               <TableCell className="py-2 text-center text-xs font-semibold text-slate-900">{emp.full_name}</TableCell>
-                              <TableCell className="py-2 text-center text-xs text-slate-900">Peso {emp.sss.toLocaleString()}</TableCell>
-                              <TableCell className="py-2 text-center text-xs text-slate-900">Peso {emp.philhealth.toLocaleString()}</TableCell>
-                              <TableCell className="py-2 text-center text-xs text-slate-900">Peso {emp.pagibig.toLocaleString()}</TableCell>
-                              <TableCell className="py-2 text-center text-xs text-slate-900">Peso {emp.withholding_tax.toLocaleString()}</TableCell>
-                              <TableCell className="py-2 text-center text-xs text-slate-900">Peso {emp.loans.toLocaleString()}</TableCell>
-                              <TableCell className="py-2 text-center text-xs text-slate-900">Peso {emp.uniform.toLocaleString()}</TableCell>
-                              <TableCell className="py-2 text-center text-xs text-slate-900">Peso {emp.tardiness.toLocaleString()}</TableCell>
-                              <TableCell className="py-2 text-center text-xs text-slate-900">Peso {emp.cash_advance.toLocaleString()}</TableCell>
+                              <TableCell className="py-2 text-center text-xs text-slate-900">₱{emp.sss.toLocaleString()}</TableCell>
+                              <TableCell className="py-2 text-center text-xs text-slate-900">₱{emp.philhealth.toLocaleString()}</TableCell>
+                              <TableCell className="py-2 text-center text-xs text-slate-900">₱{emp.pagibig.toLocaleString()}</TableCell>
+                              <TableCell className="py-2 text-center text-xs text-slate-900">₱{emp.withholding_tax.toLocaleString()}</TableCell>
+                              <TableCell className="py-2 text-center text-xs text-slate-900">₱{emp.loans.toLocaleString()}</TableCell>
+                              <TableCell className="py-2 text-center text-xs text-slate-900">₱{emp.uniform.toLocaleString()}</TableCell>
+                              <TableCell className="py-2 text-center text-xs text-slate-900">₱{emp.tardiness.toLocaleString()}</TableCell>
+                              <TableCell className="py-2 text-center text-xs text-slate-900">₱{emp.cash_advance.toLocaleString()}</TableCell>
                               <TableCell className="py-2 text-center text-xs font-bold text-slate-900">
-                                Peso {(emp.total_deductions + emp.cash_advance).toLocaleString()}
+                                ₱{(emp.total_deductions + emp.cash_advance).toLocaleString()}
                               </TableCell>
                             </TableRow>
                           ))}
@@ -1327,7 +1327,7 @@ function ReportsContent() {
                             <TableCell className="py-2 text-center text-[11px] text-slate-900">{new Date(e.incurred_on).toLocaleDateString()}</TableCell>
                             <TableCell className="py-2 text-center text-xs font-semibold text-slate-900">{e.expense_name}</TableCell>
                             <TableCell className="py-2 text-center text-xs text-slate-600">{e.category}</TableCell>
-                            <TableCell className="py-2 text-center text-xs font-bold text-slate-900">Peso {e.amount.toLocaleString()}</TableCell>
+                            <TableCell className="py-2 text-center text-xs font-bold text-slate-900">₱{e.amount.toLocaleString()}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>

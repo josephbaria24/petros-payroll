@@ -52,7 +52,34 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Checkbox } from "@/components/ui/checkbox"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { useProtectedPage } from "../../hooks/useProtectedPage"
+
+/** Peso rounding between tracker total and adjustments (late + absence). */
+const ATTENDANCE_APPLIED_TOLERANCE = 0.5
+
+function hasUnderAppliedAttendanceTrackerDeductions(
+  details: AttendanceDetail[],
+  adjustments: EmployeeAdjustment[]
+): boolean {
+  for (const d of details) {
+    if (d.calculatedDeduction <= ATTENDANCE_APPLIED_TOLERANCE) continue
+    const adj = adjustments.find(a => a.employee_id === d.employee_id)
+    const applied =
+      (adj?.lateDeduction ?? 0) + (adj?.absenceDays ?? 0) * (adj?.absenceAmountPerDay ?? 0)
+    if (applied < d.calculatedDeduction - ATTENDANCE_APPLIED_TOLERANCE) return true
+  }
+  return false
+}
 
 type OvertimeEntry = {
   date: Date
@@ -154,6 +181,7 @@ export default function GeneratePayrollPage() {
   const [editValue, setEditValue] = useState("")
   const [selectedLateIds, setSelectedLateIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(false)
+  const [attendanceDeductionConfirmOpen, setAttendanceDeductionConfirmOpen] = useState(false)
 
   const fetchEmployees = async () => {useState(false)}
 
@@ -596,7 +624,7 @@ export default function GeneratePayrollPage() {
     setEmployeeAdjustments(updated)
   }
 
-  const handleBulkGeneratePayroll = async () => {
+  const runBulkGeneratePayroll = async () => {
     if (!periodStart || !periodEnd) {
       toast.error("Please select a period")
       return
@@ -680,6 +708,23 @@ export default function GeneratePayrollPage() {
     }
   }
 
+  const handleBulkGeneratePayroll = () => {
+    if (!periodStart || !periodEnd) {
+      toast.error("Please select a period")
+      return
+    }
+    if (hasUnderAppliedAttendanceTrackerDeductions(attendanceDetails, employeeAdjustments)) {
+      setAttendanceDeductionConfirmOpen(true)
+      return
+    }
+    void runBulkGeneratePayroll()
+  }
+
+  const confirmGenerateDespiteAttendance = () => {
+    setAttendanceDeductionConfirmOpen(false)
+    void runBulkGeneratePayroll()
+  }
+
   return (
     <div className="flex flex-col min-h-screen lg:h-screen bg-background text-foreground overflow-y-auto lg:overflow-hidden">
       {/* Header */}
@@ -755,7 +800,7 @@ export default function GeneratePayrollPage() {
               </div>
               <div className="p-4 bg-muted/50 rounded-xl border border-border">
                 <p className="text-[10px] font-bold text-muted-foreground uppercase text-red-600">Late Deductions</p>
-                <p className="text-xl font-black text-red-600">Peso {attendanceDetails.reduce((s, a) => s + a.calculatedDeduction, 0).toLocaleString()}</p>
+                <p className="text-xl font-black text-red-600">₱{attendanceDetails.reduce((s, a) => s + a.calculatedDeduction, 0).toLocaleString()}</p>
               </div>
             </div>
           </div>
@@ -915,7 +960,7 @@ export default function GeneratePayrollPage() {
                            </div>
                          </div>
                          <div className="text-right" onClick={() => { setSelectedAttendanceDetail(detail); setAttendanceDetailOpen(true); }}>
-                           <p className="text-base lg:text-lg font-black text-red-600">Peso {detail.calculatedDeduction.toLocaleString()}</p>
+                           <p className="text-base lg:text-lg font-black text-red-600">₱{detail.calculatedDeduction.toLocaleString()}</p>
                            <p className="text-[9px] lg:text-[10px] font-bold text-muted-foreground uppercase">{detail.totalLateMinutes} mins total</p>
                          </div>
                        </CardHeader>
@@ -960,7 +1005,7 @@ export default function GeneratePayrollPage() {
                                 <div className="p-2.5 bg-red-50 rounded-xl border border-red-100 flex items-center justify-between group">
                                   <div>
                                     <p className="text-[8px] font-black text-red-500 uppercase tracking-widest">Attendance Late</p>
-                                    <p className="text-xs font-black text-red-600">- Peso {adj.lateDeduction.toLocaleString()}</p>
+                                    <p className="text-xs font-black text-red-600">- ₱{adj.lateDeduction.toLocaleString()}</p>
                                   </div>
                                   <Button variant="ghost" size="icon" className="h-7 w-7 text-red-300 hover:text-red-500" onClick={() => updateEmployeeAdjustment(index, "lateDeduction", 0)}>
                                     <X className="h-3 w-3" />
@@ -972,8 +1017,8 @@ export default function GeneratePayrollPage() {
                                 <div className="p-2.5 bg-red-50 rounded-xl border border-red-100 flex items-center justify-between group">
                                   <div>
                                     <p className="text-[8px] font-black text-red-500 uppercase tracking-widest">Attendance Absence</p>
-                                    <p className="text-xs font-black text-red-600">- Peso {(adj.absenceDays * adj.absenceAmountPerDay).toLocaleString()}</p>
-                                    <p className="text-[7px] text-red-400 font-bold uppercase">{adj.absenceDays} Days x Peso {adj.absenceAmountPerDay.toLocaleString()}</p>
+                                    <p className="text-xs font-black text-red-600">- ₱{(adj.absenceDays * adj.absenceAmountPerDay).toLocaleString()}</p>
+                                    <p className="text-[7px] text-red-400 font-bold uppercase">{adj.absenceDays} Days x ₱{adj.absenceAmountPerDay.toLocaleString()}</p>
                                   </div>
                                   <Button variant="ghost" size="icon" className="h-7 w-7 text-red-300 hover:text-red-500" onClick={() => updateEmployeeAdjustment(index, "absenceDays", 0)}>
                                     <X className="h-3 w-3" />
@@ -1020,7 +1065,7 @@ export default function GeneratePayrollPage() {
             <DialogHeader>
               <DialogTitle className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <span className="text-xl lg:text-2xl font-black">{selectedAttendanceDetail?.employee_name}</span>
-                <Badge variant="outline" className="font-bold border-primary text-primary transition-colors text-[10px] lg:text-xs">Daily Rate: Peso {selectedAttendanceDetail?.dailyRate.toLocaleString()}</Badge>
+                <Badge variant="outline" className="font-bold border-primary text-primary transition-colors text-[10px] lg:text-xs">Daily Rate: ₱{selectedAttendanceDetail?.dailyRate.toLocaleString()}</Badge>
               </DialogTitle>
             </DialogHeader>
           </div>
@@ -1041,7 +1086,7 @@ export default function GeneratePayrollPage() {
               </div>
               <div className="p-3 lg:p-4 bg-white rounded-xl lg:rounded-2xl shadow-sm border border-border/30">
                 <p className="text-[9px] lg:text-[10px] font-bold text-muted-foreground uppercase mb-1">Calculated Cost</p>
-                <p className="text-sm lg:text-xl font-black">Peso {selectedAttendanceDetail?.calculatedDeduction.toLocaleString()}</p>
+                <p className="text-sm lg:text-xl font-black">₱{selectedAttendanceDetail?.calculatedDeduction.toLocaleString()}</p>
               </div>
             </div>
 
@@ -1126,7 +1171,7 @@ export default function GeneratePayrollPage() {
                           {/* Individual Deduction */}
                           <TableCell className="text-center whitespace-nowrap">
                             {log.deduction > 0 ? (
-                              <span className="text-[10px] lg:text-[11px] font-black text-red-600">Peso {log.deduction.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                              <span className="text-[10px] lg:text-[11px] font-black text-red-600">₱{log.deduction.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                             ) : (
                               <span className="opacity-10">-</span>
                             )}
@@ -1175,6 +1220,26 @@ export default function GeneratePayrollPage() {
           </div>
         </DialogContent>
        </Dialog>
+
+      <AlertDialog open={attendanceDeductionConfirmOpen} onOpenChange={setAttendanceDeductionConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Attendance deductions not fully applied?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The attendance tracker shows late/absence deductions for this period that are not fully reflected in
+              payroll adjustments (for example, you may not have used &quot;Apply Selected&quot; on the attendance tracker
+              yet). Generating
+              now will use the current adjustment values, which may omit those amounts.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="font-semibold">Review attendance</AlertDialogCancel>
+            <AlertDialogAction className="font-semibold" onClick={confirmGenerateDespiteAttendance}>
+              Generate anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

@@ -463,7 +463,7 @@ export default function DeductionsPage() {
         <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-primary/20 bg-primary/5 shadow-sm">
           <Calculator className="h-3 w-3 text-primary" />
           <span className="text-[10px] font-bold text-primary/70 uppercase tracking-tighter">Total</span>
-          <span className="text-sm font-bold text-primary">Peso {grandTotal.toLocaleString()}</span>
+          <span className="text-sm font-bold text-primary">₱{grandTotal.toLocaleString()}</span>
         </div>
 
         <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-border bg-card shadow-sm">
@@ -482,22 +482,22 @@ export default function DeductionsPage() {
 
         <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-border bg-muted/10">
           <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter">SSS</span>
-          <span className="text-xs font-semibold text-foreground">Peso {summaryMetrics.sssTotal.toLocaleString()}</span>
+          <span className="text-xs font-semibold text-foreground">₱{summaryMetrics.sssTotal.toLocaleString()}</span>
         </div>
 
         <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-border bg-muted/10">
           <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter">PhilHealth</span>
-          <span className="text-xs font-semibold text-foreground">Peso {summaryMetrics.philhealthTotal.toLocaleString()}</span>
+          <span className="text-xs font-semibold text-foreground">₱{summaryMetrics.philhealthTotal.toLocaleString()}</span>
         </div>
 
         <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-border bg-muted/10">
           <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter">Pag-Ibig</span>
-          <span className="text-xs font-semibold text-foreground">Peso {summaryMetrics.pagibigTotal.toLocaleString()}</span>
+          <span className="text-xs font-semibold text-foreground">₱{summaryMetrics.pagibigTotal.toLocaleString()}</span>
         </div>
 
         <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-border bg-muted/10">
           <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter">Other</span>
-          <span className="text-xs font-semibold text-foreground">Peso {summaryMetrics.otherTotal.toLocaleString()}</span>
+          <span className="text-xs font-semibold text-foreground">₱{summaryMetrics.otherTotal.toLocaleString()}</span>
         </div>
       </div>
 
@@ -667,7 +667,7 @@ export default function DeductionsPage() {
           {Object.entries(totals).map(([name, total]) => (
             <div key={name} className="flex items-center gap-2 px-3 py-1 rounded-full border border-border bg-card shadow-sm hover:border-primary/30 transition-colors">
               <span className="text-[10px] font-medium text-muted-foreground">{name}</span>
-              <span className="text-xs font-bold text-foreground px-1.5 py-0.5 rounded-full bg-muted/30">Peso {total.toLocaleString()}</span>
+              <span className="text-xs font-bold text-foreground px-1.5 py-0.5 rounded-full bg-muted/30">₱{total.toLocaleString()}</span>
             </div>
           ))}
         </div>
@@ -709,7 +709,7 @@ export default function DeductionsPage() {
                         {deductionTypes.map(dt => (
                           <TableCell key={dt.id} className="text-right">
                             {row.amounts[dt.name] > 0 ? (
-                                <span className="font-medium text-foreground">Peso {row.amounts[dt.name].toLocaleString()}</span>
+                                <span className="font-medium text-foreground">₱{row.amounts[dt.name].toLocaleString()}</span>
                             ) : (
                                 <span className="text-muted-foreground/30">—</span>
                             )}
@@ -717,7 +717,7 @@ export default function DeductionsPage() {
                         ))}
                         <TableCell className="text-right">
                           <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-primary/10 text-primary border border-primary/20 shadow-sm">
-                            Peso {rowTotal.toLocaleString()}
+                            ₱{rowTotal.toLocaleString()}
                           </span>
                         </TableCell>
                         <TableCell className="text-right">

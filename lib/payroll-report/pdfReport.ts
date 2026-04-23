@@ -120,7 +120,7 @@ export function generatePayrollAttendancePdf(
     ["Avg working days", fmtNum(t.averageWorkingDays)],
     ["Total net pay", fmtMoney(t.totalNetPay)],
     ["Total deductions", fmtMoney(t.totalDeductions)],
-    ["OT pay (Peso)", fmtMoney(t.totalOvertimePay)],
+    ["OT pay (₱)", fmtMoney(t.totalOvertimePay)],
     ["Avg tardiness (min)", fmtNum(t.averageTardinessMinutes)],
   ]
 
@@ -229,10 +229,10 @@ export function generatePayrollAttendancePdf(
       "WFH",
       "Basic",
       "OT h",
-      "OT (Peso)",
-      "Tard (Peso)",
-      "Abs (Peso)",
-      "Other (Peso)",
+      "OT (₱)",
+      "Tard (₱)",
+      "Abs (₱)",
+      "Other (₱)",
       "Total ded.",
       "Net",
     ],

@@ -53,7 +53,7 @@ export function generatePayrollEmailHtml(employeeName: string, periodEnd: string
     <tr>
       <td style="padding: 8px 0; color: #64748b; font-size: 14px;">${label}</td>
       <td style="padding: 8px 0; text-align: right; color: #0f172a; font-size: 14px; ${isBold ? 'font-weight: bold;' : ''}">
-        Peso ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        ₱${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
       </td>
     </tr>
   `;
@@ -91,7 +91,7 @@ export function generatePayrollEmailHtml(employeeName: string, periodEnd: string
           <tr style="border-top: 1px dashed #e2e8f0;">
             <td style="padding: 12px 0; color: #0f172a; font-size: 14px; font-weight: 700;">Gross Pay</td>
             <td style="padding: 12px 0; text-align: right; color: #0f172a; font-size: 14px; font-weight: 700;">
-              Peso ${breakdown.gross_pay.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              ₱${breakdown.gross_pay.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </td>
           </tr>
         </table>
@@ -110,7 +110,7 @@ export function generatePayrollEmailHtml(employeeName: string, periodEnd: string
           <tr style="border-top: 1px dashed #e2e8f0;">
             <td style="padding: 12px 0; color: #0f172a; font-size: 14px; font-weight: 700;">Total Deductions</td>
             <td style="padding: 12px 0; text-align: right; color: #0f172a; font-size: 14px; font-weight: 700;">
-              Peso ${breakdown.total_deductions.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              ₱${breakdown.total_deductions.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </td>
           </tr>
         </table>
@@ -120,7 +120,7 @@ export function generatePayrollEmailHtml(employeeName: string, periodEnd: string
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <span style="font-size: 14px; font-weight: 500; color: #94a3b8;">Take-home Pay</span>
           <span style="font-size: 24px; font-weight: 800; text-align: right; display: block; width: 100%;">
-            Peso ${breakdown.net_pay.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            ₱${breakdown.net_pay.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
         </div>
       </div>

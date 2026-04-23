@@ -1,9 +1,9 @@
-/** Philippine peso amounts using the word "Peso" (not the ₱ glyph). */
+/** Philippine peso amounts with the ₱ sign. */
 
 export function formatPesoMoney(amount: number): string {
-  return `Peso ${amount.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  return `₱${amount.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
 export function formatPeso(amount: number): string {
-  return `Peso ${amount.toLocaleString("en-PH")}`
+  return `₱${amount.toLocaleString("en-PH")}`
 }
