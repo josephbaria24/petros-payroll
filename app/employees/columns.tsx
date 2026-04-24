@@ -43,7 +43,9 @@ export type Employee = {
   pagibig: string | null
   base_salary: number
   allowance: number
-  pay_type: "monthly" | "daily" | "hourly"
+  pay_type: "monthly" | "semi-monthly" | "weekly" | "daily" | "hourly"
+  /** Legacy DB field; generate uses Date range vs Fixed monthly on the payroll screen. */
+  monthly_salary_mode?: "prorated" | "fixed_split" | null
   shift: string | null
   hours_per_week: number | null
   leave_credits: number

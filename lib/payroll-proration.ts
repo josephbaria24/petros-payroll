@@ -43,6 +43,16 @@ export function countScheduledWorkingDaysInCalendarMonth(
   return countScheduledWorkingDaysInRange(start, end, workingDays)
 }
 
+/**
+ * Employee profile `allowance` is stored as a half-month (per cutoff) amount.
+ * Payroll uses the full calendar month total (×2) before applying pay-run factors or proration.
+ */
+export function fullMonthAllowanceFromEmployeeField(
+  storedHalfMonth: number | null | undefined
+): number {
+  return Math.round((Number(storedHalfMonth) || 0) * 2 * 100) / 100
+}
+
 /** Daily rate for monthly / semi-monthly when `daily_rate` is unset. */
 export function deriveDailyRateForEmployee(emp: {
   base_salary?: number | null
@@ -50,13 +60,29 @@ export function deriveDailyRateForEmployee(emp: {
   pay_type?: string | null
   working_days?: unknown
 }): number {
-  const stored = Number(emp.daily_rate)
-  if (stored > 0) return stored
   const base = Number(emp.base_salary) || 0
   const wd = normalizeWorkingDays(emp.working_days)
-  const daysPerWeek = wd.length
-  const monthlySalary = emp.pay_type === "semi-monthly" ? base * 2 : base
-  return (monthlySalary * 12) / (52 * Math.max(1, daysPerWeek))
+  const daysPerWeek = Math.max(1, wd.length)
+  const pt = (emp.pay_type || "monthly").toLowerCase()
+
+  /** Monthly / semi-monthly: always derive from base_salary so stale `daily_rate` cannot break ÷4 math. */
+  if (pt === "monthly" || pt === "semi-monthly") {
+    const monthlySalary = pt === "semi-monthly" ? base * 2 : base
+    return monthlySalary / (4 * daysPerWeek)
+  }
+
+  const stored = Number(emp.daily_rate)
+  if (stored > 0) return stored
+  if (pt === "weekly") {
+    return base / daysPerWeek
+  }
+  if (pt === "daily") {
+    return base
+  }
+  if (pt === "hourly") {
+    return base * 8
+  }
+  return base / (4 * daysPerWeek)
 }
 
 export type ProratedPayrollSlice = {
@@ -68,6 +94,7 @@ export type ProratedPayrollSlice = {
 /**
  * Basic salary and allowance for an arbitrary [periodStart, periodEnd] slice,
  * using pay_type, working_days, base_salary / daily_rate (same conventions as the employee form).
+ * `emp.allowance` is interpreted as half-month; full month = ×2 before proration.
  */
 export function computeProratedBasicAndAllowance(
   emp: {
@@ -99,7 +126,7 @@ export function computeProratedBasicAndAllowance(
     basicSalary = dailyRate * scheduledDaysInPeriod
   }
 
-  const allowanceMonthly = Number(emp.allowance) || 0
+  const allowanceMonthly = fullMonthAllowanceFromEmployeeField(emp.allowance)
   let allowance = 0
   if (allowanceMonthly > 0 && scheduledDaysInPeriod > 0) {
     if (isSameMonth(periodStart, periodEnd)) {

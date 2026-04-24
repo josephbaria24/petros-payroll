@@ -25,6 +25,11 @@ import {
   AlertDialogAction,
 } from "@/components/ui/alert-dialog"
 import { useProtectedPage } from "../hooks/useProtectedPage"
+import {
+  isPagibigDeductionType,
+  isPhilHealthDeductionType,
+  isSssDeductionType,
+} from "@/lib/deduction-type-classify"
 
 type Deduction = {
   id: string
@@ -98,9 +103,13 @@ export default function DeductionsPage() {
     totalDeductions: deductions.length,
     totalEmployees: Object.keys(totals).length,
     averageDeduction: deductions.length > 0 ? grandTotal / deductions.length : 0,
-    sssTotal: deductions.filter(d => d.type === 'sss').reduce((sum, d) => sum + d.amount, 0),
-    philhealthTotal: deductions.filter(d => d.type === 'philhealth').reduce((sum, d) => sum + d.amount, 0),
-    pagibigTotal: deductions.filter(d => d.type === 'pagibig').reduce((sum, d) => sum + d.amount, 0),
+    sssTotal: deductions.filter(d => isSssDeductionType(d.type)).reduce((sum, d) => sum + d.amount, 0),
+    philhealthTotal: deductions
+      .filter(d => isPhilHealthDeductionType(d.type))
+      .reduce((sum, d) => sum + d.amount, 0),
+    pagibigTotal: deductions
+      .filter(d => isPagibigDeductionType(d.type))
+      .reduce((sum, d) => sum + d.amount, 0),
     otherTotal: deductions.filter(d => d.type === 'other').reduce((sum, d) => sum + d.amount, 0),
   }
 
@@ -304,7 +313,10 @@ export default function DeductionsPage() {
         const uniform = updates.uniform || 0
         const tardiness = updates.tardiness || 0
 
-        const grossPay = basicSalary + overtimePay + nightDiff + holidayPay + allowances
+        const unpaidSal = Number(updates.unpaid_salary) || 0
+        const reimb = Number(updates.reimbursement) || 0
+        const grossPay =
+          basicSalary + overtimePay + nightDiff + holidayPay + allowances + unpaidSal + reimb
         const totalDeductions = sss + philhealth + pagibig + withholdingTax + loans + absences + cashAdvance + uniform + tardiness
         const netPay = grossPay - totalDeductions
 

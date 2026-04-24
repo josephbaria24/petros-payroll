@@ -35,6 +35,8 @@ export async function POST(req: Request) {
         holiday_pay,
         night_diff,
         allowances,
+        unpaid_salary,
+        reimbursement,
         bonuses,
         commission,
         gross_pay,
@@ -84,11 +86,21 @@ export async function POST(req: Request) {
         const holidayPay = num(rec.holiday_pay)
         const nightDiff = num(rec.night_diff)
         const allowances = num(rec.allowances)
+        const unpaidSalary = num(rec.unpaid_salary)
+        const reimbursement = num(rec.reimbursement)
         const bonuses = num(rec.bonuses)
         const commission = num(rec.commission)
 
         const earningsSum =
-          basicSalary + overtimePay + holidayPay + nightDiff + allowances + bonuses + commission
+          basicSalary +
+          overtimePay +
+          holidayPay +
+          nightDiff +
+          allowances +
+          unpaidSalary +
+          reimbursement +
+          bonuses +
+          commission
         const grossPay = rec.gross_pay != null && rec.gross_pay !== '' ? num(rec.gross_pay) : earningsSum
 
         const sss = num(rec.sss)
@@ -119,6 +131,8 @@ export async function POST(req: Request) {
           holiday_pay: holidayPay,
           night_diff: nightDiff,
           allowances,
+          unpaid_salary: unpaidSalary,
+          reimbursement,
           bonuses,
           commission,
           gross_pay: grossPay,

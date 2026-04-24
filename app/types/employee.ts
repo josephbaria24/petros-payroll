@@ -11,7 +11,8 @@ export interface Employee {
     philhealth: string | null
     pagibig: string | null
     base_salary: number
-    pay_type: "monthly" | "daily" | "hourly"
+    pay_type: "monthly" | "semi-monthly" | "weekly" | "daily" | "hourly"
+    monthly_salary_mode?: "prorated" | "fixed_split" | null
     shift: string | null
     hours_per_week: number | null
     leave_credits: number

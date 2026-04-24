@@ -9,6 +9,8 @@ type PayrollRec = {
   id?: string
   basic_salary: number
   overtime_pay: number
+  unpaid_salary: number
+  reimbursement: number
   absences: number
   tardiness: number
   total_deductions: number
@@ -246,7 +248,7 @@ export async function loadPayrollReportPayload(
   const { data: payrollRows } = await supabase
     .from(payrollTable)
     .select(
-      "id, employee_id, period_start, period_end, basic_salary, overtime_pay, absences, tardiness, total_deductions, net_pay, sss, philhealth, pagibig, withholding_tax, loans, uniform, cash_advance"
+      "id, employee_id, period_start, period_end, basic_salary, overtime_pay, unpaid_salary, reimbursement, absences, tardiness, total_deductions, net_pay, sss, philhealth, pagibig, withholding_tax, loans, uniform, cash_advance"
     )
     .eq("period_start", startStr)
     .eq("period_end", endStr)
@@ -257,6 +259,8 @@ export async function loadPayrollReportPayload(
       id: r.id,
       basic_salary: r.basic_salary || 0,
       overtime_pay: r.overtime_pay || 0,
+      unpaid_salary: r.unpaid_salary || 0,
+      reimbursement: r.reimbursement || 0,
       absences: r.absences || 0,
       tardiness: r.tardiness || 0,
       total_deductions: r.total_deductions || 0,

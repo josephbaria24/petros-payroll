@@ -264,8 +264,15 @@ export default function TimeSheetPage() {
   const calculateWages = (hours: number) => {
     if (!employee || !employee.base_salary) return 0
     let hourlyRate = 0
+    const d = Math.max(
+      1,
+      Array.isArray(employee.working_days) && employee.working_days.length > 0
+        ? employee.working_days.length
+        : 5
+    )
     if (employee.pay_type === "hourly") hourlyRate = employee.base_salary
     else if (employee.pay_type === "daily") hourlyRate = employee.base_salary / 8
+    else if (employee.pay_type === "weekly") hourlyRate = (employee.base_salary / d) / 8
     else hourlyRate = employee.base_salary / 160 // default monthly conversion
 
     return hours * hourlyRate

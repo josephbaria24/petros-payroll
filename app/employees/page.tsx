@@ -40,6 +40,11 @@ import {
   Camera,
 } from "lucide-react"
 import { useProtectedPage } from "../hooks/useProtectedPage"
+import {
+  baseSalaryFieldLabel,
+  fromMonthlyEquivalent,
+  toMonthlyEquivalent,
+} from "@/lib/employee-pay-conversion"
 
 const ALL_STATUSES = ["Regular", "Probationary", "Project-based", "Contractual", "Inactive"] as const
 
@@ -105,16 +110,26 @@ export default function EmployeesPage() {
 
   const activeFilterCount = ALL_STATUSES.length - statusFilters.length
   
-  // Auto-calculate daily rate
+  // Auto-calculate daily rate from base salary, pay type, and working days per week
   useEffect(() => {
     const salary = parseFloat(form.base_salary || "0")
-    if (salary > 0 && form.working_days.length > 0) {
-      const monthlySalary = form.pay_type === "semi-monthly" ? salary * 2 : salary
-      const daysPerWeek = form.working_days.length
-      // Formula: (Monthly * 12) / (52 * DaysPerWeek)
-      const calculatedDaily = (monthlySalary * 12) / (52 * daysPerWeek)
-      setForm(prev => ({ ...prev, daily_rate: calculatedDaily.toFixed(2) }))
+    const d = Math.max(1, form.working_days.length || 5)
+    if (salary <= 0) return
+    let calculatedDaily = 0
+    const pt = form.pay_type
+    if (pt === "weekly") {
+      calculatedDaily = salary / d
+    } else if (pt === "daily") {
+      calculatedDaily = salary
+    } else if (pt === "hourly") {
+      calculatedDaily = salary * 8
+    } else if (pt === "semi-monthly") {
+      const monthlySalary = salary * 2
+      calculatedDaily = monthlySalary / (4 * d)
+    } else {
+      calculatedDaily = salary / (4 * d)
     }
+    setForm((prev) => ({ ...prev, daily_rate: calculatedDaily.toFixed(2) }))
   }, [form.base_salary, form.pay_type, form.working_days.length])
 
   useEffect(() => {
@@ -271,7 +286,8 @@ export default function EmployeesPage() {
       leave_credits: emp.leave_credits || 0,
       attendance_log_userid: emp.attendance_log_userid,
       working_days: emp.working_days || [],
-      daily_rate: emp.daily_rate || 0
+      daily_rate: emp.daily_rate || 0,
+      monthly_salary_mode: emp.monthly_salary_mode || "prorated",
     }
 
     if (!isMovingToPDN) {
@@ -354,6 +370,7 @@ export default function EmployeesPage() {
       profile_picture_url: form.profile_picture_url || null,
       working_days: form.working_days || [],
       daily_rate: form.daily_rate ? parseFloat(form.daily_rate) : 0,
+      monthly_salary_mode: "prorated",
     }
 
     const table = activeOrganization === "pdn" ? "pdn_employees" : "employees"
@@ -678,7 +695,17 @@ export default function EmployeesPage() {
                     </h4>
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
                       <div className="space-y-1">
-                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">Base Salary</p>
+                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">Pay type</p>
+                        <p className="text-sm font-bold capitalize">{form.pay_type?.replace(/-/g, " ") || "—"}</p>
+                        {form.pay_type === "monthly" && (
+                          <p className="text-[10px] text-muted-foreground">
+                            Generate: date range = prorated by days; fixed monthly = ×1 / ×½ / ×¼ of this monthly base.
+                          </p>
+                        )}
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">Base pay</p>
+                        <p className="text-[9px] text-muted-foreground leading-tight">{baseSalaryFieldLabel(form.pay_type)}</p>
                         <p className="text-sm font-bold">₱{parseFloat(form.base_salary || "0").toLocaleString()}</p>
                       </div>
                       <div className="space-y-1">
@@ -888,7 +915,7 @@ export default function EmployeesPage() {
 
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="base_salary">Base Salary</Label>
+                        <Label htmlFor="base_salary">{baseSalaryFieldLabel(form.pay_type)}</Label>
                         <Input
                           id="base_salary"
                           type="number"
@@ -912,7 +939,7 @@ export default function EmployeesPage() {
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="allowance">Allowance</Label>
+                        <Label htmlFor="allowance">Allowance (per half-month)</Label>
                         <Input
                           id="allowance"
                           type="number"
@@ -920,23 +947,57 @@ export default function EmployeesPage() {
                           onChange={(e) => setForm({ ...form, allowance: e.target.value })}
                           placeholder="0.00"
                         />
+                        <p className="text-[10px] text-muted-foreground">
+                          Payroll treats full-month allowance as 2× this amount, then applies the pay run (e.g. half month =
+                          1× here, four-part = ½× here).
+                        </p>
                       </div>
 
                       <div className="space-y-2">
                         <Label htmlFor="pay_type">Pay Type</Label>
                         <Select
                           value={form.pay_type}
-                          onValueChange={(v: string) => setForm({ ...form, pay_type: v })}
+                          onValueChange={(newType: string) => {
+                            const salary = parseFloat(form.base_salary || "0")
+                            const d = Math.max(1, form.working_days.length || 5)
+                            if (salary > 0 && newType !== form.pay_type) {
+                              const monthly = toMonthlyEquivalent(salary, form.pay_type, d)
+                              const newBase = fromMonthlyEquivalent(monthly, newType, d)
+                              setForm((prev) => ({
+                                ...prev,
+                                pay_type: newType,
+                                base_salary: newBase.toFixed(2),
+                              }))
+                            } else {
+                              setForm((prev) => ({
+                                ...prev,
+                                pay_type: newType,
+                              }))
+                            }
+                          }}
                         >
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="monthly">Monthly</SelectItem>
-                            <SelectItem value="semi-monthly">15 Days</SelectItem>
+                            <SelectItem value="semi-monthly">Semi-monthly (15 days)</SelectItem>
+                            <SelectItem value="weekly">Weekly</SelectItem>
+                            <SelectItem value="daily">Daily</SelectItem>
+                            <SelectItem value="hourly">Hourly</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
+
+                      {form.pay_type === "monthly" && (
+                        <p className="text-[11px] text-muted-foreground col-span-2 leading-snug border border-border/60 rounded-md px-3 py-2 bg-muted/20">
+                          <span className="font-semibold text-foreground">Generate Payroll:</span> choose{" "}
+                          <strong>Date range</strong> to prorate this salary by scheduled working days in that window, or{" "}
+                          <strong>Fixed monthly</strong> or a matching date range to pay ×1, ×½, or ×¼ of monthly pay
+                          (semi-monthly uses 2× cutoff as full month; four-part = ÷4),
+                          independent of how many working days fall in the slice.
+                        </p>
+                      )}
 
                       <div className="space-y-2">
                         <Label htmlFor="shift">Shift</Label>

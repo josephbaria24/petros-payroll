@@ -59,6 +59,8 @@ type EmployeePayrollDetail = {
   pay_type: string
   basic_salary: number
   allowances: number
+  unpaid_salary: number
+  reimbursement: number
   overtime_pay: number
   holiday_pay: number
   gross_pay: number
@@ -247,6 +249,8 @@ function ReportsContent() {
         'Period End': emp.period_end,
         'Basic Salary': emp.basic_salary,
         'Allowances': emp.allowances,
+        'Unpaid Salary': emp.unpaid_salary ?? 0,
+        'Reimbursement': emp.reimbursement ?? 0,
         'Overtime Pay': emp.overtime_pay,
         'Holiday Pay': emp.holiday_pay,
         'Night Diff': emp.night_diff || 0,
@@ -319,7 +323,7 @@ function ReportsContent() {
           .from("pdn_payroll_records")
           .select(`
             id, employee_id, period_start, period_end, basic_salary,
-            allowances, overtime_pay, holiday_pay, gross_pay, absences,
+            allowances, unpaid_salary, reimbursement, overtime_pay, holiday_pay, gross_pay, absences,
             cash_advance, total_deductions, net_pay, sss, philhealth,
             pagibig, withholding_tax, loans, uniform, tardiness,
             night_diff, bonuses, commission, status,
@@ -347,6 +351,8 @@ function ReportsContent() {
 
           return {
             ...rec,
+            unpaid_salary: rec.unpaid_salary ?? 0,
+            reimbursement: rec.reimbursement ?? 0,
             full_name: rec.pdn_employees?.full_name || 'Unknown',
             employee_code: rec.pdn_employees?.employee_code || 'N/A',
             pay_type: rec.pdn_employees?.pay_type || 'N/A',
@@ -394,6 +400,8 @@ function ReportsContent() {
           period_end,
           basic_salary,
           allowances,
+          unpaid_salary,
+          reimbursement,
           overtime_pay,
           holiday_pay,
           gross_pay,
@@ -449,6 +457,8 @@ function ReportsContent() {
           pay_type: record.employees?.pay_type || 'N/A',
           basic_salary: record.basic_salary || 0,
           allowances: record.allowances || 0,
+          unpaid_salary: record.unpaid_salary ?? 0,
+          reimbursement: record.reimbursement ?? 0,
           overtime_pay: record.overtime_pay || 0,
           holiday_pay: record.holiday_pay || 0,
           gross_pay: record.gross_pay || 0,
@@ -605,6 +615,8 @@ function ReportsContent() {
     period: true,
     basic_salary: true,
     allowances: true,
+    unpaid_salary: true,
+    reimbursement: true,
     overtime: true,
     holiday_pay: true,
     gross_pay: true,
@@ -629,6 +641,8 @@ function ReportsContent() {
     period: "Period",
     basic_salary: "Basic Salary",
     allowances: "Allowances",
+    unpaid_salary: "Unpaid Salary",
+    reimbursement: "Reimbursement",
     overtime: "Overtime",
     holiday_pay: "Holiday Pay",
     gross_pay: "Gross Pay",
@@ -898,6 +912,8 @@ function ReportsContent() {
                           {visibleColumns.period && <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Period</TableHead>}
                           {visibleColumns.basic_salary && <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Salary</TableHead>}
                           {visibleColumns.allowances && <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Allow</TableHead>}
+                          {visibleColumns.unpaid_salary && <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Unpaid</TableHead>}
+                          {visibleColumns.reimbursement && <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Reimb</TableHead>}
                           {visibleColumns.overtime && <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">OT</TableHead>}
                           {visibleColumns.holiday_pay && <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Holiday</TableHead>}
                           {visibleColumns.gross_pay && <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Gross</TableHead>}
@@ -921,6 +937,8 @@ function ReportsContent() {
                             )}
                             {visibleColumns.basic_salary && <TableCell className="py-2 text-center text-xs text-slate-900">₱{emp.basic_salary.toLocaleString()}</TableCell>}
                             {visibleColumns.allowances && <TableCell className="py-2 text-center text-xs text-slate-900">₱{emp.allowances.toLocaleString()}</TableCell>}
+                            {visibleColumns.unpaid_salary && <TableCell className="py-2 text-center text-xs text-slate-900">₱{(emp.unpaid_salary ?? 0).toLocaleString()}</TableCell>}
+                            {visibleColumns.reimbursement && <TableCell className="py-2 text-center text-xs text-slate-900">₱{(emp.reimbursement ?? 0).toLocaleString()}</TableCell>}
                             {visibleColumns.overtime && <TableCell className="py-2 text-center text-xs text-slate-900">₱{emp.overtime_pay.toLocaleString()}</TableCell>}
                             {visibleColumns.holiday_pay && <TableCell className="py-2 text-center text-xs text-slate-900">₱{emp.holiday_pay.toLocaleString()}</TableCell>}
                             {visibleColumns.gross_pay && <TableCell className="py-2 text-center text-xs text-slate-900">₱{(emp.gross_pay || emp.basic_salary).toLocaleString()}</TableCell>}

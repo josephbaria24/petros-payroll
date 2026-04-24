@@ -72,6 +72,7 @@ export default function MyPayrollPage() {
           .select(`
             id, period_start, period_end, status, net_pay, gross_pay,
             basic_salary, overtime_pay, holiday_pay, night_diff, allowances,
+            unpaid_salary, reimbursement,
             bonuses, commission, sss, philhealth, pagibig, withholding_tax,
             absences, tardiness, loans, uniform, total_deductions
           `)
@@ -149,6 +150,8 @@ export default function MyPayrollPage() {
           holiday_pay,
           night_diff,
           allowances,
+          unpaid_salary,
+          reimbursement,
           bonuses,
           commission,
           sss,
@@ -195,6 +198,8 @@ export default function MyPayrollPage() {
           (rec.holiday_pay || 0) +
           (rec.night_diff || 0) +
           (rec.allowances || 0) +
+          (rec.unpaid_salary || 0) +
+          (rec.reimbursement || 0) +
           (rec.bonuses || 0) +
           (rec.commission || 0)
 
@@ -473,6 +478,14 @@ export default function MyPayrollPage() {
                                       <span style={{ color: '#000000' }}>Allowances:</span>
                                       <span style={{ fontWeight: '500', color: '#000000' }}>{formatCurrency(selectedRecord.allowances)}</span>
                                     </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                      <span style={{ color: '#000000' }}>Unpaid Salary:</span>
+                                      <span style={{ fontWeight: '500', color: '#000000' }}>{formatCurrency(selectedRecord.unpaid_salary)}</span>
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                      <span style={{ color: '#000000' }}>Reimbursement:</span>
+                                      <span style={{ fontWeight: '500', color: '#000000' }}>{formatCurrency(selectedRecord.reimbursement)}</span>
+                                    </div>
                                     <div style={{ borderTop: '1px solid #d1d5db', paddingTop: '8px', display: 'flex', justifyContent: 'space-between', fontWeight: '600' }}>
                                       <span style={{ color: '#000000' }}>GROSS PAY:</span>
                                       <span style={{ color: '#000000' }}>{formatCurrency(selectedRecord.gross_pay)}</span>
@@ -713,6 +726,14 @@ Company: PETROSPHERE INC.`}
                                           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                             <span style={{ color: '#000000' }}>Allowances:</span>
                                             <span style={{ fontWeight: '500', color: '#000000' }}>{formatCurrency(selectedRecord.allowances)}</span>
+                                          </div>
+                                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                            <span style={{ color: '#000000' }}>Unpaid Salary:</span>
+                                            <span style={{ fontWeight: '500', color: '#000000' }}>{formatCurrency(selectedRecord.unpaid_salary)}</span>
+                                          </div>
+                                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                            <span style={{ color: '#000000' }}>Reimbursement:</span>
+                                            <span style={{ fontWeight: '500', color: '#000000' }}>{formatCurrency(selectedRecord.reimbursement)}</span>
                                           </div>
                                           <div style={{ borderTop: '1px solid #d1d5db', paddingTop: '8px', display: 'flex', justifyContent: 'space-between', fontWeight: '600' }}>
                                             <span style={{ color: '#000000' }}>GROSS PAY:</span>

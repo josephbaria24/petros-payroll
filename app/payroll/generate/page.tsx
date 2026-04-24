@@ -24,8 +24,20 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "@/lib/toast"
-import { format, startOfDay } from "date-fns"
-import { computeProratedBasicAndAllowance } from "@/lib/payroll-proration"
+import { format, startOfDay, startOfMonth } from "date-fns"
+import {
+  computeProratedBasicAndAllowance,
+  deriveDailyRateForEmployee,
+  fullMonthAllowanceFromEmployeeField,
+} from "@/lib/payroll-proration"
+import {
+  type FixedPayrollSlot,
+  type FixedWeekPart,
+  computeFixedSplitBasicAndAllowance,
+  findFixedSlotMatchingPeriod,
+  getFixedSplitPeriod,
+} from "@/lib/payroll-fixed-monthly"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   ChevronLeft,
   Calendar as CalendarIcon,
@@ -66,6 +78,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { useProtectedPage } from "../../hooks/useProtectedPage"
+import {
+  isMandatoryContributionType,
+  isPagibigDeductionType,
+  isPhilHealthDeductionType,
+  isSssDeductionType,
+} from "@/lib/deduction-type-classify"
 
 /** Peso rounding between tracker total and adjustments (late + absence). */
 const ATTENDANCE_APPLIED_TOLERANCE = 0.5
@@ -101,6 +119,10 @@ type EmployeeAdjustment = {
   otherDeductions?: number
   withholdingTax?: number
   lateDeduction?: number
+  /** Prior-period or catch-up basic pay (adds to gross). */
+  unpaidSalary?: number
+  /** Expense repayment (adds to gross). */
+  reimbursement?: number
 }
 
 type EditingCell = {
@@ -164,17 +186,28 @@ function aggregateMandatoryFromDbDeductions(
   let philhealth = 0
   let pagibig = 0
   for (const d of rows) {
-    const t = (d.type || "").toLowerCase()
+    const raw = d.type || ""
     const amt = Number(d.amount) || 0
-    if (t.includes("sss")) sss += amt
-    else if (t.includes("philhealth")) philhealth += amt
-    else if (t.includes("pagibig") || t.includes("hdmf")) pagibig += amt
+    if (isSssDeductionType(raw)) sss += amt
+    else if (isPhilHealthDeductionType(raw)) philhealth += amt
+    else if (isPagibigDeductionType(raw)) pagibig += amt
   }
   return { sss, philhealth, pagibig }
 }
 
 function scaleMandatoryAmount(value: number, factor: number): number {
   return Math.round((Number(value) || 0) * factor * 100) / 100
+}
+
+/**
+ * Deduction table amounts are semi-monthly (half-month) defaults.
+ * Scale when the pay run is a standard full / half / ¼-month window (fixed mode or matching date range).
+ */
+function getMandatoryDeductionPayRunFactor(resolvedSlot: FixedPayrollSlot | null): number {
+  if (!resolvedSlot) return 1
+  if (resolvedSlot === "full_month") return 2
+  if (resolvedSlot === "first_half" || resolvedSlot === "second_half") return 1
+  return 0.5
 }
 
 function extractPhilippineTime(timestamp: string): string {
@@ -207,6 +240,9 @@ export default function GeneratePayrollPage() {
   const [employeeRequests, setEmployeeRequests] = useState<EmployeeRequest[]>([])
   const [selectedRequests, setSelectedRequests] = useState<string[]>([])
   const [employeeAdjustments, setEmployeeAdjustments] = useState<EmployeeAdjustment[]>([])
+  /** Roster for Manual Adjustments employee pickers (active employees). */
+  const [adjustmentEmployeeOptions, setAdjustmentEmployeeOptions] = useState<{ id: string; full_name: string }[]>([])
+  const [newAdjustmentEmployeeId, setNewAdjustmentEmployeeId] = useState<string>("")
   const [attendanceDetails, setAttendanceDetails] = useState<AttendanceDetail[]>([])
   const [attendanceLoading, setAttendanceLoading] = useState(false)
   const [attendanceDetailOpen, setAttendanceDetailOpen] = useState(false)
@@ -218,11 +254,64 @@ export default function GeneratePayrollPage() {
   const [attendanceDeductionConfirmOpen, setAttendanceDeductionConfirmOpen] = useState(false)
   const [mandatoryDeductionRows, setMandatoryDeductionRows] = useState<MandatoryDeductionRow[]>([])
   const [mandatoryDeductionsLoading, setMandatoryDeductionsLoading] = useState(false)
+  /** Default: prorate by working days in a free-form date range. Alt: declared monthly ÷1, ÷2, ÷4. */
+  const [periodConfigMode, setPeriodConfigMode] = useState<"date_range" | "fixed_monthly">("date_range")
+  const [fixedMonthAnchor, setFixedMonthAnchor] = useState<Date>(() => startOfMonth(new Date()))
+  const [fixedSlot, setFixedSlot] = useState<FixedPayrollSlot>("full_month")
+  const [fixedWeekPart, setFixedWeekPart] = useState<FixedWeekPart>(1)
 
   const fetchEmployees = async () => {useState(false)}
 
   const pendingRequests = employeeRequests.filter(r => r.status === "Pending")
   const approvedRequests = employeeRequests.filter(r => r.status === "Approved")
+
+  /** Canonical pay run for salary + mandatory scaling (fixed UI or date range that exactly matches a standard window). */
+  const resolvedPayRunSlot = useMemo((): FixedPayrollSlot | null => {
+    if (!periodStart || !periodEnd) return null
+    if (periodConfigMode === "fixed_monthly") return fixedSlot
+    return findFixedSlotMatchingPeriod(periodStart, periodEnd)?.slot ?? null
+  }, [periodConfigMode, fixedSlot, periodStart, periodEnd])
+
+  const mandatoryPayRunScaleHint = useMemo(() => {
+    const f = getMandatoryDeductionPayRunFactor(resolvedPayRunSlot)
+    if (!resolvedPayRunSlot) {
+      return "This period is not a standard full/half/¼-month window — table amounts are ×1 (no pay-run scaling)."
+    }
+    if (f === 2) return "Full-month run: mandatory amounts ×2 vs half-month table."
+    if (f === 1) return "Half-month run: ×1 vs half-month table."
+    return "Four-part month (¼ run): ×½ vs half-month table."
+  }, [resolvedPayRunSlot])
+
+  // Active employees for adjustment pickers
+  useEffect(() => {
+    if (!activeOrganization) {
+      setAdjustmentEmployeeOptions([])
+      return
+    }
+    let cancelled = false
+    const table = activeOrganization === "pdn" ? "pdn_employees" : "employees"
+    void (async () => {
+      const { data, error } = await supabase
+        .from(table)
+        .select("id, full_name")
+        .neq("employment_status", "Inactive")
+        .order("full_name", { ascending: true })
+      if (cancelled) return
+      if (error) {
+        console.error(error)
+        return
+      }
+      setAdjustmentEmployeeOptions(
+        (data || []).map((e: { id: string; full_name: string | null }) => ({
+          id: e.id,
+          full_name: e.full_name || "Unknown",
+        }))
+      )
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [activeOrganization])
 
   // Fetch requests when period changes
   useEffect(() => {
@@ -237,11 +326,22 @@ export default function GeneratePayrollPage() {
   }, [periodStart, periodEnd, activeOrganization])
 
   useEffect(() => {
+    if (periodConfigMode !== "fixed_monthly") return
+    const y = fixedMonthAnchor.getFullYear()
+    const m = fixedMonthAnchor.getMonth()
+    const { start, end } = getFixedSplitPeriod(y, m, fixedSlot, fixedWeekPart)
+    setPeriodStart(start)
+    setPeriodEnd(end)
+  }, [periodConfigMode, fixedMonthAnchor, fixedSlot, fixedWeekPart])
+
+  useEffect(() => {
     if (!periodStart || !periodEnd || !activeOrganization) {
       setMandatoryDeductionRows([])
       setMandatoryDeductionsLoading(false)
       return
     }
+    const pStart = periodStart
+    const pEnd = periodEnd
     let cancelled = false
     setMandatoryDeductionRows([])
     setMandatoryDeductionsLoading(true)
@@ -255,6 +355,11 @@ export default function GeneratePayrollPage() {
           .neq("employment_status", "Inactive")
         const { data: deds } = await supabase.from(dedTable).select("*")
         if (cancelled) return
+        const resolvedSlot =
+          periodConfigMode === "fixed_monthly"
+            ? fixedSlot
+            : findFixedSlotMatchingPeriod(pStart, pEnd)?.slot ?? null
+        const payRunFactor = getMandatoryDeductionPayRunFactor(resolvedSlot)
         const next: MandatoryDeductionRow[] = (emps || [])
           .filter((e) => e.base_salary)
           .map((emp) => {
@@ -263,9 +368,9 @@ export default function GeneratePayrollPage() {
             return {
               employee_id: emp.id,
               full_name: emp.full_name || "Unknown",
-              sss: Math.round(sss * 100) / 100,
-              philhealth: Math.round(philhealth * 100) / 100,
-              pagibig: Math.round(pagibig * 100) / 100,
+              sss: scaleMandatoryAmount(sss, payRunFactor),
+              philhealth: scaleMandatoryAmount(philhealth, payRunFactor),
+              pagibig: scaleMandatoryAmount(pagibig, payRunFactor),
               applySss: true,
               applyPhilhealth: true,
               applyPagibig: true,
@@ -283,7 +388,7 @@ export default function GeneratePayrollPage() {
     return () => {
       cancelled = true
     }
-  }, [periodStart, periodEnd, activeOrganization])
+  }, [periodStart, periodEnd, activeOrganization, periodConfigMode, fixedSlot])
 
   const patchMandatoryDeductionRow = (employeeId: string, patch: Partial<MandatoryDeductionRow>) => {
     setMandatoryDeductionRows((prev) =>
@@ -305,6 +410,11 @@ export default function GeneratePayrollPage() {
         .select("id, full_name, base_salary")
         .neq("employment_status", "Inactive")
       const { data: deds } = await supabase.from(dedTable).select("*")
+      const resolvedSlot =
+        periodConfigMode === "fixed_monthly"
+          ? fixedSlot
+          : findFixedSlotMatchingPeriod(periodStart, periodEnd)?.slot ?? null
+      const payRunFactor = getMandatoryDeductionPayRunFactor(resolvedSlot)
       const next: MandatoryDeductionRow[] = (emps || [])
         .filter((e) => e.base_salary)
         .map((emp) => {
@@ -313,9 +423,9 @@ export default function GeneratePayrollPage() {
           return {
             employee_id: emp.id,
             full_name: emp.full_name || "Unknown",
-            sss: Math.round(sss * 100) / 100,
-            philhealth: Math.round(philhealth * 100) / 100,
-            pagibig: Math.round(pagibig * 100) / 100,
+            sss: scaleMandatoryAmount(sss, payRunFactor),
+            philhealth: scaleMandatoryAmount(philhealth, payRunFactor),
+            pagibig: scaleMandatoryAmount(pagibig, payRunFactor),
             applySss: true,
             applyPhilhealth: true,
             applyPagibig: true,
@@ -438,15 +548,8 @@ export default function GeneratePayrollPage() {
           logsByDate.get(date)!.push(l)
         })
 
-        // Calculate standardized daily rate for deduction
-        let dailyRate = emp.daily_rate || 0
-        if (!dailyRate || dailyRate === 0) {
-          // Fallback calculation if not set in profile
-          const baseSalary = emp.base_salary || 0
-          const monthlySalary = emp.pay_type === "semi-monthly" ? baseSalary * 2 : baseSalary
-          const daysPerWeek = (emp.working_days && emp.working_days.length > 0) ? emp.working_days.length : 5
-          dailyRate = (monthlySalary * 12) / (52 * daysPerWeek)
-        }
+        // Daily rate for late/absence: derived from base pay (monthly/semi ignore stale daily_rate field)
+        const dailyRate = deriveDailyRateForEmployee(emp)
 
         let totalLateMinutes = 0
         let daysLate = 0
@@ -642,7 +745,9 @@ export default function GeneratePayrollPage() {
           absenceDays: detail.daysAbsent,
           absenceAmountPerDay: detail.dailyRate,
           overtimeEntries: [],
-          lateDeduction: detail.lateDeduction
+          lateDeduction: detail.lateDeduction,
+          unpaidSalary: 0,
+          reimbursement: 0,
         }])
       }
     })
@@ -708,6 +813,8 @@ export default function GeneratePayrollPage() {
           absenceDays: 0,
           absenceAmountPerDay: 0,
           overtimeEntries: [],
+          unpaidSalary: 0,
+          reimbursement: 0,
         })
         adjIdx = newAdjustments.length - 1
       }
@@ -731,28 +838,45 @@ export default function GeneratePayrollPage() {
   }
 
   // Adjustments logic
-  const addEmployeeAdjustment = async () => {
-    const table = activeOrganization === "pdn" ? "pdn_employees" : "employees"
-    const { data: emps } = await supabase.from(table).select("id, full_name").neq("employment_status", "Inactive")
-    
-    if (emps && emps.length > 0) {
-      const emp = emps[0]
-      if (!employeeAdjustments.some(a => a.employee_id === emp.id)) {
-        setEmployeeAdjustments(prev => [...prev, {
-          employee_id: emp.id,
-          absenceDays: 0,
-          absenceAmountPerDay: 0,
-          overtimeEntries: []
-        }])
-      }
+  const addEmployeeAdjustment = () => {
+    if (!newAdjustmentEmployeeId) {
+      toast.error("Select an employee to add")
+      return
     }
+    if (employeeAdjustments.some((a) => a.employee_id === newAdjustmentEmployeeId)) {
+      toast.error("That employee is already in the adjustments list")
+      return
+    }
+    setEmployeeAdjustments((prev) => [
+      ...prev,
+      {
+        employee_id: newAdjustmentEmployeeId,
+        absenceDays: 0,
+        absenceAmountPerDay: 0,
+        overtimeEntries: [],
+        unpaidSalary: 0,
+        reimbursement: 0,
+      },
+    ])
+    setNewAdjustmentEmployeeId("")
   }
 
   const updateEmployeeAdjustment = (index: number, field: keyof EmployeeAdjustment, value: any) => {
+    if (field === "employee_id" && typeof value === "string") {
+      if (employeeAdjustments.some((a, i) => i !== index && a.employee_id === value)) {
+        toast.error("That employee already has an adjustment row")
+        return
+      }
+    }
     const updated = [...employeeAdjustments]
     updated[index] = { ...updated[index], [field]: value }
     setEmployeeAdjustments(updated)
   }
+
+  const adjustmentDisplayName = (employeeId: string) =>
+    attendanceDetails.find((d) => d.employee_id === employeeId)?.employee_name ||
+    adjustmentEmployeeOptions.find((e) => e.id === employeeId)?.full_name ||
+    "Unknown Employee"
 
   const runBulkGeneratePayroll = async () => {
     if (!periodStart || !periodEnd) {
@@ -781,22 +905,35 @@ export default function GeneratePayrollPage() {
 
       const periodSliceStart = startOfDay(periodStart)
       const periodSliceEnd = startOfDay(periodEnd)
+      const resolvedSlotForRun =
+        periodConfigMode === "fixed_monthly"
+          ? fixedSlot
+          : findFixedSlotMatchingPeriod(periodSliceStart, periodSliceEnd)?.slot ?? null
+      const mandatoryPayRunFactor = getMandatoryDeductionPayRunFactor(resolvedSlotForRun)
 
       const recordsToInsert = []
       for (const emp of allEmployees || []) {
         if (!emp.base_salary) continue
 
-        const { basicSalary, allowance } = computeProratedBasicAndAllowance(
-          emp,
-          periodSliceStart,
-          periodSliceEnd
-        )
+        const pt = String(emp.pay_type || "").toLowerCase()
+        /** Standard full/half/¼-month window: ×1 / ×½ / ×¼ of monthly equivalent — not prorated by day count. */
+        const useDeclaredMonthlySplits =
+          resolvedSlotForRun !== null && (pt === "monthly" || pt === "semi-monthly")
+        const monthlyEquivalent =
+          pt === "semi-monthly" ? (Number(emp.base_salary) || 0) * 2 : Number(emp.base_salary) || 0
+
+        const { basicSalary, allowance } = useDeclaredMonthlySplits
+          ? computeFixedSplitBasicAndAllowance(
+              monthlyEquivalent,
+              fullMonthAllowanceFromEmployeeField(emp.allowance),
+              resolvedSlotForRun
+            )
+          : computeProratedBasicAndAllowance(emp, periodSliceStart, periodSliceEnd)
 
         const empDeductions = (allDeductions || []).filter(d => d.employee_id === emp.id)
         let loans = 0
         empDeductions.forEach(d => {
-          const t = d.type.toLowerCase()
-          if (t.includes("sss") || t.includes("philhealth") || t.includes("pagibig") || t.includes("hdmf")) return
+          if (isMandatoryContributionType(String(d.type))) return
           loans += Number(d.amount) || 0
         })
 
@@ -810,9 +947,9 @@ export default function GeneratePayrollPage() {
           pagibig = mdRow.applyPagibig ? Math.round((Number(mdRow.pagibig) || 0) * 100) / 100 : 0
         } else {
           const m = aggregateMandatoryFromDbDeductions(empDeductions)
-          sss = m.sss
-          philhealth = m.philhealth
-          pagibig = m.pagibig
+          sss = scaleMandatoryAmount(m.sss, mandatoryPayRunFactor)
+          philhealth = scaleMandatoryAmount(m.philhealth, mandatoryPayRunFactor)
+          pagibig = scaleMandatoryAmount(m.pagibig, mandatoryPayRunFactor)
         }
 
         const adj = employeeAdjustments.find(a => a.employee_id === emp.id)
@@ -823,9 +960,12 @@ export default function GeneratePayrollPage() {
         const other = adj?.otherDeductions || 0
         const cashAdvance = adj?.cashAdvance || 0
         const withholding = adj?.withholdingTax || 0
+        const unpaidSalary = Math.round((Number(adj?.unpaidSalary) || 0) * 100) / 100
+        const reimbursement = Math.round((Number(adj?.reimbursement) || 0) * 100) / 100
 
         const totalDeductions = sss + philhealth + pagibig + loans + absence + late + other + cashAdvance + withholding
-        const gross = basicSalary + overtime + holiday + allowance
+        const gross =
+          basicSalary + overtime + holiday + allowance + unpaidSalary + reimbursement
 
         recordsToInsert.push({
           employee_id: emp.id,
@@ -835,6 +975,8 @@ export default function GeneratePayrollPage() {
           overtime_pay: overtime,
           holiday_pay: holiday,
           allowances: allowance,
+          unpaid_salary: unpaidSalary,
+          reimbursement: reimbursement,
           absences: absence,
           tardiness: late,
           sss, philhealth, pagibig,
@@ -908,38 +1050,132 @@ export default function GeneratePayrollPage() {
         <aside className="w-full lg:w-80 border-b lg:border-b-0 lg:border-r border-border bg-muted/20 p-4 lg:p-6 overflow-y-auto space-y-6 lg:space-y-8">
           <div className="space-y-4">
             <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Period Configuration</h3>
-            
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Period Start</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className={cn("w-full justify-start text-left font-bold h-11", !periodStart && "text-muted-foreground")}>
-                      <CalendarIcon className="mr-2 h-4 w-4 opacity-50" />
-                      {periodStart ? format(periodStart, "PPP") : "Select Start Date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar mode="single" selected={periodStart} onSelect={setPeriodStart} initialFocus />
-                  </PopoverContent>
-                </Popover>
-              </div>
 
-              <div className="space-y-2">
-                <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Period End</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className={cn("w-full justify-start text-left font-bold h-11", !periodEnd && "text-muted-foreground")}>
-                      <CalendarIcon className="mr-2 h-4 w-4 opacity-50" />
-                      {periodEnd ? format(periodEnd, "PPP") : "Select End Date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar mode="single" selected={periodEnd} onSelect={setPeriodEnd} initialFocus />
-                  </PopoverContent>
-                </Popover>
-              </div>
+            <div className="space-y-2">
+              <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Period mode</Label>
+              <Select
+                value={periodConfigMode}
+                onValueChange={(v) => setPeriodConfigMode(v as "date_range" | "fixed_monthly")}
+              >
+                <SelectTrigger className="h-11 font-bold">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="date_range">Date range (prorate by working days)</SelectItem>
+                  <SelectItem value="fixed_monthly">Fixed monthly (½ or ¼ of declared monthly)</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-[10px] text-muted-foreground leading-snug">
+                Fixed mode sets the attendance window from month + pay slot. Monthly employees get declared monthly
+                salary ×1, ×½, or ×¼ (not based on working-day count). Other pay types in the same window are still
+                prorated by scheduled days.
+              </p>
             </div>
+
+            {periodConfigMode === "date_range" ? (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Period Start</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className={cn("w-full justify-start text-left font-bold h-11", !periodStart && "text-muted-foreground")}>
+                        <CalendarIcon className="mr-2 h-4 w-4 opacity-50" />
+                        {periodStart ? format(periodStart, "PPP") : "Select Start Date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar mode="single" selected={periodStart} onSelect={setPeriodStart} initialFocus />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Period End</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className={cn("w-full justify-start text-left font-bold h-11", !periodEnd && "text-muted-foreground")}>
+                        <CalendarIcon className="mr-2 h-4 w-4 opacity-50" />
+                        {periodEnd ? format(periodEnd, "PPP") : "Select End Date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar mode="single" selected={periodEnd} onSelect={setPeriodEnd} initialFocus />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Calendar month</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full justify-start text-left font-bold h-11">
+                        <CalendarIcon className="mr-2 h-4 w-4 opacity-50" />
+                        {format(fixedMonthAnchor, "MMMM yyyy")}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={fixedMonthAnchor}
+                        onSelect={(d) => d && setFixedMonthAnchor(startOfMonth(d))}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Pay run</Label>
+                  <Select value={fixedSlot} onValueChange={(v) => setFixedSlot(v as FixedPayrollSlot)}>
+                    <SelectTrigger className="h-11 font-bold">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="full_month">Full month (×1)</SelectItem>
+                      <SelectItem value="first_half">Half month — 1st to 15th (×½)</SelectItem>
+                      <SelectItem value="second_half">Half month — 16th to month end (×½)</SelectItem>
+                      <SelectItem value="weekly_fraction">Four-part month — ¼ of monthly (parts 1–4)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {fixedSlot === "weekly_fraction" && (
+                  <div className="space-y-2">
+                    <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Which part</Label>
+                    <Select
+                      value={String(fixedWeekPart)}
+                      onValueChange={(v) => setFixedWeekPart(Number(v) as FixedWeekPart)}
+                    >
+                      <SelectTrigger className="h-11 font-bold">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">Part 1 of 4</SelectItem>
+                        <SelectItem value="2">Part 2 of 4</SelectItem>
+                        <SelectItem value="3">Part 3 of 4</SelectItem>
+                        <SelectItem value="4">Part 4 of 4</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {periodStart && periodEnd && (
+                  <p className="text-[10px] font-bold text-primary/80 bg-primary/5 border border-primary/10 rounded-lg px-3 py-2">
+                    {fixedSlot === "weekly_fraction" ? (
+                      <>
+                        Pay period: Part {fixedWeekPart} of 4 — {format(fixedMonthAnchor, "MMMM yyyy")}
+                      </>
+                    ) : (
+                      <>
+                        Attendance window: {format(periodStart, "MMM d")} – {format(periodEnd, "MMM d, yyyy")}
+                      </>
+                    )}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="pt-6 border-t border-border">
@@ -959,8 +1195,9 @@ export default function GeneratePayrollPage() {
           <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl flex gap-3">
             <Info className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
             <p className="text-[11px] font-bold text-blue-900 leading-relaxed">
-              Base pay and allowances are prorated to your selected dates using each employee&apos;s pay type, daily rate
-              (or derived rate), and working days. 8:31 AM marks the start of late deductions.
+              <strong>Date range:</strong> base pay follows scheduled working days in the period.{" "}
+              <strong>Fixed monthly:</strong> monthly employees get ×1, ×½, or ×¼ of declared monthly (four-part month =
+              one of four equal slices, not calendar-week pay); allowance matches. 8:31 AM marks late deductions.
             </p>
           </div>
         </aside>
@@ -1135,8 +1372,10 @@ export default function GeneratePayrollPage() {
                 <div>
                   <h2 className="text-lg lg:text-xl font-black">Mandatory contributions</h2>
                   <p className="text-[11px] lg:text-sm text-muted-foreground font-medium">
-                    Defaults come from the deductions table. Uncheck to skip an item for this run, or edit amounts before generating.
+                    Defaults come from the deductions table (stored as half-month). Uncheck to skip an item, or edit
+                    amounts. Pay run adjusts automatically: full month ×2, half month ×1, four-part month (¼) ×½.
                   </p>
+                  <p className="text-[10px] font-bold text-primary/90 mt-1">{mandatoryPayRunScaleHint}</p>
                 </div>
                 <Button
                   type="button"
@@ -1400,24 +1639,75 @@ export default function GeneratePayrollPage() {
             </TabsContent>
 
             <TabsContent value="adjustments" className="space-y-4 lg:space-y-6 animate-in fade-in slide-in-from-bottom-2 focus-visible:outline-none">
-               <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-3">
-                    <h2 className="text-lg lg:text-xl font-black">Manual Adjustments</h2>
-                    <Badge variant="outline" className="font-bold">{employeeAdjustments.length}</Badge>
+               <div className="flex flex-col gap-4 mb-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <h2 className="text-lg lg:text-xl font-black">Manual Adjustments</h2>
+                      <Badge variant="outline" className="font-bold">{employeeAdjustments.length}</Badge>
+                    </div>
                   </div>
-                  <Button onClick={addEmployeeAdjustment} variant="outline" size="sm" className="h-8 text-[10px] sm:text-xs font-bold">
-                    <Plus className="h-3.5 w-3.5 mr-1" /> <span className="hidden xs:inline">Add Employee</span><span className="xs:hidden">Add</span>
-                  </Button>
+                  <div className="flex flex-col sm:flex-row gap-3 sm:items-end p-3 rounded-xl border border-border/60 bg-muted/10">
+                    <div className="flex-1 space-y-1.5 min-w-0">
+                      <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Add adjustment for</Label>
+                      <Select value={newAdjustmentEmployeeId || undefined} onValueChange={setNewAdjustmentEmployeeId}>
+                        <SelectTrigger className="h-10 font-bold w-full">
+                          <SelectValue placeholder="Choose employee…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {adjustmentEmployeeOptions
+                            .filter((e) => !employeeAdjustments.some((a) => a.employee_id === e.id))
+                            .map((e) => (
+                              <SelectItem key={e.id} value={e.id}>
+                                {e.full_name}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button
+                      type="button"
+                      onClick={addEmployeeAdjustment}
+                      variant="outline"
+                      size="sm"
+                      className="h-10 text-xs font-bold shrink-0"
+                    >
+                      <Plus className="h-3.5 w-3.5 mr-1" /> Add to list
+                    </Button>
+                  </div>
                </div>
 
                <div className="grid grid-cols-1 gap-4">
                  {employeeAdjustments.map((adj, index) => {
-                   const empName = attendanceDetails.find(d => d.employee_id === adj.employee_id)?.employee_name || "Unknown Employee"
+                   const empName = adjustmentDisplayName(adj.employee_id)
                    return (
-                     <Card key={adj.employee_id} className="overflow-hidden border-border/60 shadow-sm">
+                     <Card key={`${adj.employee_id}-${index}`} className="overflow-hidden border-border/60 shadow-sm">
                         <div className="flex flex-col lg:flex-row divide-y lg:divide-y-0 lg:divide-x divide-border">
                           <div className="p-4 lg:p-6 bg-muted/10 lg:w-1/3 space-y-3">
-                            <div className="flex items-center gap-2 mb-1">
+                            <div className="space-y-2">
+                              <Label className="text-[9px] font-black text-muted-foreground uppercase">Employee</Label>
+                              <Select
+                                value={adj.employee_id}
+                                onValueChange={(id) => updateEmployeeAdjustment(index, "employee_id", id)}
+                              >
+                                <SelectTrigger className="h-10 font-bold text-left">
+                                  <SelectValue placeholder="Select employee" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {adjustmentEmployeeOptions
+                                    .filter(
+                                      (e) =>
+                                        e.id === adj.employee_id ||
+                                        !employeeAdjustments.some((a, i) => i !== index && a.employee_id === e.id)
+                                    )
+                                    .map((e) => (
+                                      <SelectItem key={e.id} value={e.id}>
+                                        {e.full_name}
+                                      </SelectItem>
+                                    ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
                               <h3 className="font-black text-sm lg:text-base">{empName}</h3>
                               <Badge key="idtag" className="bg-primary/10 text-primary border-0 text-[8px] lg:text-[9px] uppercase">ID: {adj.employee_id.substring(0,6)}</Badge>
                             </div>
@@ -1449,7 +1739,7 @@ export default function GeneratePayrollPage() {
                               ) : null}
                             </div>
                           </div>
-                          <div className="p-4 lg:p-6 flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+                          <div className="p-4 lg:p-6 flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 lg:gap-6">
                             <div className="space-y-1.5">
                               <Label className="text-[9px] lg:text-[10px] font-black text-muted-foreground uppercase">Absence Days</Label>
                               <Input type="number" className="font-bold h-8 lg:h-9 text-xs" value={adj.absenceDays} onChange={(e) => updateEmployeeAdjustment(index, "absenceDays", parseFloat(e.target.value))} />
@@ -1468,6 +1758,32 @@ export default function GeneratePayrollPage() {
                             <div className="space-y-1.5">
                               <Label className="text-[9px] lg:text-[10px] font-black text-muted-foreground uppercase">Misc Deduct</Label>
                               <Input type="number" className="font-bold h-8 lg:h-9 text-xs border-red-50" value={adj.otherDeductions || ""} onChange={(e) => updateEmployeeAdjustment(index, "otherDeductions", parseFloat(e.target.value))} />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label className="text-[9px] lg:text-[10px] font-black text-muted-foreground uppercase">Unpaid salary</Label>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                min={0}
+                                className="font-bold h-8 lg:h-9 text-xs border-emerald-500/30"
+                                value={adj.unpaidSalary ?? ""}
+                                onChange={(e) =>
+                                  updateEmployeeAdjustment(index, "unpaidSalary", parseFloat(e.target.value) || 0)
+                                }
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label className="text-[9px] lg:text-[10px] font-black text-muted-foreground uppercase">Reimbursement</Label>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                min={0}
+                                className="font-bold h-8 lg:h-9 text-xs border-emerald-500/30"
+                                value={adj.reimbursement ?? ""}
+                                onChange={(e) =>
+                                  updateEmployeeAdjustment(index, "reimbursement", parseFloat(e.target.value) || 0)
+                                }
+                              />
                             </div>
                           </div>
                         </div>

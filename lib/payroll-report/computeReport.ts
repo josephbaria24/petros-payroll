@@ -31,6 +31,8 @@ type PayrollRec = {
   id?: string
   basic_salary: number
   overtime_pay: number
+  unpaid_salary: number
+  reimbursement: number
   absences: number
   tardiness: number
   total_deductions: number
@@ -274,6 +276,8 @@ export function buildPayrollAttendanceReport(params: {
     const pr = payrollByEmployee.get(emp.id)
     const basicSalary = pr?.basic_salary ?? 0
     const overtimePay = pr?.overtime_pay ?? 0
+    const unpaidSalary = pr?.unpaid_salary ?? 0
+    const reimbursement = pr?.reimbursement ?? 0
     const otH =
       overtimeHoursByEmployee.get(emp.id) ??
       estimateOvertimeHours(overtimePay, emp)
@@ -286,7 +290,9 @@ export function buildPayrollAttendanceReport(params: {
     const miscFromTables = miscDeductionsFromTables.get(emp.id) ?? 0
     /** Residual on payroll row + misc lines from deductions / employee_deductions (non-itemized). */
     const deductionOther = Math.round((residualOther + miscFromTables) * 100) / 100
-    const netPay = pr?.net_pay ?? Math.max(0, basicSalary + overtimePay - totalDed)
+    const netPay =
+      pr?.net_pay ??
+      Math.max(0, basicSalary + overtimePay + unpaidSalary + reimbursement - totalDed)
 
     const tardinessAvgMinutes = daysLate > 0 ? totalLateMinutes / daysLate : 0
 
@@ -311,6 +317,8 @@ export function buildPayrollAttendanceReport(params: {
       remoteDays,
       lateDays: daysLate,
       basicSalary,
+      unpaidSalary,
+      reimbursement,
       overtimeHours: otH,
       overtimePay,
       deductionLate,
@@ -347,6 +355,8 @@ export function buildPayrollAttendanceReport(params: {
     totalWfhDays: rows.reduce((s, r) => s + r.wfhDays, 0),
     totalOvertimeHours: Math.round(rows.reduce((s, r) => s + r.overtimeHours, 0) * 100) / 100,
     totalOvertimePay: rows.reduce((s, r) => s + r.overtimePay, 0),
+    totalUnpaidSalary: rows.reduce((s, r) => s + r.unpaidSalary, 0),
+    totalReimbursement: rows.reduce((s, r) => s + r.reimbursement, 0),
     totalDeductions: rows.reduce((s, r) => s + r.totalDeductions, 0),
     totalNetPay: rows.reduce((s, r) => s + r.netPay, 0),
     attendancePie,
