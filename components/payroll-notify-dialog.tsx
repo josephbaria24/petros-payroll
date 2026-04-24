@@ -26,6 +26,8 @@ type PayrollNotifyDialogProps = {
     onOpenChange: (open: boolean) => void
     periodName: string
     records: PayrollRecord[]
+    /** Matches payroll table: `pdn` → `pdn_payroll_records` + `pdn_employees` join */
+    organization?: "petrosphere" | "pdn"
 }
 
 export function PayrollNotifyDialog({
@@ -33,6 +35,7 @@ export function PayrollNotifyDialog({
     onOpenChange,
     periodName,
     records,
+    organization = "petrosphere",
 }: PayrollNotifyDialogProps) {
     const [selectedIds, setSelectedIds] = useState<string[]>([])
     const [isSending, setIsSending] = useState(false)
@@ -64,7 +67,7 @@ export function PayrollNotifyDialog({
             const response = await fetch("/api/payroll/notify", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ recordIds: selectedIds }),
+                body: JSON.stringify({ recordIds: selectedIds, organization }),
             })
 
             const data = await response.json()

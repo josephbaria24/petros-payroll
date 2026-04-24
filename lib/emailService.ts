@@ -30,33 +30,55 @@ export async function sendEmail({ to, subject, html }: { to: string; subject: st
 }
 
 export type PayrollBreakdown = {
-  basic_salary: number;
-  overtime_pay: number;
-  holiday_pay: number;
-  night_diff: number;
-  allowances: number;
-  gross_pay: number;
-  sss: number;
-  philhealth: number;
-  pagibig: number;
-  withholding_tax: number;
-  loans: number;
-  cash_advance: number;
-  absences: number;
-  total_deductions: number;
-  net_pay: number;
-  status?: string;
+  period_start?: string
+  period_end?: string
+  basic_salary: number
+  overtime_pay: number
+  holiday_pay: number
+  night_diff: number
+  allowances: number
+  bonuses: number
+  commission: number
+  gross_pay: number
+  sss: number
+  philhealth: number
+  pagibig: number
+  withholding_tax: number
+  loans: number
+  cash_advance: number
+  uniform: number
+  tardiness: number
+  absences: number
+  total_deductions: number
+  net_pay: number
+  status?: string
 }
 
-export function generatePayrollEmailHtml(employeeName: string, periodEnd: string, breakdown: PayrollBreakdown) {
-  const row = (label: string, value: number, isBold = false) => `
+function moneyCell(value: number): string {
+  const v = Number(value) || 0
+  return `₱${v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+}
+
+function rowLine(label: string, value: number): string {
+  return `
     <tr>
       <td style="padding: 8px 0; color: #64748b; font-size: 14px;">${label}</td>
-      <td style="padding: 8px 0; text-align: right; color: #0f172a; font-size: 14px; ${isBold ? 'font-weight: bold;' : ''}">
-        ₱${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+      <td style="padding: 8px 0; text-align: right; color: #0f172a; font-size: 14px;">
+        ${moneyCell(value)}
       </td>
     </tr>
-  `;
+  `
+}
+
+export function generatePayrollEmailHtml(employeeName: string, breakdown: PayrollBreakdown) {
+  const periodEnd = breakdown.period_end || ''
+  const periodStart = breakdown.period_start
+  const periodLine =
+    periodStart && periodEnd
+      ? `${periodStart} – ${periodEnd}`
+      : periodEnd
+        ? `Period ending ${periodEnd}`
+        : 'Current period'
 
   const statusBadge = breakdown.status ? `
     <div style="display: inline-block; padding: 4px 12px; border-radius: 9999px; font-size: 12px; font-weight: 600; background-color: ${breakdown.status.toLowerCase().includes('released') ? '#ecfdf5' : '#fff7ed'
@@ -71,7 +93,7 @@ export function generatePayrollEmailHtml(employeeName: string, periodEnd: string
     <div style="font-family: 'Inter', sans-serif, system-ui; max-width: 600px; margin: 0 auto; padding: 40px 20px; background-color: #ffffff;">
       <div style="text-align: center; margin-bottom: 30px;">
         <h1 style="color: #0f172a; font-size: 24px; font-weight: 800; margin: 0; letter-spacing: -0.025em;">Payslip Notification</h1>
-        <p style="color: #64748b; font-size: 14px; margin-top: 8px;">For the period ending ${periodEnd}</p>
+        <p style="color: #64748b; font-size: 14px; margin-top: 8px;">${periodLine}</p>
       </div>
 
       <div style="border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; background-color: #f8fafc;">
@@ -83,15 +105,17 @@ export function generatePayrollEmailHtml(employeeName: string, periodEnd: string
       <div style="margin-top: 32px;">
         <h3 style="color: #0f172a; font-size: 12px; text-transform: uppercase; font-weight: 700; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 12px; letter-spacing: 0.05em;">Earnings</h3>
         <table style="width: 100%; border-collapse: collapse;">
-          ${row('Basic Salary', breakdown.basic_salary)}
-          ${breakdown.overtime_pay > 0 ? row('Overtime Pay', breakdown.overtime_pay) : ''}
-          ${breakdown.holiday_pay > 0 ? row('Holiday Pay', breakdown.holiday_pay) : ''}
-          ${breakdown.night_diff > 0 ? row('Night Differential', breakdown.night_diff) : ''}
-          ${breakdown.allowances > 0 ? row('Allowances', breakdown.allowances) : ''}
+          ${rowLine('Basic Salary', breakdown.basic_salary)}
+          ${rowLine('Overtime Pay', breakdown.overtime_pay)}
+          ${rowLine('Holiday Pay', breakdown.holiday_pay)}
+          ${rowLine('Night Differential', breakdown.night_diff)}
+          ${rowLine('Allowances', breakdown.allowances)}
+          ${rowLine('Bonuses', breakdown.bonuses)}
+          ${rowLine('Commission', breakdown.commission)}
           <tr style="border-top: 1px dashed #e2e8f0;">
             <td style="padding: 12px 0; color: #0f172a; font-size: 14px; font-weight: 700;">Gross Pay</td>
             <td style="padding: 12px 0; text-align: right; color: #0f172a; font-size: 14px; font-weight: 700;">
-              ₱${breakdown.gross_pay.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              ${moneyCell(breakdown.gross_pay)}
             </td>
           </tr>
         </table>
@@ -100,17 +124,19 @@ export function generatePayrollEmailHtml(employeeName: string, periodEnd: string
       <div style="margin-top: 32px;">
         <h3 style="color: #0f172a; font-size: 12px; text-transform: uppercase; font-weight: 700; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 12px; letter-spacing: 0.05em;">Deductions</h3>
         <table style="width: 100%; border-collapse: collapse;">
-          ${breakdown.sss > 0 ? row('SSS Contribution', breakdown.sss) : ''}
-          ${breakdown.philhealth > 0 ? row('PhilHealth Contribution', breakdown.philhealth) : ''}
-          ${breakdown.pagibig > 0 ? row('Pag-IBIG Contribution', breakdown.pagibig) : ''}
-          ${breakdown.withholding_tax > 0 ? row('Withholding Tax', breakdown.withholding_tax) : ''}
-          ${breakdown.loans > 0 ? row('Loans', breakdown.loans) : ''}
-          ${breakdown.cash_advance > 0 ? row('Cash Advance', breakdown.cash_advance) : ''}
-          ${breakdown.absences > 0 ? row('Absences', breakdown.absences) : ''}
+          ${rowLine('SSS', breakdown.sss)}
+          ${rowLine('PhilHealth', breakdown.philhealth)}
+          ${rowLine('Pag-IBIG', breakdown.pagibig)}
+          ${rowLine('Withholding Tax', breakdown.withholding_tax)}
+          ${rowLine('Loans', breakdown.loans)}
+          ${rowLine('Cash Advance', breakdown.cash_advance)}
+          ${rowLine('Uniform', breakdown.uniform)}
+          ${rowLine('Tardiness', breakdown.tardiness)}
+          ${rowLine('Absences', breakdown.absences)}
           <tr style="border-top: 1px dashed #e2e8f0;">
             <td style="padding: 12px 0; color: #0f172a; font-size: 14px; font-weight: 700;">Total Deductions</td>
             <td style="padding: 12px 0; text-align: right; color: #0f172a; font-size: 14px; font-weight: 700;">
-              ₱${breakdown.total_deductions.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              ${moneyCell(breakdown.total_deductions)}
             </td>
           </tr>
         </table>
@@ -119,8 +145,8 @@ export function generatePayrollEmailHtml(employeeName: string, periodEnd: string
       <div style="margin-top: 40px; padding: 24px; background-color: #0f172a; border-radius: 12px; color: #ffffff;">
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <span style="font-size: 14px; font-weight: 500; color: #94a3b8;">Take-home Pay</span>
-          <span style="font-size: 24px; font-weight: 800; text-align: right; display: block; width: 100%;">
-            ₱${breakdown.net_pay.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          <span style="font-size: 24px; font-weight: 800; text-align: right; display: block; width: 100%; color: #ffffff;">
+            ${moneyCell(breakdown.net_pay)}
           </span>
         </div>
       </div>

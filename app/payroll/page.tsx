@@ -849,6 +849,7 @@ export default function PayrollPage() {
           onOpenChange={setIsNotifyDialogOpen}
           periodName={notificationPeriodName}
           records={notificationRecords}
+          organization={activeOrganization}
         />
         {periods.length > itemsPerPage && (
           <div className="flex items-center justify-between px-6 py-4 border-t border-border bg-muted/30">
