@@ -32,8 +32,6 @@ export type EmployeePayrollRow = {
   remoteDays: number
   lateDays: number
   basicSalary: number
-  unpaidSalary: number
-  reimbursement: number
   overtimeHours: number
   overtimePay: number
   deductionLate: number
@@ -61,8 +59,6 @@ export type ReportTotals = {
   totalWfhDays: number
   totalOvertimeHours: number
   totalOvertimePay: number
-  totalUnpaidSalary: number
-  totalReimbursement: number
   totalDeductions: number
   totalNetPay: number
   attendancePie: {

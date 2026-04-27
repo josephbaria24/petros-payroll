@@ -150,8 +150,6 @@ export default function MyPayrollPage() {
           holiday_pay,
           night_diff,
           allowances,
-          unpaid_salary,
-          reimbursement,
           bonuses,
           commission,
           sss,
@@ -198,8 +196,6 @@ export default function MyPayrollPage() {
           (rec.holiday_pay || 0) +
           (rec.night_diff || 0) +
           (rec.allowances || 0) +
-          (rec.unpaid_salary || 0) +
-          (rec.reimbursement || 0) +
           (rec.bonuses || 0) +
           (rec.commission || 0)
 

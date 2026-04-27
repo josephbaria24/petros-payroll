@@ -37,8 +37,6 @@ export type PayrollBreakdown = {
   holiday_pay: number
   night_diff: number
   allowances: number
-  unpaid_salary: number
-  reimbursement: number
   bonuses: number
   commission: number
   gross_pay: number
@@ -112,8 +110,6 @@ export function generatePayrollEmailHtml(employeeName: string, breakdown: Payrol
           ${rowLine('Holiday Pay', breakdown.holiday_pay)}
           ${rowLine('Night Differential', breakdown.night_diff)}
           ${rowLine('Allowances', breakdown.allowances)}
-          ${rowLine('Unpaid Salary', breakdown.unpaid_salary)}
-          ${rowLine('Reimbursement', breakdown.reimbursement)}
           ${rowLine('Bonuses', breakdown.bonuses)}
           ${rowLine('Commission', breakdown.commission)}
           <tr style="border-top: 1px dashed #e2e8f0;">

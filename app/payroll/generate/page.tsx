@@ -964,9 +964,8 @@ export default function GeneratePayrollPage() {
         const reimbursement = Math.round((Number(adj?.reimbursement) || 0) * 100) / 100
 
         const totalDeductions = sss + philhealth + pagibig + loans + absence + late + other + cashAdvance + withholding
-        const gross =
-          basicSalary + overtime + holiday + allowance + unpaidSalary + reimbursement
-
+        const gross = basicSalary + overtime + holiday + allowance
+        
         recordsToInsert.push({
           employee_id: emp.id,
           period_start: format(periodStart, "yyyy-MM-dd"),
@@ -975,8 +974,6 @@ export default function GeneratePayrollPage() {
           overtime_pay: overtime,
           holiday_pay: holiday,
           allowances: allowance,
-          unpaid_salary: unpaidSalary,
-          reimbursement: reimbursement,
           absences: absence,
           tardiness: late,
           sss, philhealth, pagibig,

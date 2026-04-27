@@ -313,10 +313,8 @@ export default function DeductionsPage() {
         const uniform = updates.uniform || 0
         const tardiness = updates.tardiness || 0
 
-        const unpaidSal = Number(updates.unpaid_salary) || 0
-        const reimb = Number(updates.reimbursement) || 0
         const grossPay =
-          basicSalary + overtimePay + nightDiff + holidayPay + allowances + unpaidSal + reimb
+          basicSalary + overtimePay + nightDiff + holidayPay + allowances
         const totalDeductions = sss + philhealth + pagibig + withholdingTax + loans + absences + cashAdvance + uniform + tardiness
         const netPay = grossPay - totalDeductions
 

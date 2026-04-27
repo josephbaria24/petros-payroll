@@ -121,8 +121,6 @@ export function generatePayrollAttendancePdf(
     ["Total net pay", fmtMoney(t.totalNetPay)],
     ["Total deductions", fmtMoney(t.totalDeductions)],
     ["OT pay (₱)", fmtMoney(t.totalOvertimePay)],
-    ["Unpaid salary (₱)", fmtMoney(t.totalUnpaidSalary)],
-    ["Reimbursement (₱)", fmtMoney(t.totalReimbursement)],
     ["Avg tardiness (min)", fmtNum(t.averageTardinessMinutes)],
   ]
 
@@ -230,8 +228,6 @@ export function generatePayrollAttendancePdf(
       "Early",
       "WFH",
       "Basic",
-      "Unpaid",
-      "Reimb",
       "OT h",
       "OT (₱)",
       "Tard (₱)",
@@ -252,8 +248,6 @@ export function generatePayrollAttendancePdf(
     String(e.earlyOutIncidents),
     String(e.wfhDays),
     fmtMoney(e.basicSalary),
-    fmtMoney(e.unpaidSalary),
-    fmtMoney(e.reimbursement),
     fmtNum(e.overtimeHours, 2),
     fmtMoney(e.overtimePay),
     fmtMoney(e.deductionLate),

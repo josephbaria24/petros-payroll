@@ -198,10 +198,11 @@ export default function PayrollPage() {
         .from("pdn_payroll_records")
         .select(`
           id, employee_id, period_start, period_end, basic_salary,
-          overtime_pay, holiday_pay, night_diff, allowances, unpaid_salary, reimbursement,
+          overtime_pay, holiday_pay, night_diff, allowances, bonuses, commission,
           absences, tardiness,
-          cash_advance, sss, philhealth, pagibig, withholding_tax, loans,
+          cash_advance, sss, philhealth, pagibig, withholding_tax, loans, uniform,
           total_deductions, net_pay, status, created_at, updated_at, creator_id,
+          profiles(fullname),
           pdn_employees(full_name, pay_type, profile_picture_url)
         `)
         .order("period_end", { ascending: false })
@@ -218,8 +219,8 @@ export default function PayrollPage() {
           (rec.holiday_pay || 0) +
           (rec.night_diff || 0) +
           (rec.allowances || 0) +
-          (rec.unpaid_salary || 0) +
-          (rec.reimbursement || 0)
+          (rec.bonuses || 0) +
+          (rec.commission || 0)
         const totalDeductions = rec.total_deductions || 0
         const netAfterDeductions = grossPay - totalDeductions
 
@@ -236,8 +237,8 @@ export default function PayrollPage() {
           holiday_pay: rec.holiday_pay || 0,
           night_diff: rec.night_diff || 0,
           allowances: rec.allowances || 0,
-          unpaid_salary: rec.unpaid_salary || 0,
-          reimbursement: rec.reimbursement || 0,
+          bonuses: rec.bonuses || 0,
+          commission: rec.commission || 0,
           status: rec.status,
           absences: rec.absences || 0,
           tardiness: rec.tardiness || 0,
@@ -247,11 +248,14 @@ export default function PayrollPage() {
           pagibig: rec.pagibig || 0,
           withholding_tax: rec.withholding_tax || 0,
           loans: rec.loans || 0,
+          uniform: rec.uniform || 0,
           total_deductions: totalDeductions,
           net_after_deductions: netAfterDeductions,
           total_net: netAfterDeductions,
           created_at: rec.created_at,
           updated_at: rec.updated_at || rec.created_at,
+          creator_name: (rec as any).profiles?.[0]?.fullname || (rec as any).profiles?.fullname ||
+            (rec.creator_id === "7229a103-7f3e-464c-8032-970b9df6220b" || !rec.creator_id ? "Joseph Baria" : "User " + rec.creator_id.substring(0, 5))
         }
       })
 
@@ -312,8 +316,8 @@ export default function PayrollPage() {
         holiday_pay,
         night_diff,
         allowances,
-        unpaid_salary,
-        reimbursement,
+        bonuses,
+        commission,
         absences,
         tardiness,
         cash_advance,
@@ -322,19 +326,20 @@ export default function PayrollPage() {
         pagibig,
         withholding_tax,
         loans,
+        uniform,
         total_deductions,
         net_pay,
         status,
         created_at,
         updated_at,
         creator_id,
-        employees(full_name, pay_type, profile_picture_url),
-        profiles(fullname)
+        profiles(fullname),
+        employees(full_name, pay_type, profile_picture_url)
       `)
       .order("period_end", { ascending: false })
 
     if (error) {
-      console.error(error)
+      console.error("Error fetching payroll records:", error.message, error.hint, error.details)
       return
     }
 
@@ -345,8 +350,8 @@ export default function PayrollPage() {
         (rec.holiday_pay || 0) +
         (rec.night_diff || 0) +
         (rec.allowances || 0) +
-        (rec.unpaid_salary || 0) +
-        (rec.reimbursement || 0)
+        (rec.bonuses || 0) +
+        (rec.commission || 0)
 
       const totalDeductions = (rec.total_deductions || 0)
       const netAfterDeductions = grossPay - totalDeductions
@@ -364,8 +369,8 @@ export default function PayrollPage() {
         holiday_pay: rec.holiday_pay || 0,
         night_diff: rec.night_diff || 0,
         allowances: rec.allowances || 0,
-        unpaid_salary: rec.unpaid_salary || 0,
-        reimbursement: rec.reimbursement || 0,
+        bonuses: rec.bonuses || 0,
+        commission: rec.commission || 0,
         status: rec.status,
         absences: rec.absences || 0,
         tardiness: rec.tardiness || 0,
@@ -375,6 +380,7 @@ export default function PayrollPage() {
         pagibig: rec.pagibig || 0,
         withholding_tax: rec.withholding_tax || 0,
         loans: rec.loans || 0,
+        uniform: rec.uniform || 0,
         total_deductions: totalDeductions,
         net_after_deductions: netAfterDeductions,
         total_net: netAfterDeductions,
@@ -445,7 +451,7 @@ export default function PayrollPage() {
 
     const { data, error } = await supabase.from("employees").select("id, full_name, pay_type")
     if (error) {
-      console.error(error)
+      console.error("Error fetching employees:", error.message, error.hint, error.details)
       return
     }
     setEmployees(data)

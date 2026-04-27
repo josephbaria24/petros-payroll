@@ -323,7 +323,7 @@ function ReportsContent() {
           .from("pdn_payroll_records")
           .select(`
             id, employee_id, period_start, period_end, basic_salary,
-            allowances, unpaid_salary, reimbursement, overtime_pay, holiday_pay, gross_pay, absences,
+            allowances, overtime_pay, holiday_pay, gross_pay, absences,
             cash_advance, total_deductions, net_pay, sss, philhealth,
             pagibig, withholding_tax, loans, uniform, tardiness,
             night_diff, bonuses, commission, status,
@@ -400,8 +400,6 @@ function ReportsContent() {
           period_end,
           basic_salary,
           allowances,
-          unpaid_salary,
-          reimbursement,
           overtime_pay,
           holiday_pay,
           gross_pay,
