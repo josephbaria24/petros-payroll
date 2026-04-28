@@ -14,6 +14,11 @@ function Input({ className, type, ...props }: React.ComponentProps<"input">) {
         className
       )}
       {...props}
+      onWheel={(e) => {
+        if (type === "number") {
+          (e.currentTarget as HTMLInputElement).blur()
+        }
+      }}
     />
   )
 }

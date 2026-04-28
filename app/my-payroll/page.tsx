@@ -149,7 +149,8 @@ export default function MyPayrollPage() {
           overtime_pay,
           holiday_pay,
           night_diff,
-          allowances,
+          unpaid_salary,
+          reimbursement,
           bonuses,
           commission,
           sss,
@@ -197,7 +198,9 @@ export default function MyPayrollPage() {
           (rec.night_diff || 0) +
           (rec.allowances || 0) +
           (rec.bonuses || 0) +
-          (rec.commission || 0)
+          (rec.commission || 0) +
+          (rec.unpaid_salary || 0) +
+          (rec.reimbursement || 0)
 
         const allDeductions =
           (rec.sss || 0) +

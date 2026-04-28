@@ -980,9 +980,11 @@ export default function GeneratePayrollPage() {
           loans: loans + other,
           withholding_tax: withholding,
           cash_advance: cashAdvance,
-          gross_pay: gross,
+          unpaid_salary: unpaidSalary,
+          reimbursement: reimbursement,
+          gross_pay: gross + unpaidSalary + reimbursement,
           total_deductions: totalDeductions,
-          net_pay: gross - totalDeductions,
+          net_pay: (gross + unpaidSalary + reimbursement) - totalDeductions,
           status: "Pending Payment",
           creator_id: creatorId
         })

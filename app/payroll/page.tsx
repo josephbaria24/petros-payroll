@@ -199,6 +199,7 @@ export default function PayrollPage() {
         .select(`
           id, employee_id, period_start, period_end, basic_salary,
           overtime_pay, holiday_pay, night_diff, allowances, bonuses, commission,
+          unpaid_salary, reimbursement,
           absences, tardiness,
           cash_advance, sss, philhealth, pagibig, withholding_tax, loans, uniform,
           total_deductions, net_pay, status, created_at, updated_at, creator_id,
@@ -220,7 +221,9 @@ export default function PayrollPage() {
           (rec.night_diff || 0) +
           (rec.allowances || 0) +
           (rec.bonuses || 0) +
-          (rec.commission || 0)
+          (rec.commission || 0) +
+          (rec.unpaid_salary || 0) +
+          (rec.reimbursement || 0)
         const totalDeductions = rec.total_deductions || 0
         const netAfterDeductions = grossPay - totalDeductions
 
@@ -239,6 +242,8 @@ export default function PayrollPage() {
           allowances: rec.allowances || 0,
           bonuses: rec.bonuses || 0,
           commission: rec.commission || 0,
+          unpaid_salary: rec.unpaid_salary || 0,
+          reimbursement: rec.reimbursement || 0,
           status: rec.status,
           absences: rec.absences || 0,
           tardiness: rec.tardiness || 0,
@@ -318,6 +323,8 @@ export default function PayrollPage() {
         allowances,
         bonuses,
         commission,
+        unpaid_salary,
+        reimbursement,
         absences,
         tardiness,
         cash_advance,
@@ -351,7 +358,9 @@ export default function PayrollPage() {
         (rec.night_diff || 0) +
         (rec.allowances || 0) +
         (rec.bonuses || 0) +
-        (rec.commission || 0)
+        (rec.commission || 0) +
+        (rec.unpaid_salary || 0) +
+        (rec.reimbursement || 0)
 
       const totalDeductions = (rec.total_deductions || 0)
       const netAfterDeductions = grossPay - totalDeductions
@@ -371,6 +380,8 @@ export default function PayrollPage() {
         allowances: rec.allowances || 0,
         bonuses: rec.bonuses || 0,
         commission: rec.commission || 0,
+        unpaid_salary: rec.unpaid_salary || 0,
+        reimbursement: rec.reimbursement || 0,
         status: rec.status,
         absences: rec.absences || 0,
         tardiness: rec.tardiness || 0,
