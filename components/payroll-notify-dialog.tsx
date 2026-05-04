@@ -10,7 +10,8 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/lib/toast"
-import { Check, Mail, Users, Loader2 } from "lucide-react"
+import { Check, Users, Loader2 } from "lucide-react"
+import { SendEmailIcon } from "@/components/send-email-icon"
 import { Badge } from "@/components/ui/badge"
 
 type PayrollRecord = {
@@ -92,7 +93,7 @@ export function PayrollNotifyDialog({
             <DialogContent className="lg:w-[50vw] w-[90vw] p-0 overflow-hidden border-border">
                 <DialogHeader className="p-6 pb-0">
                     <DialogTitle className="text-xl font-bold text-foreground flex items-center gap-2">
-                        <Mail className="h-5 w-5 text-blue-600" />
+                        <SendEmailIcon className="h-5 w-5 text-blue-600" />
                         Notify Employees
                     </DialogTitle>
                     <p className="text-sm text-muted-foreground mt-1">
@@ -169,7 +170,7 @@ export function PayrollNotifyDialog({
                         {isSending ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
-                            <Mail className="h-4 w-4" />
+                            <SendEmailIcon className="h-4 w-4" />
                         )}
                         Send {selectedIds.length} Emails
                     </Button>

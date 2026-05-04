@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge"
 import { FileText, Download, Eye, PhilippinePeso, Trash2, Search, Info, TrendingUp, Calendar, ChevronRight, ChevronLeft } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { QRCodeSVG } from "qrcode.react"
+import { PetrospherePayslipHeader } from "@/components/petrosphere-payslip-header"
 
 function PayslipWatermarkLayer() {
   return (
@@ -435,12 +436,19 @@ export default function MyPayrollPage() {
                               <PayslipWatermarkLayer />
                               <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', gap: '24px' }}>
                               {/* Header */}
-                              <div style={{ textAlign: 'center', borderBottom: '2px solid #1f2937', paddingBottom: '16px' }}>
-                                <h1 style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937', marginBottom: '4px' }}>PETROSPHERE INCORPORATED.</h1>
-                                <p style={{ fontSize: '14px', color: '#4b5563' }}>3rd Floor Trigold Business Park, Brgy San Pedro, Puerto Princesa City</p>
-                                <p style={{ fontSize: '14px', color: '#4b5563' }}>Phone: 0917-708-7994 | Email: hrad@petrosphere.com.ph</p>
-                                <h2 style={{ fontSize: '18px', fontWeight: '600', marginTop: '12px', color: '#1f2937' }}>PAYROLL STATEMENT</h2>
-                              </div>
+                              {activeOrganization === "pdn" ? (
+                                <div style={{ textAlign: "center", borderBottom: "2px solid #1f2937", paddingBottom: "16px" }}>
+                                  <h1 style={{ fontSize: "22px", fontWeight: "bold", color: "#1f2937", marginBottom: "4px" }}>
+                                    PALAWAN DAILY NEWS
+                                  </h1>
+                                  <p style={{ fontSize: "14px", color: "#4b5563" }}>Puerto Princesa City, Palawan, Philippines</p>
+                                  <h2 style={{ fontSize: "18px", fontWeight: "600", marginTop: "12px", color: "#1f2937" }}>
+                                    PAYROLL STATEMENT
+                                  </h2>
+                                </div>
+                              ) : (
+                                <PetrospherePayslipHeader statementTitle="PAYROLL STATEMENT" />
+                              )}
 
                               {/* Employee Info & Pay Period */}
                               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
@@ -525,10 +533,6 @@ export default function MyPayrollPage() {
                                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                       <span style={{ color: '#000000' }}>Pag-IBIG:</span>
                                       <span style={{ fontWeight: '500', color: '#000000' }}>{formatCurrency(selectedRecord.pagibig)}</span>
-                                    </div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                      <span style={{ color: '#000000' }}>Withholding Tax:</span>
-                                      <span style={{ fontWeight: '500', color: '#000000' }}>{formatCurrency(selectedRecord.withholding_tax)}</span>
                                     </div>
                                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                       <span style={{ color: '#000000' }}>Absences:</span>
@@ -684,12 +688,19 @@ Company: PETROSPHERE INCORPORATED.`}
                                     <PayslipWatermarkLayer />
                                     <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', gap: '24px' }}>
                                     {/* Header */}
-                                    <div style={{ textAlign: 'center', borderBottom: '2px solid #1f2937', paddingBottom: '16px' }}>
-                                      <h1 style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937', marginBottom: '4px' }}>PETROSPHERE INCORPORATED.</h1>
-                                      <p style={{ fontSize: '14px', color: '#4b5563' }}>3rd Floor Trigold Business Park, Brgy San Pedro, Puerto Princesa City</p>
-                                      <p style={{ fontSize: '14px', color: '#4b5563' }}>Phone: 0917-708-7994 | Email: hrad@petrosphere.com.ph</p>
-                                      <h2 style={{ fontSize: '18px', fontWeight: '600', marginTop: '12px', color: '#1f2937' }}>PAYROLL STATEMENT</h2>
-                                    </div>
+                                    {activeOrganization === "pdn" ? (
+                                      <div style={{ textAlign: "center", borderBottom: "2px solid #1f2937", paddingBottom: "16px" }}>
+                                        <h1 style={{ fontSize: "22px", fontWeight: "bold", color: "#1f2937", marginBottom: "4px" }}>
+                                          PALAWAN DAILY NEWS
+                                        </h1>
+                                        <p style={{ fontSize: "14px", color: "#4b5563" }}>Puerto Princesa City, Palawan, Philippines</p>
+                                        <h2 style={{ fontSize: "18px", fontWeight: "600", marginTop: "12px", color: "#1f2937" }}>
+                                          PAYROLL STATEMENT
+                                        </h2>
+                                      </div>
+                                    ) : (
+                                      <PetrospherePayslipHeader statementTitle="PAYROLL STATEMENT" />
+                                    )}
 
                                     {/* Employee Info & Pay Period */}
                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
@@ -774,10 +785,6 @@ Company: PETROSPHERE INCORPORATED.`}
                                           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                             <span style={{ color: '#000000' }}>Pag-IBIG:</span>
                                             <span style={{ fontWeight: '500', color: '#000000' }}>{formatCurrency(selectedRecord.pagibig)}</span>
-                                          </div>
-                                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                            <span style={{ color: '#000000' }}>Withholding Tax:</span>
-                                            <span style={{ fontWeight: '500', color: '#000000' }}>{formatCurrency(selectedRecord.withholding_tax)}</span>
                                           </div>
                                           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                             <span style={{ color: '#000000' }}>Absences:</span>

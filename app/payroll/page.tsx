@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label"
 import { toast } from "@/lib/toast"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { CalendarIcon, Eye, Trash2, Plus, X, Calculator, Users, PhilippinePeso, TrendingUp, FileText, Check, XCircle, Clock, CheckCircle, ChevronDown, CheckCircle2, AlertCircle, Mail, Search } from "lucide-react"
+import { CalendarIcon, Trash2, Plus, X, Calculator, Users, PhilippinePeso, TrendingUp, FileText, Check, XCircle, Clock, CheckCircle, ChevronDown, CheckCircle2, AlertCircle, Search, Download, ChevronLeft, ChevronRight } from "lucide-react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 import {
@@ -35,6 +35,20 @@ import { useProtectedPage } from "../hooks/useProtectedPage"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { PayrollNotifyDialog } from "@/components/payroll-notify-dialog"
+import {
+  PayrollEarningsReceipt,
+  downloadPayrollReceiptPng,
+} from "@/components/payroll-earnings-receipt"
+import { ReceiptIcon } from "@/components/receipt-icon"
+import { SendEmailIcon } from "@/components/send-email-icon"
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
 
 
 
@@ -59,6 +73,9 @@ type PayrollRecord = {
   id: string
   employee_id: string
   employee_name?: string
+  employee_code?: string
+  department?: string
+  position?: string
   pay_type?: string
   period_start: string
   period_end: string
@@ -67,6 +84,8 @@ type PayrollRecord = {
   holiday_pay?: number
   night_diff?: number
   allowances?: number
+  bonuses?: number
+  commission?: number
   unpaid_salary?: number
   reimbursement?: number
   status: string
@@ -78,6 +97,7 @@ type PayrollRecord = {
   pagibig?: number
   withholding_tax?: number
   loans?: number
+  uniform?: number
   total_deductions?: number
   net_after_deductions?: number
   total_net?: number
@@ -127,6 +147,7 @@ export default function PayrollPage() {
   const [selectedPeriodRecords, setSelectedPeriodRecords] = useState<PayrollRecord[]>([])
   const [selectedPeriodName, setSelectedPeriodName] = useState("")
   const [periodDialogOpen, setPeriodDialogOpen] = useState(false)
+  const [periodDialogContext, setPeriodDialogContext] = useState<PayrollPeriod | null>(null)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [searchQuery, setSearchQuery] = useState("")
 
@@ -139,6 +160,13 @@ export default function PayrollPage() {
   const [employees, setEmployees] = useState<{ id: string; full_name: string; pay_type: string }[]>([])
   const [editRecord, setEditRecord] = useState<PayrollRecord | null>(null)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
+
+  const [receiptDialogOpen, setReceiptDialogOpen] = useState(false)
+  const [receiptPeriod, setReceiptPeriod] = useState<PayrollPeriod | null>(null)
+  const [receiptRecordId, setReceiptRecordId] = useState<string | null>(null)
+  const [receiptEmployeePickerOpen, setReceiptEmployeePickerOpen] = useState(false)
+
+  const RECEIPT_EXPORT_ID = "payroll-receipt-export"
 
   useEffect(() => {
     fetchPayrollPeriods()
@@ -203,7 +231,7 @@ export default function PayrollPage() {
           absences, tardiness,
           cash_advance, sss, philhealth, pagibig, withholding_tax, loans, uniform,
           total_deductions, net_pay, status, created_at, updated_at, creator_id,
-          pdn_employees(full_name, pay_type, profile_picture_url)
+          pdn_employees(full_name, pay_type, profile_picture_url, employee_code, department, position)
         `)
         .order("period_end", { ascending: false })
 
@@ -230,6 +258,9 @@ export default function PayrollPage() {
           id: rec.id,
           employee_id: rec.employee_id,
           employee_name: rec.pdn_employees?.full_name,
+          employee_code: rec.pdn_employees?.employee_code,
+          department: rec.pdn_employees?.department,
+          position: rec.pdn_employees?.position,
           pay_type: rec.pdn_employees?.pay_type,
           profile_picture_url: rec.pdn_employees?.profile_picture_url,
           period_start: rec.period_start,
@@ -340,7 +371,7 @@ export default function PayrollPage() {
         updated_at,
         creator_id,
         profiles(fullname),
-        employees(full_name, pay_type, profile_picture_url)
+        employees(full_name, pay_type, profile_picture_url, employee_code, department, position)
       `)
       .order("period_end", { ascending: false })
 
@@ -368,6 +399,9 @@ export default function PayrollPage() {
         id: rec.id,
         employee_id: rec.employee_id,
         employee_name: rec.employees?.full_name,
+        employee_code: rec.employees?.employee_code,
+        department: rec.employees?.department,
+        position: rec.employees?.position,
         pay_type: rec.employees?.pay_type,
         profile_picture_url: rec.employees?.profile_picture_url,
         period_start: rec.period_start,
@@ -469,10 +503,45 @@ export default function PayrollPage() {
 
 
   function handleViewPeriodRecords(period: PayrollPeriod) {
+    setPeriodDialogContext(period)
     setSelectedPeriodRecords(period.records)
     setSelectedPeriodName(period.display_name)
     setPeriodDialogOpen(true)
     setSelectedIds([])
+  }
+
+  function openReceiptDialog(period: PayrollPeriod, preferredEmployeeId?: string | null) {
+    if (!period.records.length) {
+      toast.warning("No payroll rows for this period.")
+      return
+    }
+    const sorted = [...period.records].sort((a, b) =>
+      (a.employee_name || "").localeCompare(b.employee_name || "", undefined, { sensitivity: "base" })
+    )
+    const fallbackId = sorted[0]?.id ?? null
+    const chosen =
+      preferredEmployeeId && period.records.some((r) => r.id === preferredEmployeeId)
+        ? preferredEmployeeId
+        : fallbackId
+    setReceiptPeriod(period)
+    setReceiptRecordId(chosen)
+    setReceiptDialogOpen(true)
+  }
+
+  async function handleDownloadReceipt() {
+    const rec = receiptPeriod?.records.find((r) => r.id === receiptRecordId)
+    if (!rec || !receiptPeriod) return
+    const toastId = toast.loading("Downloading receipt...")
+    try {
+      const safeName = (rec.employee_name || "employee").replace(/[^\w\-]+/g, "_")
+      await downloadPayrollReceiptPng(
+        RECEIPT_EXPORT_ID,
+        `earnings_${safeName}_${receiptPeriod.period_start}_${receiptPeriod.period_end}`
+      )
+      toast.success("Receipt downloaded", { id: toastId })
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not download receipt", { id: toastId })
+    }
   }
   const summaryMetrics = {
     totalBasicSalary: periods.reduce((sum, p) => sum + p.total_basic_salary, 0),
@@ -617,6 +686,16 @@ export default function PayrollPage() {
     }
   }
 
+  const receiptSorted =
+    receiptPeriod == null
+      ? []
+      : [...receiptPeriod.records].sort((a, b) =>
+          (a.employee_name || "").localeCompare(b.employee_name || "", undefined, { sensitivity: "base" })
+        )
+  const receiptNavIndex = receiptRecordId ? receiptSorted.findIndex((r) => r.id === receiptRecordId) : -1
+  const currentReceiptRecord =
+    receiptRecordId && receiptPeriod ? receiptPeriod.records.find((r) => r.id === receiptRecordId) : undefined
+
   return (
     <div className="space-y-8 p-6 min-h-screen bg-background">
       <div className="space-y-2">
@@ -689,13 +768,20 @@ export default function PayrollPage() {
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-3 w-full md:w-auto">
+                <div className="flex flex-col gap-2 w-full md:w-auto">
                   <Button
                     className="w-full md:w-48 h-12 text-base font-bold shadow-lg shadow-primary/20 group-hover:scale-[1.02] transition-transform"
+                    onClick={() => openReceiptDialog(periods[0])}
+                  >
+                    <ReceiptIcon className="mr-2 h-5 w-5" />
+                    View pay slips
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full md:w-48 h-9 text-sm"
                     onClick={() => handleViewPeriodRecords(periods[0])}
                   >
-                    <Eye className="mr-2 h-5 w-5" />
-                    View Full Details
+                    Manage payroll records
                   </Button>
                 </div>
               </div>
@@ -764,7 +850,7 @@ export default function PayrollPage() {
                   {paginatedPeriods.map((period) => (
                     <TableRow
                       key={period.period_key}
-                      className="hover:bg-muted/30 border-b border-border last:border-0 transition-colors cursor-pointer"
+                      className="border-b border-border last:border-0 cursor-pointer transition-colors duration-150 hover:bg-primary/10 dark:hover:bg-primary/20 active:bg-primary/[0.14]"
                       onClick={() => handleViewPeriodRecords(period)}
                     >
                       <TableCell className="py-4">
@@ -840,11 +926,11 @@ export default function PayrollPage() {
                             className="h-8 w-8 text-muted-foreground hover:text-foreground"
                             onClick={(e) => {
                               e.stopPropagation()
-                              handleViewPeriodRecords(period)
+                              openReceiptDialog(period)
                             }}
-                            title="View Details"
+                            title="View earnings receipt"
                           >
-                            <Eye className="h-4 w-4" />
+                            <ReceiptIcon className="h-4 w-4" />
                           </Button>
                           <Button
                             variant="ghost"
@@ -858,7 +944,7 @@ export default function PayrollPage() {
                             }}
                             title="Notify Employees"
                           >
-                            <Mail className="h-4 w-4" />
+                            <SendEmailIcon className="h-4 w-4" />
                           </Button>
                           <Button
                             variant="ghost"
@@ -889,6 +975,136 @@ export default function PayrollPage() {
           records={notificationRecords}
           organization={activeOrganization}
         />
+
+        <Dialog
+          open={receiptDialogOpen}
+          onOpenChange={(open) => {
+            setReceiptDialogOpen(open)
+            if (!open) {
+              setReceiptPeriod(null)
+              setReceiptRecordId(null)
+              setReceiptEmployeePickerOpen(false)
+            }
+          }}
+        >
+          <DialogContent className="lg:w-[50vw] w-[90vw] p-5 overflow-hidden max-h-[92vh] overflow-y-auto">
+            <DialogHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between space-y-0">
+              <DialogTitle className="text-xl font-semibold text-foreground pr-8">
+                Earnings receipt{receiptPeriod ? ` — ${receiptPeriod.display_name}` : ""}
+              </DialogTitle>
+              <Button
+                type="button"
+                size="sm"
+                className="shrink-0"
+                onClick={() => void handleDownloadReceipt()}
+                disabled={!currentReceiptRecord}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Download
+              </Button>
+            </DialogHeader>
+
+            <div className="flex flex-wrap items-center gap-2 pb-4 border-b border-border">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="shrink-0"
+                disabled={receiptNavIndex <= 0}
+                onClick={() => {
+                  if (receiptNavIndex > 0) setReceiptRecordId(receiptSorted[receiptNavIndex - 1].id)
+                }}
+                aria-label="Previous employee"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Popover open={receiptEmployeePickerOpen} onOpenChange={setReceiptEmployeePickerOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={receiptEmployeePickerOpen}
+                    className="min-w-[200px] max-w-[min(100vw-8rem,320px)] justify-between font-normal"
+                  >
+                    <span
+                      className={cn(
+                        "truncate",
+                        !currentReceiptRecord && "text-muted-foreground"
+                      )}
+                    >
+                      {currentReceiptRecord?.employee_name ?? "Select employee"}
+                    </span>
+                    <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="z-[100] w-[var(--radix-popover-trigger-width)] min-w-[200px] max-w-[min(100vw-8rem,320px)] p-0"
+                  align="start"
+                >
+                  <Command>
+                    <CommandInput placeholder="Search employee..." />
+                    <CommandList className="max-h-[280px]">
+                      <CommandEmpty>No employee found.</CommandEmpty>
+                      <CommandGroup>
+                        {receiptSorted.map((r) => (
+                          <CommandItem
+                            key={r.id}
+                            value={r.id}
+                            keywords={[
+                              r.employee_name ?? "",
+                              r.employee_code ?? "",
+                              r.employee_id ?? "",
+                            ]}
+                            onSelect={() => {
+                              setReceiptRecordId(r.id)
+                              setReceiptEmployeePickerOpen(false)
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4 shrink-0",
+                                receiptRecordId === r.id ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            <span className="truncate">{r.employee_name || r.id}</span>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="shrink-0"
+                disabled={receiptNavIndex < 0 || receiptNavIndex >= receiptSorted.length - 1}
+                onClick={() => {
+                  if (receiptNavIndex >= 0 && receiptNavIndex < receiptSorted.length - 1) {
+                    setReceiptRecordId(receiptSorted[receiptNavIndex + 1].id)
+                  }
+                }}
+                aria-label="Next employee"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {currentReceiptRecord ? (
+              <div className="pt-2">
+                <PayrollEarningsReceipt
+                  exportRootId={RECEIPT_EXPORT_ID}
+                  organization={activeOrganization === "pdn" ? "pdn" : "petrosphere"}
+                  record={currentReceiptRecord}
+                />
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground py-6 text-center">Select an employee to preview the receipt.</p>
+            )}
+          </DialogContent>
+        </Dialog>
         {periods.length > itemsPerPage && (
           <div className="flex items-center justify-between px-6 py-4 border-t border-border bg-muted/30">
             <div className="text-sm text-muted-foreground">
@@ -931,7 +1147,13 @@ export default function PayrollPage() {
         )}
       </Card>
 
-      <Dialog open={periodDialogOpen} onOpenChange={setPeriodDialogOpen}>
+      <Dialog
+        open={periodDialogOpen}
+        onOpenChange={(open) => {
+          setPeriodDialogOpen(open)
+          if (!open) setPeriodDialogContext(null)
+        }}
+      >
         <DialogContent
           className="
     max-w-[95vw]
@@ -1035,6 +1257,9 @@ export default function PayrollPage() {
                       <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Net After Deductions</TableHead>
                       <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Total Net</TableHead>
                       <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Status</TableHead>
+                      <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm text-right">
+                        Actions
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1099,21 +1324,33 @@ export default function PayrollPage() {
                               {rec.status}
                             </span>
                           </TableCell>
-                          <TableCell className="text-right">
-                            {rec.status !== "Paid" && (
+                          <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center justify-end gap-1 flex-wrap">
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleMarkAsPaid(rec.id)
+                                className="h-8 px-2 text-muted-foreground hover:text-foreground"
+                                title="Earnings receipt"
+                                type="button"
+                                onClick={() => {
+                                  if (periodDialogContext) openReceiptDialog(periodDialogContext, rec.id)
                                 }}
-                                className="text-green-600 hover:bg-green-50"
                               >
-                                <CheckCircle className="h-4 w-4 mr-1" />
-                                Mark Paid
+                                <ReceiptIcon className="h-4 w-4" />
                               </Button>
-                            )}
+                              {rec.status !== "Paid" && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  type="button"
+                                  onClick={() => handleMarkAsPaid(rec.id)}
+                                  className="text-green-600 hover:bg-green-50"
+                                >
+                                  <CheckCircle className="h-4 w-4 mr-1" />
+                                  Mark Paid
+                                </Button>
+                              )}
+                            </div>
                           </TableCell>
 
                         </TableRow>
