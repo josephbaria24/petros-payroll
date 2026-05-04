@@ -203,17 +203,16 @@ export default function PayrollPage() {
           absences, tardiness,
           cash_advance, sss, philhealth, pagibig, withholding_tax, loans, uniform,
           total_deductions, net_pay, status, created_at, updated_at, creator_id,
-          profiles(fullname),
           pdn_employees(full_name, pay_type, profile_picture_url)
         `)
         .order("period_end", { ascending: false })
 
       if (error) {
-        console.error("Error fetching PDN payroll:", error)
+        console.error("Error fetching PDN payroll:", error.message, error.details, error.hint)
         return
       }
 
-      const processedRecords = payroll.map((rec: any) => {
+      const processedRecords = (payroll ?? []).map((rec: any) => {
         const grossPay =
           (rec.basic_salary || 0) +
           (rec.overtime_pay || 0) +

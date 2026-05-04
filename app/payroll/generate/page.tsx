@@ -891,16 +891,23 @@ export default function GeneratePayrollPage() {
     try {
       const payrollTable = activeOrganization === "pdn" ? "pdn_payroll_records" : "payroll_records"
       
-      // Delete existing
-      await supabase.from(payrollTable).delete()
+      const { error: deleteErr } = await supabase.from(payrollTable).delete()
         .eq("period_start", format(periodStart, "yyyy-MM-dd"))
         .eq("period_end", format(periodEnd, "yyyy-MM-dd"))
+      if (deleteErr) {
+        toast.error(deleteErr.message || "Could not clear existing payroll for this period", { id: toastId })
+        return
+      }
 
       // Fetch employees and deductions
       const empTable = activeOrganization === "pdn" ? "pdn_employees" : "employees"
       const dedTable = activeOrganization === "pdn" ? "pdn_deductions" : "deductions"
       
-      const { data: allEmployees } = await supabase.from(empTable).select("*")
+      const { data: allEmployees, error: empFetchErr } = await supabase.from(empTable).select("*")
+      if (empFetchErr) {
+        toast.error(empFetchErr.message || "Could not load employees", { id: toastId })
+        return
+      }
       const { data: allDeductions } = await supabase.from(dedTable).select("*")
 
       const periodSliceStart = startOfDay(periodStart)
@@ -990,11 +997,21 @@ export default function GeneratePayrollPage() {
         })
       }
 
-      if (recordsToInsert.length > 0) {
-        await supabase.from(payrollTable).insert(recordsToInsert)
-        toast.success("Payroll generated successfully", { id: toastId })
-        router.push("/payroll")
+      if (recordsToInsert.length === 0) {
+        toast.error(
+          "No payroll rows to save. Each active employee needs a non-zero base salary (check PDN employee profiles).",
+          { id: toastId }
+        )
+        return
       }
+
+      const { error: insertErr } = await supabase.from(payrollTable).insert(recordsToInsert)
+      if (insertErr) {
+        toast.error(insertErr.message || "Failed to save payroll records", { id: toastId })
+        return
+      }
+      toast.success("Payroll generated successfully", { id: toastId })
+      router.push("/payroll")
     } catch (err: any) {
       toast.error(err.message, { id: toastId })
     }
