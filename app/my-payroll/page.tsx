@@ -20,6 +20,25 @@ import { FileText, Download, Eye, PhilippinePeso, Trash2, Search, Info, Trending
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { QRCodeSVG } from "qrcode.react"
 
+function PayslipWatermarkLayer() {
+  return (
+    <div
+      aria-hidden
+      style={{
+        position: "absolute",
+        inset: 0,
+        backgroundImage: "url(/logo.png)",
+        backgroundRepeat: "no-repeat",
+        backgroundPosition: "center",
+        backgroundSize: "contain",
+        opacity: 0.09,
+        pointerEvents: "none",
+        zIndex: 0,
+      }}
+    />
+  )
+}
+
 export default function MyPayrollPage() {
   const { activeOrganization } = useOrganization()
   const [records, setRecords] = useState<any[]>([])
@@ -28,7 +47,6 @@ export default function MyPayrollPage() {
   const router = useRouter()
   const [selectedRecord, setSelectedRecord] = useState<any | null>(null)
   const [employeeDetails, setEmployeeDetails] = useState<any | null>(null)
-  const [userEmail, setUserEmail] = useState<string>("")
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 5
 
@@ -47,8 +65,6 @@ export default function MyPayrollPage() {
         router.push("/login")
         return
       }
-
-      setUserEmail(user.email || "")
 
       if (activeOrganization === "pdn") {
         // Fetch PDN employee data from Supabase
@@ -415,7 +431,9 @@ export default function MyPayrollPage() {
                           </DialogHeader>
 
                           {selectedRecord && (
-                            <div id="payslip-content-latest" style={{ backgroundColor: '#ffffff', padding: '32px', display: 'flex', flexDirection: 'column', gap: '24px', color: '#000000', fontFamily: 'Arial, sans-serif' }}>
+                            <div id="payslip-content-latest" style={{ position: 'relative', backgroundColor: '#ffffff', padding: '32px', overflow: 'hidden', color: '#000000', fontFamily: 'Arial, sans-serif' }}>
+                              <PayslipWatermarkLayer />
+                              <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', gap: '24px' }}>
                               {/* Header */}
                               <div style={{ textAlign: 'center', borderBottom: '2px solid #1f2937', paddingBottom: '16px' }}>
                                 <h1 style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937', marginBottom: '4px' }}>PETROSPHERE INCORPORATED.</h1>
@@ -545,12 +563,9 @@ export default function MyPayrollPage() {
                                   <div style={{ padding: '8px', border: '1px solid #d1d5db', borderRadius: '4px', backgroundColor: '#ffffff' }}>
                                     <QRCodeSVG
                                       value={`VALIDATION DATA:
-Name: ${employeeDetails?.full_name}
-Email: ${userEmail}
-Reference ID: ${selectedRecord.id}
-Period: ${formatPeriod(selectedRecord.period_start, selectedRecord.period_end)}
-Net Amount: ${formatCurrency(selectedRecord.calculated_net_pay)}
-Company: PETROSPHERE INC.`}
+Name: ${employeeDetails?.full_name ?? ""}
+Employee ID: ${employeeDetails?.employee_code ?? ""}
+Company: PETROSPHERE INCORPORATED.`}
                                       size={100}
                                       level="H"
                                       includeMargin={false}
@@ -564,6 +579,7 @@ Company: PETROSPHERE INC.`}
                               <div style={{ textAlign: 'center', fontSize: '12px', paddingTop: '16px', borderTop: '1px solid #d1d5db', color: '#6b7280' }}>
                                 <p>This is a computer-generated pay slip and does not require a signature.</p>
                                 <p style={{ marginTop: '4px' }}>Generated on {new Date().toLocaleDateString('en-PH')}</p>
+                              </div>
                               </div>
                             </div>
                           )}
@@ -664,7 +680,9 @@ Company: PETROSPHERE INC.`}
                                 </DialogHeader>
 
                                 {selectedRecord && (
-                                  <div id="payslip-content" style={{ backgroundColor: '#ffffff', padding: '32px', display: 'flex', flexDirection: 'column', gap: '24px', color: '#000000', fontFamily: 'Arial, sans-serif' }}>
+                                  <div id="payslip-content" style={{ position: 'relative', backgroundColor: '#ffffff', padding: '32px', overflow: 'hidden', color: '#000000', fontFamily: 'Arial, sans-serif' }}>
+                                    <PayslipWatermarkLayer />
+                                    <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', gap: '24px' }}>
                                     {/* Header */}
                                     <div style={{ textAlign: 'center', borderBottom: '2px solid #1f2937', paddingBottom: '16px' }}>
                                       <h1 style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937', marginBottom: '4px' }}>PETROSPHERE INCORPORATED.</h1>
@@ -794,12 +812,9 @@ Company: PETROSPHERE INC.`}
                                         <div style={{ padding: '8px', border: '1px solid #d1d5db', borderRadius: '4px', backgroundColor: '#ffffff' }}>
                                           <QRCodeSVG
                                             value={`VALIDATION DATA:
-Name: ${employeeDetails?.full_name}
-Email: ${userEmail}
-Reference ID: ${selectedRecord.id}
-Period: ${formatPeriod(selectedRecord.period_start, selectedRecord.period_end)}
-Net Amount: ${formatCurrency(selectedRecord.calculated_net_pay)}
-Company: PETROSPHERE INC.`}
+Name: ${employeeDetails?.full_name ?? ""}
+Employee ID: ${employeeDetails?.employee_code ?? ""}
+Company: PETROSPHERE INCORPORATED.`}
                                             size={100}
                                             level="H"
                                             includeMargin={false}
@@ -813,6 +828,7 @@ Company: PETROSPHERE INC.`}
                                     <div style={{ textAlign: 'center', fontSize: '12px', paddingTop: '16px', borderTop: '1px solid #d1d5db', color: '#6b7280' }}>
                                       <p>This is a computer-generated pay slip and does not require a signature.</p>
                                       <p style={{ marginTop: '4px' }}>Generated on {new Date().toLocaleDateString('en-PH')}</p>
+                                    </div>
                                     </div>
                                   </div>
                                 )}
