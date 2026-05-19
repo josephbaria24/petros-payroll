@@ -108,6 +108,7 @@ type PayrollPeriod = {
   period_key: string
   period_start: string
   period_end: string
+  run_id?: string | null
   display_name: string
   total_employees: number
   total_basic_salary: number
@@ -120,6 +121,32 @@ type PayrollPeriod = {
   created_at: string
   updated_at?: string
   creator: string
+}
+
+function payrollPeriodGroupKey(
+  periodStart: string,
+  periodEnd: string,
+  runId?: string | null
+) {
+  return `${periodStart}_${periodEnd}_${runId ?? ""}`
+}
+
+function applyPayrollPeriodVersionLabels(periods: PayrollPeriod[]): PayrollPeriod[] {
+  const byRange = new Map<string, PayrollPeriod[]>()
+  for (const p of periods) {
+    const range = `${p.period_start}_${p.period_end}`
+    if (!byRange.has(range)) byRange.set(range, [])
+    byRange.get(range)!.push(p)
+  }
+  for (const list of byRange.values()) {
+    if (list.length <= 1) continue
+    list.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+    list.forEach((p, i) => {
+      const base = p.display_name.replace(/ · v\d+$/, "")
+      p.display_name = `${base} · v${i + 1}`
+    })
+  }
+  return periods
 }
 
 
@@ -206,11 +233,19 @@ export default function PayrollPage() {
     if (!period) return
 
     const table = activeOrganization === "pdn" ? "pdn_payroll_records" : "payroll_records"
-    const { error } = await supabase
+    let deleteQuery = supabase
       .from(table)
       .delete()
       .eq("period_start", period.period_start)
       .eq("period_end", period.period_end)
+
+    if (period.run_id) {
+      deleteQuery = deleteQuery.eq("run_id", period.run_id)
+    } else {
+      deleteQuery = deleteQuery.is("run_id", null)
+    }
+
+    const { error } = await deleteQuery
 
     if (error) {
       toast.error("Failed to delete payroll period", { id: toastId })
@@ -225,7 +260,7 @@ export default function PayrollPage() {
       const { data: payroll, error } = await supabase
         .from("pdn_payroll_records")
         .select(`
-          id, employee_id, period_start, period_end, basic_salary,
+          id, employee_id, period_start, period_end, run_id, basic_salary,
           overtime_pay, holiday_pay, night_diff, allowances, bonuses, commission,
           unpaid_salary, reimbursement,
           absences, tardiness,
@@ -265,6 +300,7 @@ export default function PayrollPage() {
           profile_picture_url: rec.pdn_employees?.profile_picture_url,
           period_start: rec.period_start,
           period_end: rec.period_end,
+          run_id: rec.run_id ?? null,
           basic_salary: rec.basic_salary || 0,
           overtime_pay: rec.overtime_pay || 0,
           holiday_pay: rec.holiday_pay || 0,
@@ -298,7 +334,8 @@ export default function PayrollPage() {
       const periodMap = new Map<string, PayrollPeriod>()
 
       processedRecords.forEach((record: any) => {
-        const periodKey = `${record.period_start}_${record.period_end}`
+        const runId = record.run_id ?? null
+        const periodKey = payrollPeriodGroupKey(record.period_start, record.period_end, runId)
 
         if (!periodMap.has(periodKey)) {
           const startDate = new Date(record.period_start)
@@ -311,6 +348,7 @@ export default function PayrollPage() {
             period_key: periodKey,
             period_start: record.period_start,
             period_end: record.period_end,
+            run_id: runId,
             display_name: displayName,
             total_employees: 0,
             total_basic_salary: 0,
@@ -335,7 +373,7 @@ export default function PayrollPage() {
         period.total_net_after_deductions += record.total_net || 0
       })
 
-      setPeriods(Array.from(periodMap.values()))
+      setPeriods(applyPayrollPeriodVersionLabels(Array.from(periodMap.values())))
       return
     }
 
@@ -346,6 +384,7 @@ export default function PayrollPage() {
         employee_id,
         period_start,
         period_end,
+        run_id,
         basic_salary,
         overtime_pay,
         holiday_pay,
@@ -406,6 +445,7 @@ export default function PayrollPage() {
         profile_picture_url: rec.employees?.profile_picture_url,
         period_start: rec.period_start,
         period_end: rec.period_end,
+        run_id: rec.run_id ?? null,
         basic_salary: rec.basic_salary || 0,
         overtime_pay: rec.overtime_pay || 0,
         holiday_pay: rec.holiday_pay || 0,
@@ -438,7 +478,8 @@ export default function PayrollPage() {
     const periodMap = new Map<string, PayrollPeriod>()
 
     processedRecords.forEach((record) => {
-      const periodKey = `${record.period_start}_${record.period_end}`
+      const runId = (record as { run_id?: string | null }).run_id ?? null
+      const periodKey = payrollPeriodGroupKey(record.period_start, record.period_end, runId)
 
       if (!periodMap.has(periodKey)) {
         const startDate = new Date(record.period_start)
@@ -451,6 +492,7 @@ export default function PayrollPage() {
           period_key: periodKey,
           period_start: record.period_start,
           period_end: record.period_end,
+          run_id: runId,
           display_name: displayName,
           total_employees: 0,
           total_basic_salary: 0,
@@ -479,7 +521,7 @@ export default function PayrollPage() {
 
     })
 
-    setPeriods(Array.from(periodMap.values()))
+    setPeriods(applyPayrollPeriodVersionLabels(Array.from(periodMap.values())))
   }
 
   async function fetchEmployees() {

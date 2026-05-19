@@ -55,6 +55,8 @@ import {
   Info,
   RefreshCw,
   Divide,
+  Search,
+  Users,
 } from "lucide-react"
 import {
   Tabs,
@@ -179,6 +181,13 @@ type MandatoryDeductionRow = {
   applyPagibig: boolean
 }
 
+type PayrollRosterEmployee = {
+  id: string
+  full_name: string
+  base_salary: number | null
+  employee_code?: string | null
+}
+
 function aggregateMandatoryFromDbDeductions(
   rows: { type: string; amount: number | string }[]
 ): { sss: number; philhealth: number; pagibig: number } {
@@ -240,8 +249,10 @@ export default function GeneratePayrollPage() {
   const [employeeRequests, setEmployeeRequests] = useState<EmployeeRequest[]>([])
   const [selectedRequests, setSelectedRequests] = useState<string[]>([])
   const [employeeAdjustments, setEmployeeAdjustments] = useState<EmployeeAdjustment[]>([])
-  /** Roster for Manual Adjustments employee pickers (active employees). */
-  const [adjustmentEmployeeOptions, setAdjustmentEmployeeOptions] = useState<{ id: string; full_name: string }[]>([])
+  const [payrollRoster, setPayrollRoster] = useState<PayrollRosterEmployee[]>([])
+  const [rosterLoading, setRosterLoading] = useState(false)
+  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([])
+  const [employeeSearchQuery, setEmployeeSearchQuery] = useState("")
   const [newAdjustmentEmployeeId, setNewAdjustmentEmployeeId] = useState<string>("")
   const [attendanceDetails, setAttendanceDetails] = useState<AttendanceDetail[]>([])
   const [attendanceLoading, setAttendanceLoading] = useState(false)
@@ -252,6 +263,14 @@ export default function GeneratePayrollPage() {
   const [selectedLateIds, setSelectedLateIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(false)
   const [attendanceDeductionConfirmOpen, setAttendanceDeductionConfirmOpen] = useState(false)
+  const [existingPeriodDialogOpen, setExistingPeriodDialogOpen] = useState(false)
+  const [existingPeriodSummary, setExistingPeriodSummary] = useState<{
+    recordCount: number
+    employeeCount: number
+    batchCount: number
+  } | null>(null)
+
+  type GeneratePayrollSaveMode = "overwrite" | "new_version"
   const [mandatoryDeductionRows, setMandatoryDeductionRows] = useState<MandatoryDeductionRow[]>([])
   const [mandatoryDeductionsLoading, setMandatoryDeductionsLoading] = useState(false)
   /** Default: prorate by working days in a free-form date range. Alt: declared monthly ÷1, ÷2, ÷4. */
@@ -260,7 +279,43 @@ export default function GeneratePayrollPage() {
   const [fixedSlot, setFixedSlot] = useState<FixedPayrollSlot>("full_month")
   const [fixedWeekPart, setFixedWeekPart] = useState<FixedWeekPart>(1)
 
-  const fetchEmployees = async () => {useState(false)}
+  const selectedEmployeeIdSet = useMemo(
+    () => new Set(selectedEmployeeIds),
+    [selectedEmployeeIds]
+  )
+
+  const eligibleRosterIds = useMemo(
+    () => payrollRoster.filter((e) => e.base_salary).map((e) => e.id),
+    [payrollRoster]
+  )
+
+  const filteredRosterForPicker = useMemo(() => {
+    const q = employeeSearchQuery.trim().toLowerCase()
+    if (!q) return payrollRoster
+    return payrollRoster.filter((e) => {
+      const name = (e.full_name || "").toLowerCase()
+      const code = (e.employee_code || "").toLowerCase()
+      return name.includes(q) || code.includes(q)
+    })
+  }, [payrollRoster, employeeSearchQuery])
+
+  const adjustmentEmployeeOptions = useMemo(
+    () =>
+      payrollRoster
+        .filter((e) => selectedEmployeeIdSet.has(e.id))
+        .map((e) => ({ id: e.id, full_name: e.full_name })),
+    [payrollRoster, selectedEmployeeIdSet]
+  )
+
+  const scopedAttendanceDetails = useMemo(
+    () => attendanceDetails.filter((d) => selectedEmployeeIdSet.has(d.employee_id)),
+    [attendanceDetails, selectedEmployeeIdSet]
+  )
+
+  const scopedMandatoryDeductionRows = useMemo(
+    () => mandatoryDeductionRows.filter((r) => selectedEmployeeIdSet.has(r.employee_id)),
+    [mandatoryDeductionRows, selectedEmployeeIdSet]
+  )
 
   const pendingRequests = employeeRequests.filter(r => r.status === "Pending")
   const approvedRequests = employeeRequests.filter(r => r.status === "Approved")
@@ -282,36 +337,81 @@ export default function GeneratePayrollPage() {
     return "Four-part month (¼ run): ×½ vs half-month table."
   }, [resolvedPayRunSlot])
 
-  // Active employees for adjustment pickers
+  useEffect(() => {
+    setSelectedEmployeeIds([])
+    setEmployeeSearchQuery("")
+    setPayrollRoster([])
+  }, [activeOrganization])
+
   useEffect(() => {
     if (!activeOrganization) {
-      setAdjustmentEmployeeOptions([])
+      setPayrollRoster([])
       return
     }
     let cancelled = false
     const table = activeOrganization === "pdn" ? "pdn_employees" : "employees"
+    setRosterLoading(true)
     void (async () => {
       const { data, error } = await supabase
         .from(table)
-        .select("id, full_name")
+        .select("id, full_name, base_salary, employee_code")
         .neq("employment_status", "Inactive")
         .order("full_name", { ascending: true })
       if (cancelled) return
+      setRosterLoading(false)
       if (error) {
         console.error(error)
+        toast.error("Could not load employees")
         return
       }
-      setAdjustmentEmployeeOptions(
-        (data || []).map((e: { id: string; full_name: string | null }) => ({
-          id: e.id,
-          full_name: e.full_name || "Unknown",
-        }))
+      setPayrollRoster(
+        (data || []).map(
+          (e: {
+            id: string
+            full_name: string | null
+            base_salary: number | null
+            employee_code?: string | null
+          }) => ({
+            id: e.id,
+            full_name: e.full_name || "Unknown",
+            base_salary: e.base_salary,
+            employee_code: e.employee_code,
+          })
+        )
       )
     })()
     return () => {
       cancelled = true
     }
   }, [activeOrganization])
+
+  useEffect(() => {
+    if (payrollRoster.length === 0) {
+      setSelectedEmployeeIds([])
+      return
+    }
+    setSelectedEmployeeIds((prev) => {
+      const rosterIds = new Set(payrollRoster.map((e) => e.id))
+      const kept = prev.filter((id) => rosterIds.has(id))
+      if (kept.length > 0) return kept
+      return payrollRoster.filter((e) => e.base_salary).map((e) => e.id)
+    })
+  }, [payrollRoster])
+
+  const togglePayrollEmployee = (id: string, eligible: boolean) => {
+    if (!eligible) return
+    setSelectedEmployeeIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    )
+  }
+
+  const selectAllEligibleEmployees = () => {
+    setSelectedEmployeeIds(eligibleRosterIds)
+  }
+
+  const clearEmployeeSelection = () => {
+    setSelectedEmployeeIds([])
+  }
 
   // Fetch requests when period changes
   useEffect(() => {
@@ -536,7 +636,7 @@ export default function GeneratePayrollPage() {
 
       const attendanceMap = new Map<string, AttendanceDetail>()
       
-      empData?.forEach(emp => {
+      empData?.forEach((emp) => {
         let empLogs = activeOrganization === "pdn" 
           ? allLogs.filter(l => l.employee_id === emp.id)
           : allLogs.filter(l => l.employee_id === emp.id || (emp.attendance_log_userid && l.user_id === emp.attendance_log_userid))
@@ -755,7 +855,10 @@ export default function GeneratePayrollPage() {
     setSelectedLateIds(new Set())
   }
 
-  const lateEmployees = useMemo(() => attendanceDetails.filter(d => d.calculatedDeduction > 0), [attendanceDetails])
+  const lateEmployees = useMemo(
+    () => scopedAttendanceDetails.filter((d) => d.calculatedDeduction > 0),
+    [scopedAttendanceDetails]
+  )
 
   const toggleLateSelection = (id: string) => {
     setSelectedLateIds(prev => {
@@ -878,9 +981,81 @@ export default function GeneratePayrollPage() {
     adjustmentEmployeeOptions.find((e) => e.id === employeeId)?.full_name ||
     "Unknown Employee"
 
-  const runBulkGeneratePayroll = async () => {
+  async function fetchExistingPayrollForPeriod() {
+    if (!periodStart || !periodEnd || !activeOrganization) return null
+    const payrollTable = activeOrganization === "pdn" ? "pdn_payroll_records" : "payroll_records"
+    const startStr = format(periodStart, "yyyy-MM-dd")
+    const endStr = format(periodEnd, "yyyy-MM-dd")
+
+    const { data, error } = await supabase
+      .from(payrollTable)
+      .select("id, employee_id, run_id")
+      .eq("period_start", startStr)
+      .eq("period_end", endStr)
+
+    if (error) {
+      const { data: fallback, error: fallbackErr } = await supabase
+        .from(payrollTable)
+        .select("id, employee_id")
+        .eq("period_start", startStr)
+        .eq("period_end", endStr)
+      if (fallbackErr) {
+        console.error(fallbackErr)
+        return null
+      }
+      const rows = fallback || []
+      return {
+        recordCount: rows.length,
+        employeeCount: new Set(rows.map((r) => r.employee_id)).size,
+        batchCount: 1,
+      }
+    }
+
+    const rows = data || []
+    const runIds = new Set(rows.map((r) => (r as { run_id?: string | null }).run_id ?? ""))
+    return {
+      recordCount: rows.length,
+      employeeCount: new Set(rows.map((r) => r.employee_id)).size,
+      batchCount: rows.length > 0 ? runIds.size : 0,
+    }
+  }
+
+  async function createPayrollRun(totalNetPay: number): Promise<string | null> {
+    if (!periodStart || !periodEnd) return null
+    const { data, error } = await supabase
+      .from("payroll_runs")
+      .insert({
+        start_date: format(periodStart, "yyyy-MM-dd"),
+        end_date: format(periodEnd, "yyyy-MM-dd"),
+        status: "Completed",
+        total_amount: Math.round(totalNetPay * 100) / 100,
+      })
+      .select("id")
+      .single()
+    if (error) {
+      console.error("createPayrollRun:", error)
+      return null
+    }
+    return data?.id ?? null
+  }
+
+  const continueGenerateAfterChecks = async () => {
+    const summary = await fetchExistingPayrollForPeriod()
+    if (summary && summary.recordCount > 0) {
+      setExistingPeriodSummary(summary)
+      setExistingPeriodDialogOpen(true)
+      return
+    }
+    void runBulkGeneratePayroll("overwrite")
+  }
+
+  const runBulkGeneratePayroll = async (saveMode: GeneratePayrollSaveMode) => {
     if (!periodStart || !periodEnd) {
       toast.error("Please select a period")
+      return
+    }
+    if (selectedEmployeeIds.length === 0) {
+      toast.error("Select at least one employee to include in payroll")
       return
     }
 
@@ -891,12 +1066,17 @@ export default function GeneratePayrollPage() {
     try {
       const payrollTable = activeOrganization === "pdn" ? "pdn_payroll_records" : "payroll_records"
       
-      const { error: deleteErr } = await supabase.from(payrollTable).delete()
-        .eq("period_start", format(periodStart, "yyyy-MM-dd"))
-        .eq("period_end", format(periodEnd, "yyyy-MM-dd"))
-      if (deleteErr) {
-        toast.error(deleteErr.message || "Could not clear existing payroll for this period", { id: toastId })
-        return
+      if (saveMode === "overwrite") {
+        const { error: deleteErr } = await supabase
+          .from(payrollTable)
+          .delete()
+          .eq("period_start", format(periodStart, "yyyy-MM-dd"))
+          .eq("period_end", format(periodEnd, "yyyy-MM-dd"))
+          .in("employee_id", selectedEmployeeIds)
+        if (deleteErr) {
+          toast.error(deleteErr.message || "Could not clear existing payroll for this period", { id: toastId })
+          return
+        }
       }
 
       // Fetch employees and deductions
@@ -920,6 +1100,7 @@ export default function GeneratePayrollPage() {
 
       const recordsToInsert = []
       for (const emp of allEmployees || []) {
+        if (!selectedEmployeeIdSet.has(emp.id)) continue
         if (!emp.base_salary) continue
 
         const pt = String(emp.pay_type || "").toLowerCase()
@@ -999,18 +1180,39 @@ export default function GeneratePayrollPage() {
 
       if (recordsToInsert.length === 0) {
         toast.error(
-          "No payroll rows to save. Each active employee needs a non-zero base salary (check PDN employee profiles).",
+          "No payroll rows to save. Selected employees need a non-zero base salary (check employee profiles).",
           { id: toastId }
         )
         return
       }
 
-      const { error: insertErr } = await supabase.from(payrollTable).insert(recordsToInsert)
-      if (insertErr) {
-        toast.error(insertErr.message || "Failed to save payroll records", { id: toastId })
+      const totalNetPay = recordsToInsert.reduce((sum, row) => sum + (Number(row.net_pay) || 0), 0)
+      const payrollRunId = await createPayrollRun(totalNetPay)
+      if (!payrollRunId) {
+        toast.error("Could not create a payroll run for this generation.", { id: toastId })
         return
       }
-      toast.success("Payroll generated successfully", { id: toastId })
+
+      const recordsWithRun = recordsToInsert.map((row) => ({ ...row, run_id: payrollRunId }))
+
+      const { error: insertErr } = await supabase.from(payrollTable).insert(recordsWithRun)
+      if (insertErr) {
+        const msg = insertErr.message || "Failed to save payroll records"
+        toast.error(
+          msg.includes("run_id") && activeOrganization === "pdn"
+            ? `${msg} Add run_id to pdn_payroll_records (run payroll_add_batch_id.sql in Supabase).`
+            : msg,
+          { id: toastId }
+        )
+        await supabase.from("payroll_runs").delete().eq("id", payrollRunId)
+        return
+      }
+      toast.success(
+        saveMode === "new_version"
+          ? "New payroll version created successfully"
+          : "Payroll generated successfully",
+        { id: toastId }
+      )
       router.push("/payroll")
     } catch (err: any) {
       toast.error(err.message, { id: toastId })
@@ -1022,16 +1224,30 @@ export default function GeneratePayrollPage() {
       toast.error("Please select a period")
       return
     }
-    if (hasUnderAppliedAttendanceTrackerDeductions(attendanceDetails, employeeAdjustments)) {
+    if (selectedEmployeeIds.length === 0) {
+      toast.error("Select at least one employee to include in payroll")
+      return
+    }
+    if (hasUnderAppliedAttendanceTrackerDeductions(scopedAttendanceDetails, employeeAdjustments)) {
       setAttendanceDeductionConfirmOpen(true)
       return
     }
-    void runBulkGeneratePayroll()
+    void continueGenerateAfterChecks()
   }
 
   const confirmGenerateDespiteAttendance = () => {
     setAttendanceDeductionConfirmOpen(false)
-    void runBulkGeneratePayroll()
+    void continueGenerateAfterChecks()
+  }
+
+  const confirmOverwriteExistingPeriod = () => {
+    setExistingPeriodDialogOpen(false)
+    void runBulkGeneratePayroll("overwrite")
+  }
+
+  const confirmNewVersionForPeriod = () => {
+    setExistingPeriodDialogOpen(false)
+    void runBulkGeneratePayroll("new_version")
   }
 
   return (
@@ -1053,9 +1269,15 @@ export default function GeneratePayrollPage() {
           <Badge variant="outline" className="px-2 py-0.5 lg:px-3 lg:py-1 bg-primary/5 text-primary border-primary/20 font-bold text-[10px] lg:text-xs">
             {activeOrganization?.toUpperCase() || "PETROSPHERE"}
           </Badge>
-          <Button className="bg-primary hover:bg-primary/90 font-bold shadow-lg h-8 lg:h-10 text-xs lg:text-sm px-3 lg:px-4 shrink-0" onClick={handleBulkGeneratePayroll}>
+          <Button
+            className="bg-primary hover:bg-primary/90 font-bold shadow-lg h-8 lg:h-10 text-xs lg:text-sm px-3 lg:px-4 shrink-0"
+            onClick={handleBulkGeneratePayroll}
+            disabled={selectedEmployeeIds.length === 0}
+          >
             <Calculator className="h-3.5 w-3.5 lg:h-4 lg:w-4 mr-1.5 lg:mr-2" />
-            <span className="hidden xs:inline">Generate All</span>
+            <span className="hidden xs:inline">
+              Generate{selectedEmployeeIds.length > 0 ? ` (${selectedEmployeeIds.length})` : ""}
+            </span>
             <span className="xs:hidden">Generate</span>
           </Button>
         </div>
@@ -1063,72 +1285,165 @@ export default function GeneratePayrollPage() {
 
       <div className="flex flex-col lg:flex-row flex-1 overflow-y-auto lg:overflow-hidden">
         {/* Sidebar Config */}
-        <aside className="w-full lg:w-80 border-b lg:border-b-0 lg:border-r border-border bg-muted/20 p-4 lg:p-6 overflow-y-auto space-y-6 lg:space-y-8">
-          <div className="space-y-4">
-            <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Period Configuration</h3>
-
-            <div className="space-y-2">
-              <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Period mode</Label>
-              <Select
-                value={periodConfigMode}
-                onValueChange={(v) => setPeriodConfigMode(v as "date_range" | "fixed_monthly")}
-              >
-                <SelectTrigger className="h-11 font-bold">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="date_range">Date range (prorate by working days)</SelectItem>
-                  <SelectItem value="fixed_monthly">Fixed monthly (½ or ¼ of declared monthly)</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-[10px] text-muted-foreground leading-snug">
-                Fixed mode sets the attendance window from month + pay slot. Monthly employees get declared monthly
-                salary ×1, ×½, or ×¼ (not based on working-day count). Other pay types in the same window are still
-                prorated by scheduled days.
-              </p>
+        <aside className="w-full lg:w-80 border-b lg:border-b-0 lg:border-r border-border bg-muted/20 p-3 lg:p-4 overflow-y-auto space-y-4">
+          <div className="rounded-lg border border-border/80 bg-card shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 border-b border-border/60 bg-muted/30">
+              <h3 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                <Users className="h-3 w-3 opacity-70" />
+                Include
+              </h3>
+              <span className="text-[10px] font-semibold tabular-nums text-primary">
+                {selectedEmployeeIds.length}
+                <span className="text-muted-foreground font-normal">/{eligibleRosterIds.length}</span>
+              </span>
             </div>
-
-            {periodConfigMode === "date_range" ? (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Period Start</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className={cn("w-full justify-start text-left font-bold h-11", !periodStart && "text-muted-foreground")}>
-                        <CalendarIcon className="mr-2 h-4 w-4 opacity-50" />
-                        {periodStart ? format(periodStart, "PPP") : "Select Start Date"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar mode="single" selected={periodStart} onSelect={setPeriodStart} initialFocus />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Period End</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className={cn("w-full justify-start text-left font-bold h-11", !periodEnd && "text-muted-foreground")}>
-                        <CalendarIcon className="mr-2 h-4 w-4 opacity-50" />
-                        {periodEnd ? format(periodEnd, "PPP") : "Select End Date"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar mode="single" selected={periodEnd} onSelect={setPeriodEnd} initialFocus />
-                    </PopoverContent>
-                  </Popover>
-                </div>
+            <div className="p-2 space-y-1.5">
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/70 pointer-events-none" />
+                <Input
+                  placeholder="Search…"
+                  value={employeeSearchQuery}
+                  onChange={(e) => setEmployeeSearchQuery(e.target.value)}
+                  className="h-7 pl-7 pr-2 text-[11px] border-border/60 bg-background/80"
+                />
               </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Calendar month</Label>
+              <div className="flex items-center justify-end gap-2 px-0.5">
+                <button
+                  type="button"
+                  className="text-[10px] font-semibold text-primary hover:text-primary/80 disabled:opacity-40 disabled:pointer-events-none"
+                  onClick={selectAllEligibleEmployees}
+                  disabled={rosterLoading || eligibleRosterIds.length === 0}
+                >
+                  All
+                </button>
+                <span className="text-border text-[10px]">·</span>
+                <button
+                  type="button"
+                  className="text-[10px] font-semibold text-muted-foreground hover:text-foreground disabled:opacity-40 disabled:pointer-events-none"
+                  onClick={clearEmployeeSelection}
+                  disabled={selectedEmployeeIds.length === 0}
+                >
+                  None
+                </button>
+              </div>
+              <div className="max-h-[168px] overflow-y-auto rounded-md border border-border/50 bg-muted/20 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border">
+              {rosterLoading ? (
+                <p className="text-[10px] text-muted-foreground py-6 text-center">Loading…</p>
+              ) : filteredRosterForPicker.length === 0 ? (
+                <p className="text-[10px] text-muted-foreground py-6 text-center">No matches</p>
+              ) : (
+                filteredRosterForPicker.map((emp) => {
+                  const eligible = Boolean(emp.base_salary)
+                  const checked = selectedEmployeeIdSet.has(emp.id)
+                  return (
+                    <label
+                      key={emp.id}
+                      className={cn(
+                        "flex items-center gap-2 px-2 py-1 rounded-sm cursor-pointer transition-colors",
+                        checked ? "bg-primary/8" : "hover:bg-muted/50",
+                        !eligible && "opacity-45 cursor-not-allowed"
+                      )}
+                    >
+                      <Checkbox
+                        checked={checked}
+                        disabled={!eligible}
+                        onCheckedChange={() => togglePayrollEmployee(emp.id, eligible)}
+                        className="h-3.5 w-3.5 shrink-0 rounded-[3px]"
+                      />
+                      <span className="min-w-0 flex-1 leading-tight">
+                        <span className="block text-[11px] font-medium truncate text-foreground">
+                          {emp.full_name}
+                        </span>
+                        {(emp.employee_code || !eligible) && (
+                          <span className="block text-[9px] truncate text-muted-foreground">
+                            {emp.employee_code || (eligible ? "" : "No salary")}
+                          </span>
+                        )}
+                      </span>
+                    </label>
+                  )
+                })
+              )}
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-border/80 bg-card shadow-sm overflow-hidden">
+            <div className="px-2.5 py-1.5 border-b border-border/60 bg-muted/30">
+              <h3 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                <CalendarIcon className="h-3 w-3 opacity-70" />
+                Period
+              </h3>
+            </div>
+            <div className="p-2 space-y-2">
+              <div className="space-y-1">
+                <Label className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Mode</Label>
+                <Select
+                  value={periodConfigMode}
+                  onValueChange={(v) => setPeriodConfigMode(v as "date_range" | "fixed_monthly")}
+                >
+                  <SelectTrigger className="h-8 text-[11px] font-medium">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="date_range">Date range (prorate)</SelectItem>
+                    <SelectItem value="fixed_monthly">Fixed monthly (½ or ¼)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {periodConfigMode === "date_range" ? (
+                <div className="grid grid-cols-2 gap-1.5">
+                  <div className="space-y-1 min-w-0">
+                    <Label className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Start</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left h-8 px-2 text-[10px] font-medium",
+                            !periodStart && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-1 h-3 w-3 shrink-0 opacity-50" />
+                          <span className="truncate">{periodStart ? format(periodStart, "MMM d, yy") : "Start"}</span>
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar mode="single" selected={periodStart} onSelect={setPeriodStart} initialFocus />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <div className="space-y-1 min-w-0">
+                    <Label className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">End</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left h-8 px-2 text-[10px] font-medium",
+                            !periodEnd && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-1 h-3 w-3 shrink-0 opacity-50" />
+                          <span className="truncate">{periodEnd ? format(periodEnd, "MMM d, yy") : "End"}</span>
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar mode="single" selected={periodEnd} onSelect={setPeriodEnd} initialFocus />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </div>
+              ) : (
+              <div className="space-y-2">
+                <div className="space-y-1">
+                  <Label className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Month</Label>
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-full justify-start text-left font-bold h-11">
-                        <CalendarIcon className="mr-2 h-4 w-4 opacity-50" />
-                        {format(fixedMonthAnchor, "MMMM yyyy")}
+                      <Button variant="outline" className="w-full justify-start text-left h-8 px-2 text-[11px] font-medium">
+                        <CalendarIcon className="mr-1.5 h-3 w-3 opacity-50" />
+                        {format(fixedMonthAnchor, "MMM yyyy")}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
@@ -1142,29 +1457,29 @@ export default function GeneratePayrollPage() {
                   </Popover>
                 </div>
 
-                <div className="space-y-2">
-                  <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Pay run</Label>
+                <div className="space-y-1">
+                  <Label className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Pay run</Label>
                   <Select value={fixedSlot} onValueChange={(v) => setFixedSlot(v as FixedPayrollSlot)}>
-                    <SelectTrigger className="h-11 font-bold">
+                    <SelectTrigger className="h-8 text-[11px] font-medium">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="full_month">Full month (×1)</SelectItem>
-                      <SelectItem value="first_half">Half month — 1st to 15th (×½)</SelectItem>
-                      <SelectItem value="second_half">Half month — 16th to month end (×½)</SelectItem>
-                      <SelectItem value="weekly_fraction">Four-part month — ¼ of monthly (parts 1–4)</SelectItem>
+                      <SelectItem value="first_half">1st–15th (×½)</SelectItem>
+                      <SelectItem value="second_half">16th–end (×½)</SelectItem>
+                      <SelectItem value="weekly_fraction">¼ month (parts 1–4)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 {fixedSlot === "weekly_fraction" && (
-                  <div className="space-y-2">
-                    <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Which part</Label>
+                  <div className="space-y-1">
+                    <Label className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Part</Label>
                     <Select
                       value={String(fixedWeekPart)}
                       onValueChange={(v) => setFixedWeekPart(Number(v) as FixedWeekPart)}
                     >
-                      <SelectTrigger className="h-11 font-bold">
+                      <SelectTrigger className="h-8 text-[11px] font-medium">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -1178,42 +1493,40 @@ export default function GeneratePayrollPage() {
                 )}
 
                 {periodStart && periodEnd && (
-                  <p className="text-[10px] font-bold text-primary/80 bg-primary/5 border border-primary/10 rounded-lg px-3 py-2">
-                    {fixedSlot === "weekly_fraction" ? (
-                      <>
-                        Pay period: Part {fixedWeekPart} of 4 — {format(fixedMonthAnchor, "MMMM yyyy")}
-                      </>
-                    ) : (
-                      <>
-                        Attendance window: {format(periodStart, "MMM d")} – {format(periodEnd, "MMM d, yyyy")}
-                      </>
-                    )}
+                  <p className="text-[9px] font-medium text-primary/90 bg-primary/5 border border-primary/10 rounded px-2 py-1 leading-snug">
+                    {fixedSlot === "weekly_fraction"
+                      ? `Part ${fixedWeekPart}/4 · ${format(fixedMonthAnchor, "MMM yyyy")}`
+                      : `${format(periodStart, "MMM d")} – ${format(periodEnd, "MMM d, yyyy")}`}
                   </p>
                 )}
               </div>
             )}
+            </div>
           </div>
 
-          <div className="pt-6 border-t border-border">
-            <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-4">Summary Preview</h3>
-            <div className="space-y-3">
-              <div className="p-4 bg-primary/5 rounded-xl border border-primary/10">
-                <p className="text-[10px] font-bold text-primary/60 uppercase">Total Items</p>
-                <p className="text-xl font-black">{attendanceDetails.length} Employees</p>
+          <div className="rounded-lg border border-border/80 bg-card shadow-sm overflow-hidden">
+            <div className="px-2.5 py-1.5 border-b border-border/60 bg-muted/30">
+              <h3 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Summary</h3>
+            </div>
+            <div className="grid grid-cols-2 divide-x divide-border/60">
+              <div className="px-2.5 py-2">
+                <p className="text-[9px] font-semibold uppercase text-muted-foreground">Selected</p>
+                <p className="text-sm font-bold tabular-nums text-primary">{selectedEmployeeIds.length}</p>
               </div>
-              <div className="p-4 bg-muted/50 rounded-xl border border-border">
-                <p className="text-[10px] font-bold text-muted-foreground uppercase text-red-600">Late Deductions</p>
-                <p className="text-xl font-black text-red-600">₱{attendanceDetails.reduce((s, a) => s + a.calculatedDeduction, 0).toLocaleString()}</p>
+              <div className="px-2.5 py-2">
+                <p className="text-[9px] font-semibold uppercase text-red-600/80">Late</p>
+                <p className="text-sm font-bold tabular-nums text-red-600 truncate">
+                  ₱{scopedAttendanceDetails.reduce((s, a) => s + a.calculatedDeduction, 0).toLocaleString()}
+                </p>
               </div>
             </div>
           </div>
 
-          <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl flex gap-3">
-            <Info className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
-            <p className="text-[11px] font-bold text-blue-900 leading-relaxed">
-              <strong>Date range:</strong> base pay follows scheduled working days in the period.{" "}
-              <strong>Fixed monthly:</strong> monthly employees get ×1, ×½, or ×¼ of declared monthly (four-part month =
-              one of four equal slices, not calendar-week pay); allowance matches. 8:31 AM marks late deductions.
+          <div className="rounded-md border border-blue-200/60 bg-blue-50/80 dark:bg-blue-950/30 dark:border-blue-900/40 px-2 py-1.5 flex gap-2">
+            <Info className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 shrink-0 mt-px" />
+            <p className="text-[9px] text-blue-900/90 dark:text-blue-200/90 leading-snug">
+              <span className="font-semibold">Range:</span> prorate by working days.{" "}
+              <span className="font-semibold">Fixed:</span> ×1, ×½, or ×¼ monthly. Late after 8:31 AM.
             </p>
           </div>
         </aside>
@@ -1412,9 +1725,9 @@ export default function GeneratePayrollPage() {
                     <div className="h-40 flex items-center justify-center text-sm font-bold text-muted-foreground">
                       Loading deduction defaults…
                     </div>
-                  ) : mandatoryDeductionRows.length === 0 ? (
+                  ) : scopedMandatoryDeductionRows.length === 0 ? (
                     <div className="h-40 flex items-center justify-center text-sm font-bold text-muted-foreground px-4 text-center">
-                      Select a period and ensure employees have a base salary to preview SSS, PhilHealth, and Pag-IBIG.
+                      Select employees and a period with base salary to preview SSS, PhilHealth, and Pag-IBIG.
                     </div>
                   ) : (
                     <div className="max-h-[min(60vh,520px)] overflow-auto">
@@ -1428,7 +1741,7 @@ export default function GeneratePayrollPage() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {mandatoryDeductionRows.map((row) => (
+                          {scopedMandatoryDeductionRows.map((row) => (
                             <TableRow key={row.employee_id}>
                               <TableCell className="font-bold text-sm align-middle">{row.full_name}</TableCell>
                               <TableCell className="align-middle">
@@ -1991,6 +2304,67 @@ export default function GeneratePayrollPage() {
             <AlertDialogAction className="font-semibold" onClick={confirmGenerateDespiteAttendance}>
               Generate anyway
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={existingPeriodDialogOpen} onOpenChange={setExistingPeriodDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Payroll already exists for this period</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <p>
+                  There is already generated payroll for{" "}
+                  <span className="font-semibold text-foreground">
+                    {periodStart && periodEnd
+                      ? `${format(periodStart, "MMM d, yyyy")} – ${format(periodEnd, "MMM d, yyyy")}`
+                      : "this period"}
+                  </span>
+                  .
+                </p>
+                {existingPeriodSummary && (
+                  <p className="text-xs">
+                    {existingPeriodSummary.recordCount} record
+                    {existingPeriodSummary.recordCount === 1 ? "" : "s"} across{" "}
+                    {existingPeriodSummary.employeeCount} employee
+                    {existingPeriodSummary.employeeCount === 1 ? "" : "s"}
+                    {existingPeriodSummary.batchCount > 1
+                      ? ` · ${existingPeriodSummary.batchCount} versions`
+                      : ""}
+                    .
+                  </p>
+                )}
+                <p>
+                  <span className="font-semibold text-foreground">Overwrite</span> replaces payroll for the{" "}
+                  {selectedEmployeeIds.length} selected employee
+                  {selectedEmployeeIds.length === 1 ? "" : "s"} in this period (all versions for those employees).
+                </p>
+                <p>
+                  <span className="font-semibold text-foreground">New version</span> keeps existing payroll and saves
+                  this run as a separate version you can compare on the payroll list.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <AlertDialogCancel className="font-semibold">Cancel</AlertDialogCancel>
+            <Button
+              type="button"
+              variant="outline"
+              className="font-semibold"
+              onClick={confirmNewVersionForPeriod}
+            >
+              Create new version
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              className="font-semibold"
+              onClick={confirmOverwriteExistingPeriod}
+            >
+              Overwrite selected
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
