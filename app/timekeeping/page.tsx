@@ -115,6 +115,13 @@ function extractPhilippineDate(timestamp: string): string {
   return timestamp.split('T')[0];
 }
 
+function normalizeAttendanceStatus(status: unknown): "time_in" | "time_out" | "other" {
+  const raw = String(status ?? "").trim().toLowerCase();
+  if (raw === "time_in" || raw === "timein" || raw === "in" || raw === "0") return "time_in";
+  if (raw === "time_out" || raw === "timeout" || raw === "out" || raw === "1") return "time_out";
+  return "other";
+}
+
 // Helper function to format HH:mm to 12-hour AM/PM for display
 function formatTo12Hour(timeStr: string | null): string {
   if (!timeStr || timeStr === "-" || timeStr === "") return "-";
@@ -371,10 +378,11 @@ export default function TimekeepingPage() {
           }
 
           userLogs.forEach((log) => {
-            if (log.status === "time_in") {
+            const normalizedStatus = normalizeAttendanceStatus(log.status)
+            if (normalizedStatus === "time_in") {
               if (currentIn) processSession(currentIn, null)
               currentIn = log
-            } else if (log.status === "time_out") {
+            } else if (normalizedStatus === "time_out") {
               if (currentIn) { processSession(currentIn, log); currentIn = null }
               else processSession(null, log)
             }
@@ -434,13 +442,27 @@ export default function TimekeepingPage() {
       const { data: empData } = await supabase.from("pdn_employees").select("id, full_name, employment_status, is_remote, is_wfh").neq("employment_status", "Inactive")
       return processRawLogsForOrg("pdn", logsData || [], empData || [], start)
     } else {
-      const [{ data: logsData }, { data: empData }, { data: manualLogs }] = await Promise.all([
+      const [{ data: logsByWorkDate }, { data: logsByTimestamp }, { data: empData }, { data: manualLogs }] = await Promise.all([
         supabase.from("attendance_logs").select("*").gte("work_date", start).lte("work_date", end).order("timestamp", { ascending: true }),
+        supabase.from("attendance_logs").select("*").gte("timestamp", `${start}T00:00:00+00:00`).lte("timestamp", `${end}T23:59:59+00:00`).order("timestamp", { ascending: true }),
         supabase.from("employees").select("id, full_name, attendance_log_userid, employment_status, is_remote, is_wfh").neq("employment_status", "Inactive"),
         supabase.from("time_logs").select("*").gte("date", start).lte("date", end)
       ])
 
-      const rawEnriched = processRawLogsForOrg("petrosphere", logsData || [], empData || [], start)
+      // Some biometric imports miss work_date but have a valid timestamp.
+      // Merge both fetches and dedupe by id so those logs still appear.
+      const mergedLogsMap = new Map<string, any>()
+      ;(logsByWorkDate || []).forEach((log: any) => {
+        if (log?.id != null) mergedLogsMap.set(String(log.id), log)
+      })
+      ;(logsByTimestamp || []).forEach((log: any) => {
+        if (log?.id != null) mergedLogsMap.set(String(log.id), log)
+      })
+      const mergedLogs = Array.from(mergedLogsMap.values()).sort((a, b) =>
+        String(a.timestamp || "").localeCompare(String(b.timestamp || ""))
+      )
+
+      const rawEnriched = processRawLogsForOrg("petrosphere", mergedLogs || [], empData || [], start)
 
       // Properly apply manual overrides from time_logs
       const overrideMap = new Map()
@@ -450,28 +472,43 @@ export default function TimekeepingPage() {
 
       const finalLogs: any[] = []
       const processedEmpIds = new Set()
+      const forceManualStatuses = new Set(["On Leave", "Work From Home", "Remote", "Holiday", "Absent", "Late"])
 
       rawEnriched.forEach(log => {
         const mLog = overrideMap.get(log.employee_id)
-        if (mLog) {
-          if (!processedEmpIds.has(log.employee_id)) {
-            finalLogs.push({
-              id: mLog.id.toString(),
-              employee_id: mLog.employee_id,
-              employee_name: log.employee_name,
-              date: mLog.date,
-              time_in: mLog.time_in,
-              time_out: mLog.time_out,
-              time_in_display: formatTo12Hour(mLog.time_in),
-              time_out_display: formatTo12Hour(mLog.time_out),
-              total_hours: mLog.total_hours || 0,
-              overtime_hours: mLog.overtime_hours || 0,
-              status: mLog.status || "Present",
-            })
-            processedEmpIds.add(log.employee_id)
-          }
-        } else {
+        if (!mLog) {
           finalLogs.push(log)
+          return
+        }
+
+        // Keep all biometric sessions when there is no meaningful manual
+        // clock override; this prevents blank time_logs rows from hiding
+        // valid biometric time-in records.
+        const hasManualClock = Boolean(mLog.time_in || mLog.time_out)
+        const hasForcedStatus = forceManualStatuses.has(String(mLog.status || ""))
+        if (!hasManualClock && !hasForcedStatus) {
+          finalLogs.push(log)
+          return
+        }
+
+        // For explicit manual overrides, collapse to one row per employee.
+        if (!processedEmpIds.has(log.employee_id)) {
+          const mergedTimeIn = mLog.time_in ?? log.time_in
+          const mergedTimeOut = mLog.time_out ?? log.time_out
+          finalLogs.push({
+            id: mLog.id?.toString?.() || log.id,
+            employee_id: mLog.employee_id || log.employee_id,
+            employee_name: log.employee_name,
+            date: mLog.date || log.date,
+            time_in: mergedTimeIn,
+            time_out: mergedTimeOut,
+            time_in_display: formatTo12Hour(mergedTimeIn),
+            time_out_display: formatTo12Hour(mergedTimeOut),
+            total_hours: mLog.total_hours ?? log.total_hours ?? 0,
+            overtime_hours: mLog.overtime_hours ?? log.overtime_hours ?? 0,
+            status: mLog.status || log.status || "Present",
+          })
+          processedEmpIds.add(log.employee_id)
         }
       })
 
