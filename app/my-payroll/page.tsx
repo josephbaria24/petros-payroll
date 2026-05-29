@@ -87,7 +87,7 @@ export default function MyPayrollPage() {
         const { data: pdnPayroll, error: pdnPayErr } = await supabase
           .from("pdn_payroll_records")
           .select(`
-            id, period_start, period_end, status, net_pay, gross_pay,
+            id, period_start, period_end, status, updated_at, created_at, net_pay, gross_pay,
             basic_salary, overtime_pay, holiday_pay, night_diff, allowances,
             unpaid_salary, reimbursement,
             bonuses, commission, sss, philhealth, pagibig, withholding_tax,
@@ -160,6 +160,8 @@ export default function MyPayrollPage() {
           period_start,
           period_end,
           status,
+          updated_at,
+          created_at,
           net_pay,
           gross_pay,
           basic_salary,
@@ -303,6 +305,29 @@ export default function MyPayrollPage() {
       month: 'long',
       day: 'numeric'
     })
+  }
+
+  const isPayrollReleased = (status: string | null | undefined) => {
+    const normalized = (status || "").toLowerCase()
+    return normalized.includes("released") || normalized === "paid"
+  }
+
+  const formatPayDate = (record: { status?: string; updated_at?: string; created_at?: string }) => {
+    if (!isPayrollReleased(record.status)) return "—"
+    const raw = record.updated_at || record.created_at
+    if (!raw) return "—"
+
+    let normalized = raw
+    if (!raw.includes("Z") && !raw.includes("+")) {
+      normalized = raw.includes("T") ? `${raw}Z` : `${raw.replace(" ", "T")}Z`
+    }
+
+    return new Intl.DateTimeFormat("en-PH", {
+      timeZone: "Asia/Manila",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    }).format(new Date(normalized))
   }
 
   const formatPeriod = (start: string, end: string) => {
@@ -475,7 +500,7 @@ export default function MyPayrollPage() {
                                   <div style={{ fontSize: '14px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                     <p style={{ color: '#000000' }}><span style={{ fontWeight: '500' }}>From:</span> {formatDate(selectedRecord.period_start)}</p>
                                     <p style={{ color: '#000000' }}><span style={{ fontWeight: '500' }}>To:</span> {formatDate(selectedRecord.period_end)}</p>
-                                    <p style={{ color: '#000000' }}><span style={{ fontWeight: '500' }}>Pay Date:</span> {formatDate(selectedRecord.period_end)}</p>
+                                    <p style={{ color: '#000000' }}><span style={{ fontWeight: '500' }}>Release Date:</span> {formatPayDate(selectedRecord)}</p>
                                     <p style={{ color: '#000000' }}><span style={{ fontWeight: '500' }}>Status:</span> {selectedRecord.status}</p>
                                   </div>
                                 </div>
@@ -727,7 +752,7 @@ Company: PETROSPHERE INCORPORATED.`}
                                         <div style={{ fontSize: '14px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                           <p style={{ color: '#000000' }}><span style={{ fontWeight: '500' }}>From:</span> {formatDate(selectedRecord.period_start)}</p>
                                           <p style={{ color: '#000000' }}><span style={{ fontWeight: '500' }}>To:</span> {formatDate(selectedRecord.period_end)}</p>
-                                          <p style={{ color: '#000000' }}><span style={{ fontWeight: '500' }}>Pay Date:</span> {formatDate(selectedRecord.period_end)}</p>
+                                          <p style={{ color: '#000000' }}><span style={{ fontWeight: '500' }}>Release Date:</span> {formatPayDate(selectedRecord)}</p>
                                           <p style={{ color: '#000000' }}><span style={{ fontWeight: '500' }}>Status:</span> {selectedRecord.status}</p>
                                         </div>
                                       </div>

@@ -621,10 +621,7 @@ export default function PayrollPage() {
     const table = activeOrganization === "pdn" ? "pdn_payroll_records" : "payroll_records"
     const { error } = await supabase
       .from(table)
-      .update({
-        status: "Paid",
-        updated_at: new Date().toISOString()
-      })
+      .update({ status: "Paid" })
       .in("id", selectedIds)
 
     if (error) {
@@ -652,10 +649,7 @@ export default function PayrollPage() {
     const table = activeOrganization === "pdn" ? "pdn_payroll_records" : "payroll_records"
     const { error } = await supabase
       .from(table)
-      .update({
-        status: "Paid",
-        updated_at: new Date().toISOString()
-      })
+      .update({ status: "Paid" })
       .eq("id", recordId)
 
     if (error) {
