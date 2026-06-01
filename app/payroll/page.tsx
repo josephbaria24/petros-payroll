@@ -131,6 +131,13 @@ function payrollPeriodGroupKey(
   return `${periodStart}_${periodEnd}_${runId ?? ""}`
 }
 
+function getRecordBatchId(
+  rec: { run_id?: string | null; payroll_batch_id?: string | null },
+  organization: "pdn" | "petrosphere"
+) {
+  return organization === "pdn" ? rec.payroll_batch_id ?? null : rec.run_id ?? null
+}
+
 function applyPayrollPeriodVersionLabels(periods: PayrollPeriod[]): PayrollPeriod[] {
   const byRange = new Map<string, PayrollPeriod[]>()
   for (const p of periods) {
@@ -239,7 +246,13 @@ export default function PayrollPage() {
       .eq("period_start", period.period_start)
       .eq("period_end", period.period_end)
 
-    if (period.run_id) {
+    if (activeOrganization === "pdn") {
+      if (period.run_id) {
+        deleteQuery = deleteQuery.eq("payroll_batch_id", period.run_id)
+      } else {
+        deleteQuery = deleteQuery.is("payroll_batch_id", null)
+      }
+    } else if (period.run_id) {
       deleteQuery = deleteQuery.eq("run_id", period.run_id)
     } else {
       deleteQuery = deleteQuery.is("run_id", null)
@@ -260,7 +273,7 @@ export default function PayrollPage() {
       const { data: payroll, error } = await supabase
         .from("pdn_payroll_records")
         .select(`
-          id, employee_id, period_start, period_end, run_id, basic_salary,
+          id, employee_id, period_start, period_end, payroll_batch_id, basic_salary,
           overtime_pay, holiday_pay, night_diff, allowances, bonuses, commission,
           unpaid_salary, reimbursement,
           absences, tardiness,
@@ -300,7 +313,7 @@ export default function PayrollPage() {
           profile_picture_url: rec.pdn_employees?.profile_picture_url,
           period_start: rec.period_start,
           period_end: rec.period_end,
-          run_id: rec.run_id ?? null,
+          run_id: getRecordBatchId(rec, "pdn"),
           basic_salary: rec.basic_salary || 0,
           overtime_pay: rec.overtime_pay || 0,
           holiday_pay: rec.holiday_pay || 0,

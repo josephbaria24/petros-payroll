@@ -987,9 +987,10 @@ export default function GeneratePayrollPage() {
     const startStr = format(periodStart, "yyyy-MM-dd")
     const endStr = format(periodEnd, "yyyy-MM-dd")
 
+    const batchColumn = activeOrganization === "pdn" ? "payroll_batch_id" : "run_id"
     const { data, error } = await supabase
       .from(payrollTable)
-      .select("id, employee_id, run_id")
+      .select(`id, employee_id, ${batchColumn}`)
       .eq("period_start", startStr)
       .eq("period_end", endStr)
 
@@ -1012,7 +1013,9 @@ export default function GeneratePayrollPage() {
     }
 
     const rows = data || []
-    const runIds = new Set(rows.map((r) => (r as { run_id?: string | null }).run_id ?? ""))
+    const runIds = new Set(
+      rows.map((r) => (r as Record<string, string | null>)[batchColumn] ?? "")
+    )
     return {
       recordCount: rows.length,
       employeeCount: new Set(rows.map((r) => r.employee_id)).size,
@@ -1193,17 +1196,16 @@ export default function GeneratePayrollPage() {
         return
       }
 
-      const recordsWithRun = recordsToInsert.map((row) => ({ ...row, run_id: payrollRunId }))
+      const recordsWithBatch = recordsToInsert.map((row) =>
+        activeOrganization === "pdn"
+          ? { ...row, payroll_batch_id: payrollRunId }
+          : { ...row, run_id: payrollRunId }
+      )
 
-      const { error: insertErr } = await supabase.from(payrollTable).insert(recordsWithRun)
+      const { error: insertErr } = await supabase.from(payrollTable).insert(recordsWithBatch)
       if (insertErr) {
         const msg = insertErr.message || "Failed to save payroll records"
-        toast.error(
-          msg.includes("run_id") && activeOrganization === "pdn"
-            ? `${msg} Add run_id to pdn_payroll_records (run payroll_add_batch_id.sql in Supabase).`
-            : msg,
-          { id: toastId }
-        )
+        toast.error(msg, { id: toastId })
         await supabase.from("payroll_runs").delete().eq("id", payrollRunId)
         return
       }
