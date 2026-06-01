@@ -3,6 +3,7 @@
 import type { CSSProperties } from "react"
 import { QRCodeSVG } from "qrcode.react"
 import { PetrosphereBrandBanner } from "@/components/petrosphere-payslip-header"
+import { PdnBrandBanner, PDN_BRAND_COLORS } from "@/components/pdn-payslip-header"
 
 function Watermark() {
   return (
@@ -21,13 +22,6 @@ function Watermark() {
       }}
     />
   )
-}
-
-const theadStyle: CSSProperties = {
-  backgroundColor: "#e5e7eb",
-  color: "#111827",
-  fontWeight: 600,
-  fontSize: "13px",
 }
 
 const cellBorder: CSSProperties = {
@@ -105,8 +99,30 @@ function brandMeta(org: "petrosphere" | "pdn") {
   }
 }
 
+function receiptTheme(org: "petrosphere" | "pdn") {
+  if (org === "pdn") {
+    return {
+      theadBg: "#fde8dc",
+      theadColor: PDN_BRAND_COLORS.navy,
+      totalRowBg: "#fff4ed",
+      netPayBg: "#ffedd5",
+      netPayAccent: PDN_BRAND_COLORS.orange,
+      titleColor: PDN_BRAND_COLORS.navy,
+    }
+  }
+  return {
+    theadBg: "#e5e7eb",
+    theadColor: "#111827",
+    totalRowBg: "#f3f4f6",
+    netPayBg: "#fefce8",
+    netPayAccent: "#111827",
+    titleColor: "#111827",
+  }
+}
+
 export function PayrollEarningsReceipt({ exportRootId, organization, record }: PayrollEarningsReceiptProps) {
   const brand = brandMeta(organization)
+  const theme = receiptTheme(organization)
   const grossPay =
     (record.basic_salary || 0) +
     (record.overtime_pay || 0) +
@@ -157,59 +173,28 @@ export function PayrollEarningsReceipt({ exportRootId, organization, record }: P
         overflow: "hidden",
       }}
     >
-      <Watermark />
+      {organization === "petrosphere" ? <Watermark /> : null}
 
       <div style={{ position: "relative", zIndex: 1 }}>
-        {organization === "petrosphere" ? (
-          <PetrosphereBrandBanner />
-        ) : (
-          <div
-            style={{
-              display: "flex",
-              minHeight: "88px",
-              backgroundColor: "#171717",
-              color: "#fafafa",
-            }}
-          >
-            <div
-              style={{
-                flex: 1,
-                padding: "16px 20px",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "center",
-                gap: "4px",
-              }}
-            >
-              <div style={{ fontSize: "12px", lineHeight: 1.5, opacity: 0.95 }}>{brand.addressLine}</div>
-              <div style={{ fontSize: "12px", opacity: 0.85 }}>{brand.contactLine}</div>
-            </div>
-            <div
-              style={{
-                width: "140px",
-                background: "linear-gradient(135deg, #d9f99d 0%, #84cc16 45%, #ecfccb 100%)",
-                flexShrink: 0,
-              }}
-            />
-          </div>
-        )}
+        {organization === "petrosphere" ? <PetrosphereBrandBanner /> : <PdnBrandBanner />}
 
         <div style={{ padding: "28px 28px 32px" }}>
-          <h1 style={{ textAlign: "center", fontSize: "26px", fontWeight: 700, margin: "0 0 8px", color: "#111827" }}>
-           Payroll Receipt
+          <h1
+            style={{
+              textAlign: "center",
+              fontSize: "26px",
+              fontWeight: 700,
+              margin: "0 0 8px",
+              color: theme.titleColor,
+            }}
+          >
+            Payroll Receipt
           </h1>
-          <p style={{ textAlign: "center", fontSize: "13px", color: "#4b5563", margin: "0 0 20px" }}>
+          <p style={{ textAlign: "center", fontSize: "13px", color: "#4b5563", margin: "0 0 24px" }}>
             Pay Period: {formatDateLong(record.period_start)} — {formatDateLong(record.period_end)}
             <span style={{ margin: "0 8px", color: "#9ca3af" }}>|</span>
             Pay Date: {formatDateLong(record.period_end)}
           </p>
-
-          {organization !== "petrosphere" && (
-            <p style={{ textAlign: "center", fontSize: "13px", fontWeight: 600, margin: "0 0 24px", color: "#374151" }}>
-              {brand.companyLine}
-              <span style={{ fontWeight: 400, color: "#6b7280" }}> · {brand.addressLine}</span>
-            </p>
-          )}
 
           <div style={{ marginBottom: "28px", paddingBottom: "20px", borderBottom: "1px solid #e5e7eb" }}>
             <p style={{ margin: "0 0 6px", fontSize: "15px", fontWeight: 700 }}>
@@ -233,14 +218,14 @@ export function PayrollEarningsReceipt({ exportRootId, organization, record }: P
             </p>
           </div>
 
-          <p style={{ fontSize: "14px", fontWeight: 700, margin: "0 0 8px", color: "#111827" }}>Earnings</p>
+          <p style={{ fontSize: "14px", fontWeight: 700, margin: "0 0 8px", color: theme.titleColor }}>Earnings</p>
           <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: "24px" }}>
             <thead>
               <tr>
-                <th style={{ ...theadStyle, ...cellBorder, textAlign: "left" }}>Description</th>
-                <th style={{ ...theadStyle, ...cellBorder, textAlign: "center", width: "100px" }}>Hours</th>
-                <th style={{ ...theadStyle, ...cellBorder, textAlign: "right", width: "110px" }}>Pay Rate</th>
-                <th style={{ ...theadStyle, ...cellBorder, textAlign: "right", width: "130px" }}>Current Pay</th>
+                <th style={{ ...cellBorder, textAlign: "left", backgroundColor: theme.theadBg, color: theme.theadColor, fontWeight: 600, fontSize: "13px" }}>Description</th>
+                <th style={{ ...cellBorder, textAlign: "center", width: "100px", backgroundColor: theme.theadBg, color: theme.theadColor, fontWeight: 600, fontSize: "13px" }}>Hours</th>
+                <th style={{ ...cellBorder, textAlign: "right", width: "110px", backgroundColor: theme.theadBg, color: theme.theadColor, fontWeight: 600, fontSize: "13px" }}>Pay Rate</th>
+                <th style={{ ...cellBorder, textAlign: "right", width: "130px", backgroundColor: theme.theadBg, color: theme.theadColor, fontWeight: 600, fontSize: "13px" }}>Current Pay</th>
               </tr>
             </thead>
             <tbody>
@@ -253,22 +238,22 @@ export function PayrollEarningsReceipt({ exportRootId, organization, record }: P
                 </tr>
               ))}
               <tr>
-                <td colSpan={3} style={{ ...cellBorder, fontWeight: 700, backgroundColor: "#f3f4f6" }}>
+                <td colSpan={3} style={{ ...cellBorder, fontWeight: 700, backgroundColor: theme.totalRowBg }}>
                   Gross Pay
                 </td>
-                <td style={{ ...cellBorder, textAlign: "right", fontWeight: 700, backgroundColor: "#f3f4f6" }}>
+                <td style={{ ...cellBorder, textAlign: "right", fontWeight: 700, backgroundColor: theme.totalRowBg }}>
                   {formatCurrency(grossPay)}
                 </td>
               </tr>
             </tbody>
           </table>
 
-          <p style={{ fontSize: "14px", fontWeight: 700, margin: "0 0 8px", color: "#111827" }}>Deductions</p>
+          <p style={{ fontSize: "14px", fontWeight: 700, margin: "0 0 8px", color: theme.titleColor }}>Deductions</p>
           <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: "24px" }}>
             <thead>
               <tr>
-                <th style={{ ...theadStyle, ...cellBorder, textAlign: "left" }}>Deductions</th>
-                <th style={{ ...theadStyle, ...cellBorder, textAlign: "right", width: "140px" }}>Amount</th>
+                <th style={{ ...cellBorder, textAlign: "left", backgroundColor: theme.theadBg, color: theme.theadColor, fontWeight: 600, fontSize: "13px" }}>Deductions</th>
+                <th style={{ ...cellBorder, textAlign: "right", width: "140px", backgroundColor: theme.theadBg, color: theme.theadColor, fontWeight: 600, fontSize: "13px" }}>Amount</th>
               </tr>
             </thead>
             <tbody>
@@ -279,26 +264,35 @@ export function PayrollEarningsReceipt({ exportRootId, organization, record }: P
                 </tr>
               ))}
               <tr>
-                <td style={{ ...cellBorder, fontWeight: 700, backgroundColor: "#f3f4f6" }}>Total Deductions</td>
-                <td style={{ ...cellBorder, textAlign: "right", fontWeight: 700, backgroundColor: "#f3f4f6" }}>
+                <td style={{ ...cellBorder, fontWeight: 700, backgroundColor: theme.totalRowBg }}>Total Deductions</td>
+                <td style={{ ...cellBorder, textAlign: "right", fontWeight: 700, backgroundColor: theme.totalRowBg }}>
                   {formatCurrency(record.total_deductions)}
                 </td>
               </tr>
             </tbody>
           </table>
 
-          <p style={{ fontSize: "14px", fontWeight: 700, margin: "0 0 8px", color: "#111827" }}>Net Pay</p>
+          <p style={{ fontSize: "14px", fontWeight: 700, margin: "0 0 8px", color: theme.titleColor }}>Net Pay</p>
           <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: "28px" }}>
             <thead>
               <tr>
-                <th style={{ ...theadStyle, ...cellBorder, textAlign: "left" }}>Net Pay</th>
-                <th style={{ ...theadStyle, ...cellBorder, textAlign: "right", width: "160px" }}>Amount</th>
+                <th style={{ ...cellBorder, textAlign: "left", backgroundColor: theme.theadBg, color: theme.theadColor, fontWeight: 600, fontSize: "13px" }}>Net Pay</th>
+                <th style={{ ...cellBorder, textAlign: "right", width: "160px", backgroundColor: theme.theadBg, color: theme.theadColor, fontWeight: 600, fontSize: "13px" }}>Amount</th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td style={{ ...cellBorder, fontWeight: 700, backgroundColor: "#fefce8" }}>Net Pay (take-home)</td>
-                <td style={{ ...cellBorder, textAlign: "right", fontWeight: 700, fontSize: "16px", backgroundColor: "#fefce8" }}>
+                <td style={{ ...cellBorder, fontWeight: 700, backgroundColor: theme.netPayBg }}>Net Pay (take-home)</td>
+                <td
+                  style={{
+                    ...cellBorder,
+                    textAlign: "right",
+                    fontWeight: 700,
+                    fontSize: "16px",
+                    backgroundColor: theme.netPayBg,
+                    color: theme.netPayAccent,
+                  }}
+                >
                   {formatCurrency(netPay)}
                 </td>
               </tr>
