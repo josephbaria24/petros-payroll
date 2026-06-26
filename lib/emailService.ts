@@ -129,7 +129,7 @@ export function generatePayrollEmailHtml(employeeName: string, breakdown: Payrol
           ${rowLine('Pag-IBIG', breakdown.pagibig)}
           ${rowLine('Withholding Tax', breakdown.withholding_tax)}
           ${rowLine('Loans', breakdown.loans)}
-          ${rowLine('Cash Advance', breakdown.cash_advance)}
+          ${rowLine('Partial Salary Payment', breakdown.cash_advance)}
           ${rowLine('Uniform', breakdown.uniform)}
           ${rowLine('Tardiness', breakdown.tardiness)}
           ${rowLine('Absences', breakdown.absences)}

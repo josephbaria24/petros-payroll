@@ -265,7 +265,7 @@ function ReportsContent() {
         'Loans': emp.loans,
         'Uniform': emp.uniform,
         'Tardiness': emp.tardiness,
-        'Cash Advance': emp.cash_advance,
+        'Partial Salary Payment': emp.cash_advance,
       }
 
       // Add dynamic deductions
@@ -645,7 +645,7 @@ function ReportsContent() {
     holiday_pay: "Holiday Pay",
     gross_pay: "Gross Pay",
     absences: "Absences",
-    cash_advance: "Cash Advance",
+    cash_advance: "Partial Salary Payment",
     total_deductions: "Total Deductions",
     net_pay: "Net Pay",
     status: "Status",
@@ -916,7 +916,7 @@ function ReportsContent() {
                           {visibleColumns.holiday_pay && <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Holiday</TableHead>}
                           {visibleColumns.gross_pay && <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Gross</TableHead>}
                           {visibleColumns.absences && <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Abs</TableHead>}
-                          {visibleColumns.cash_advance && <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">C.A.</TableHead>}
+                          {visibleColumns.cash_advance && <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">P.S.P.</TableHead>}
                           {visibleColumns.total_deductions && <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Deduct</TableHead>}
                           {visibleColumns.net_pay && <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Net Pay</TableHead>}
                           {visibleColumns.status && <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Status</TableHead>}
@@ -1054,7 +1054,7 @@ function ReportsContent() {
                             <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">PagIBIG</TableHead>
                             <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">W.Tax</TableHead>
                             <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Loans</TableHead>
-                            <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">C.Adv</TableHead>
+                            <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">P.S.P.</TableHead>
                             <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Ded</TableHead>
                             <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Net Pay</TableHead>
                           </TableRow>
@@ -1215,7 +1215,7 @@ function ReportsContent() {
                             <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Loans</TableHead>
                             <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Unif</TableHead>
                             <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Tard</TableHead>
-                            <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">C.Adv</TableHead>
+                            <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">P.S.P.</TableHead>
                             <TableHead className="text-center h-8 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Total</TableHead>
                           </TableRow>
                         </TableHeader>

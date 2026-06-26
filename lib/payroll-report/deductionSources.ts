@@ -13,6 +13,7 @@ export function isItemizedPayrollDeductionLabel(label: string | null | undefined
     /\buniform\b/.test(t) ||
     /tardiness|tardy|late(\s*d(eduction)?)?/.test(t) ||
     /absence|absent/.test(t) ||
-    /cash\s*adv(ance)?/.test(t)
+    /cash\s*adv(ance)?/.test(t) ||
+    /partial\s*salary(\s*payment)?/.test(t)
   )
 }

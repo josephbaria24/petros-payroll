@@ -115,7 +115,7 @@ function PayslipDeductionLines({
       <span style={{ fontWeight: '500', color: '#000000' }}>{formatCurrency(record.loans)}</span>
     </div>
     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-      <span style={{ color: '#000000' }}>Cash Advance:</span>
+      <span style={{ color: '#000000' }}>Partial Salary Payment:</span>
       <span style={{ fontWeight: '500', color: '#000000' }}>{formatCurrency(record.cash_advance)}</span>
     </div>
     {(record.uniform || 0) > 0 && (

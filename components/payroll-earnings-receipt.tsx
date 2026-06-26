@@ -153,7 +153,7 @@ export function PayrollEarningsReceipt({ exportRootId, organization, record }: P
     { label: "Loans & Other Deductions", amount: record.loans || 0 },
     { label: "Absences", amount: record.absences || 0 },
     { label: "Tardiness", amount: record.tardiness || 0 },
-    { label: "Cash Advance", amount: record.cash_advance || 0 },
+    { label: "Partial Salary Payment", amount: record.cash_advance || 0 },
   ]
 
   const empName = record.employee_name || "—"

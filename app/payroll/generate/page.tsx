@@ -2076,7 +2076,7 @@ export default function GeneratePayrollPage() {
                               <Input type="number" className="font-bold h-8 lg:h-9 text-xs" value={adj.absenceDays} onChange={(e) => updateEmployeeAdjustment(index, "absenceDays", parseFloat(e.target.value))} />
                             </div>
                             <div className="space-y-1.5">
-                              <Label className="text-[9px] lg:text-[10px] font-black text-muted-foreground uppercase">Cash Advance</Label>
+                              <Label className="text-[9px] lg:text-[10px] font-black text-muted-foreground uppercase">Partial Salary Payment</Label>
                               <Input type="number" className="font-bold h-8 lg:h-9 text-xs" value={adj.cashAdvance || ""} onChange={(e) => updateEmployeeAdjustment(index, "cashAdvance", parseFloat(e.target.value))} />
                             </div>
                             <div className="space-y-1.5">

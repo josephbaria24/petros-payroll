@@ -1301,7 +1301,7 @@ export default function PayrollPage() {
                       <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Loans</TableHead>
                       <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Absences</TableHead>
                       <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Tardiness</TableHead>
-                      <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Cash Advance</TableHead>
+                      <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Partial Salary Payment</TableHead>
                       <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Total Deductions</TableHead>
                       <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Net After Deductions</TableHead>
                       <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Total Net</TableHead>
@@ -1669,7 +1669,7 @@ export default function PayrollPage() {
                     />
                   </div>
                   <div>
-                    <Label className="text-sm font-medium text-muted-foreground">Cash Advance Deduction</Label>
+                    <Label className="text-sm font-medium text-muted-foreground">Partial Salary Payment</Label>
                     <Input
                       type="number"
                       step="0.01"
