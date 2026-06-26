@@ -40,6 +40,104 @@ function PayslipWatermarkLayer() {
   )
 }
 
+function buildPayrollViewModel(rec: any, additionalDeductions = 0) {
+  const totalEarnings =
+    (rec.basic_salary || 0) +
+    (rec.overtime_pay || 0) +
+    (rec.holiday_pay || 0) +
+    (rec.night_diff || 0) +
+    (rec.allowances || 0) +
+    (rec.bonuses || 0) +
+    (rec.commission || 0) +
+    (rec.unpaid_salary || 0) +
+    (rec.reimbursement || 0)
+
+  const lineDeductions =
+    (rec.sss || 0) +
+    (rec.philhealth || 0) +
+    (rec.pagibig || 0) +
+    (rec.withholding_tax || 0) +
+    (rec.absences || 0) +
+    (rec.tardiness || 0) +
+    (rec.loans || 0) +
+    (rec.uniform || 0) +
+    (rec.cash_advance || 0) +
+    additionalDeductions
+
+  const grossPay = rec.gross_pay ?? totalEarnings
+  const totalDeductions = rec.total_deductions ?? lineDeductions
+  const netPay = rec.net_pay ?? grossPay - totalDeductions
+
+  return {
+    ...rec,
+    additional_deductions: additionalDeductions,
+    calculated_total_deductions: totalDeductions,
+    gross_pay: grossPay,
+    calculated_net_pay: netPay,
+  }
+}
+
+function PayslipDeductionLines({
+  record,
+  formatCurrency,
+}: {
+  record: any
+  formatCurrency: (amount: number | null | undefined) => string
+}) {
+  return (
+  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '14px' }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+      <span style={{ color: '#000000' }}>SSS:</span>
+      <span style={{ fontWeight: '500', color: '#000000' }}>{formatCurrency(record.sss)}</span>
+    </div>
+    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+      <span style={{ color: '#000000' }}>PhilHealth:</span>
+      <span style={{ fontWeight: '500', color: '#000000' }}>{formatCurrency(record.philhealth)}</span>
+    </div>
+    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+      <span style={{ color: '#000000' }}>Pag-IBIG:</span>
+      <span style={{ fontWeight: '500', color: '#000000' }}>{formatCurrency(record.pagibig)}</span>
+    </div>
+    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+      <span style={{ color: '#000000' }}>Withholding Tax:</span>
+      <span style={{ fontWeight: '500', color: '#000000' }}>{formatCurrency(record.withholding_tax)}</span>
+    </div>
+    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+      <span style={{ color: '#000000' }}>Absences:</span>
+      <span style={{ fontWeight: '500', color: '#000000' }}>{formatCurrency(record.absences)}</span>
+    </div>
+    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+      <span style={{ color: '#000000' }}>Tardiness:</span>
+      <span style={{ fontWeight: '500', color: '#000000' }}>{formatCurrency(record.tardiness)}</span>
+    </div>
+    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+      <span style={{ color: '#000000' }}>Loans & Other:</span>
+      <span style={{ fontWeight: '500', color: '#000000' }}>{formatCurrency(record.loans)}</span>
+    </div>
+    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+      <span style={{ color: '#000000' }}>Cash Advance:</span>
+      <span style={{ fontWeight: '500', color: '#000000' }}>{formatCurrency(record.cash_advance)}</span>
+    </div>
+    {(record.uniform || 0) > 0 && (
+      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+        <span style={{ color: '#000000' }}>Uniform:</span>
+        <span style={{ fontWeight: '500', color: '#000000' }}>{formatCurrency(record.uniform)}</span>
+      </div>
+    )}
+    {record.additional_deductions > 0 && (
+      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+        <span style={{ color: '#000000' }}>Other Deductions:</span>
+        <span style={{ fontWeight: '500', color: '#000000' }}>{formatCurrency(record.additional_deductions)}</span>
+      </div>
+    )}
+    <div style={{ borderTop: '1px solid #d1d5db', paddingTop: '8px', display: 'flex', justifyContent: 'space-between', fontWeight: '600' }}>
+      <span style={{ color: '#000000' }}>TOTAL DEDUCTIONS:</span>
+      <span style={{ color: '#000000' }}>{formatCurrency(record.calculated_total_deductions)}</span>
+    </div>
+  </div>
+  )
+}
+
 export default function MyPayrollPage() {
   const { activeOrganization } = useOrganization()
   const [records, setRecords] = useState<any[]>([])
@@ -91,7 +189,7 @@ export default function MyPayrollPage() {
             basic_salary, overtime_pay, holiday_pay, night_diff, allowances,
             unpaid_salary, reimbursement,
             bonuses, commission, sss, philhealth, pagibig, withholding_tax,
-            absences, tardiness, loans, uniform, total_deductions
+            absences, tardiness, loans, uniform, cash_advance, total_deductions
           `)
           .eq("employee_id", pdnEmp.id)
           .order("period_end", { ascending: false })
@@ -102,13 +200,7 @@ export default function MyPayrollPage() {
           return
         }
 
-        const merged = (pdnPayroll || []).map((rec: any) => ({
-          ...rec,
-          additional_deductions: 0,
-          calculated_total_deductions: rec.total_deductions || 0,
-          gross_pay: rec.gross_pay || 0,
-          calculated_net_pay: rec.net_pay || 0,
-        }))
+        const merged = (pdnPayroll || []).map((rec: any) => buildPayrollViewModel(rec))
 
         setRecords(merged || [])
         setLoading(false)
@@ -180,6 +272,11 @@ export default function MyPayrollPage() {
           tardiness,
           loans,
           uniform,
+          cash_advance,
+          allowances,
+          night_diff,
+          bonuses,
+          commission,
           total_deductions
         `)
         .eq("employee_id", employee.id)
@@ -210,35 +307,7 @@ export default function MyPayrollPage() {
             )
             .reduce((sum, d) => sum + d.amount, 0) || 0
 
-        const totalEarnings =
-          (rec.basic_salary || 0) +
-          (rec.overtime_pay || 0) +
-          (rec.holiday_pay || 0) +
-          (rec.night_diff || 0) +
-          (rec.allowances || 0) +
-          (rec.bonuses || 0) +
-          (rec.commission || 0) +
-          (rec.unpaid_salary || 0) +
-          (rec.reimbursement || 0)
-
-        const allDeductions =
-          (rec.sss || 0) +
-          (rec.philhealth || 0) +
-          (rec.pagibig || 0) +
-          (rec.withholding_tax || 0) +
-          (rec.absences || 0) +
-          (rec.tardiness || 0) +
-          (rec.loans || 0) +
-          (rec.uniform || 0) +
-          additionalDeductions
-
-        return {
-          ...rec,
-          additional_deductions: additionalDeductions,
-          calculated_total_deductions: allDeductions,
-          gross_pay: totalEarnings,
-          calculated_net_pay: totalEarnings - allDeductions,
-        }
+        return buildPayrollViewModel(rec, additionalDeductions)
       })
 
       setRecords(merged || [])
@@ -546,34 +615,7 @@ export default function MyPayrollPage() {
                                 {/* Deductions */}
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                                   <h3 style={{ fontWeight: '600', color: '#1f2937', borderBottom: '1px solid #d1d5db', paddingBottom: '4px' }}>DEDUCTIONS</h3>
-                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '14px' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                      <span style={{ color: '#000000' }}>SSS:</span>
-                                      <span style={{ fontWeight: '500', color: '#000000' }}>{formatCurrency(selectedRecord.sss)}</span>
-                                    </div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                      <span style={{ color: '#000000' }}>PhilHealth:</span>
-                                      <span style={{ fontWeight: '500', color: '#000000' }}>{formatCurrency(selectedRecord.philhealth)}</span>
-                                    </div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                      <span style={{ color: '#000000' }}>Pag-IBIG:</span>
-                                      <span style={{ fontWeight: '500', color: '#000000' }}>{formatCurrency(selectedRecord.pagibig)}</span>
-                                    </div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                      <span style={{ color: '#000000' }}>Absences:</span>
-                                      <span style={{ fontWeight: '500', color: '#000000' }}>{formatCurrency(selectedRecord.absences)}</span>
-                                    </div>
-                                    {selectedRecord.additional_deductions > 0 && (
-                                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                        <span style={{ color: '#000000' }}>Other Deductions:</span>
-                                        <span style={{ fontWeight: '500', color: '#000000' }}>{formatCurrency(selectedRecord.additional_deductions)}</span>
-                                      </div>
-                                    )}
-                                    <div style={{ borderTop: '1px solid #d1d5db', paddingTop: '8px', display: 'flex', justifyContent: 'space-between', fontWeight: '600' }}>
-                                      <span style={{ color: '#000000' }}>TOTAL DEDUCTIONS:</span>
-                                      <span style={{ color: '#000000' }}>{formatCurrency(selectedRecord.calculated_total_deductions)}</span>
-                                    </div>
-                                  </div>
+                                  <PayslipDeductionLines record={selectedRecord} formatCurrency={formatCurrency} />
                                 </div>
                               </div>
 
@@ -798,34 +840,7 @@ Company: PETROSPHERE INCORPORATED.`}
                                       {/* Deductions */}
                                       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                                         <h3 style={{ fontWeight: '600', color: '#1f2937', borderBottom: '1px solid #d1d5db', paddingBottom: '4px' }}>DEDUCTIONS</h3>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '14px' }}>
-                                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                            <span style={{ color: '#000000' }}>SSS:</span>
-                                            <span style={{ fontWeight: '500', color: '#000000' }}>{formatCurrency(selectedRecord.sss)}</span>
-                                          </div>
-                                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                            <span style={{ color: '#000000' }}>PhilHealth:</span>
-                                            <span style={{ fontWeight: '500', color: '#000000' }}>{formatCurrency(selectedRecord.philhealth)}</span>
-                                          </div>
-                                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                            <span style={{ color: '#000000' }}>Pag-IBIG:</span>
-                                            <span style={{ fontWeight: '500', color: '#000000' }}>{formatCurrency(selectedRecord.pagibig)}</span>
-                                          </div>
-                                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                            <span style={{ color: '#000000' }}>Absences:</span>
-                                            <span style={{ fontWeight: '500', color: '#000000' }}>{formatCurrency(selectedRecord.absences)}</span>
-                                          </div>
-                                          {selectedRecord.additional_deductions > 0 && (
-                                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                              <span style={{ color: '#000000' }}>Other Deductions:</span>
-                                              <span style={{ fontWeight: '500', color: '#000000' }}>{formatCurrency(selectedRecord.additional_deductions)}</span>
-                                            </div>
-                                          )}
-                                          <div style={{ borderTop: '1px solid #d1d5db', paddingTop: '8px', display: 'flex', justifyContent: 'space-between', fontWeight: '600' }}>
-                                            <span style={{ color: '#000000' }}>TOTAL DEDUCTIONS:</span>
-                                            <span style={{ color: '#000000' }}>{formatCurrency(selectedRecord.calculated_total_deductions)}</span>
-                                          </div>
-                                        </div>
+                                        <PayslipDeductionLines record={selectedRecord} formatCurrency={formatCurrency} />
                                       </div>
                                     </div>
 
