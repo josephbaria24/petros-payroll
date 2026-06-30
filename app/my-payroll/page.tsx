@@ -50,7 +50,8 @@ function buildPayrollViewModel(rec: any, additionalDeductions = 0) {
     (rec.bonuses || 0) +
     (rec.commission || 0) +
     (rec.unpaid_salary || 0) +
-    (rec.reimbursement || 0)
+    (rec.reimbursement || 0) +
+    (rec.thirteenth_month_pay || 0)
 
   const lineDeductions =
     (rec.sss || 0) +
@@ -187,7 +188,7 @@ export default function MyPayrollPage() {
           .select(`
             id, period_start, period_end, status, updated_at, created_at, net_pay, gross_pay,
             basic_salary, overtime_pay, holiday_pay, night_diff, allowances,
-            unpaid_salary, reimbursement,
+            unpaid_salary, reimbursement, thirteenth_month_pay,
             bonuses, commission, sss, philhealth, pagibig, withholding_tax,
             absences, tardiness, loans, uniform, cash_advance, total_deductions
           `)
@@ -262,6 +263,7 @@ export default function MyPayrollPage() {
           night_diff,
           unpaid_salary,
           reimbursement,
+          thirteenth_month_pay,
           bonuses,
           commission,
           sss,
@@ -605,6 +607,10 @@ export default function MyPayrollPage() {
                                       <span style={{ color: '#000000' }}>Reimbursement:</span>
                                       <span style={{ fontWeight: '500', color: '#000000' }}>{formatCurrency(selectedRecord.reimbursement)}</span>
                                     </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                      <span style={{ color: '#000000' }}>13th Month Pay:</span>
+                                      <span style={{ fontWeight: '500', color: '#000000' }}>{formatCurrency(selectedRecord.thirteenth_month_pay)}</span>
+                                    </div>
                                     <div style={{ borderTop: '1px solid #d1d5db', paddingTop: '8px', display: 'flex', justifyContent: 'space-between', fontWeight: '600' }}>
                                       <span style={{ color: '#000000' }}>GROSS PAY:</span>
                                       <span style={{ color: '#000000' }}>{formatCurrency(selectedRecord.gross_pay)}</span>
@@ -829,6 +835,10 @@ Company: PETROSPHERE INCORPORATED.`}
                                           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                             <span style={{ color: '#000000' }}>Reimbursement:</span>
                                             <span style={{ fontWeight: '500', color: '#000000' }}>{formatCurrency(selectedRecord.reimbursement)}</span>
+                                          </div>
+                                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                            <span style={{ color: '#000000' }}>13th Month Pay:</span>
+                                            <span style={{ fontWeight: '500', color: '#000000' }}>{formatCurrency(selectedRecord.thirteenth_month_pay)}</span>
                                           </div>
                                           <div style={{ borderTop: '1px solid #d1d5db', paddingTop: '8px', display: 'flex', justifyContent: 'space-between', fontWeight: '600' }}>
                                             <span style={{ color: '#000000' }}>GROSS PAY:</span>

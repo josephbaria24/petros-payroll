@@ -125,6 +125,8 @@ type EmployeeAdjustment = {
   unpaidSalary?: number
   /** Expense repayment (adds to gross). */
   reimbursement?: number
+  /** 13th month pay (adds to gross). */
+  thirteenthMonthPay?: number
 }
 
 type EditingCell = {
@@ -1153,6 +1155,7 @@ export default function GeneratePayrollPage() {
         const withholding = adj?.withholdingTax || 0
         const unpaidSalary = Math.round((Number(adj?.unpaidSalary) || 0) * 100) / 100
         const reimbursement = Math.round((Number(adj?.reimbursement) || 0) * 100) / 100
+        const thirteenthMonthPay = Math.round((Number(adj?.thirteenthMonthPay) || 0) * 100) / 100
 
         const totalDeductions = sss + philhealth + pagibig + loans + absence + late + other + cashAdvance + withholding
         const gross = basicSalary + overtime + holiday + allowance
@@ -1173,9 +1176,10 @@ export default function GeneratePayrollPage() {
           cash_advance: cashAdvance,
           unpaid_salary: unpaidSalary,
           reimbursement: reimbursement,
-          gross_pay: gross + unpaidSalary + reimbursement,
+          thirteenth_month_pay: thirteenthMonthPay,
+          gross_pay: gross + unpaidSalary + reimbursement + thirteenthMonthPay,
           total_deductions: totalDeductions,
-          net_pay: (gross + unpaidSalary + reimbursement) - totalDeductions,
+          net_pay: (gross + unpaidSalary + reimbursement + thirteenthMonthPay) - totalDeductions,
           status: "Pending Payment",
           creator_id: creatorId
         })
@@ -2113,6 +2117,19 @@ export default function GeneratePayrollPage() {
                                 value={adj.reimbursement ?? ""}
                                 onChange={(e) =>
                                   updateEmployeeAdjustment(index, "reimbursement", parseFloat(e.target.value) || 0)
+                                }
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label className="text-[9px] lg:text-[10px] font-black text-muted-foreground uppercase">13th Month Pay</Label>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                min={0}
+                                className="font-bold h-8 lg:h-9 text-xs border-emerald-500/30"
+                                value={adj.thirteenthMonthPay ?? ""}
+                                onChange={(e) =>
+                                  updateEmployeeAdjustment(index, "thirteenthMonthPay", parseFloat(e.target.value) || 0)
                                 }
                               />
                             </div>

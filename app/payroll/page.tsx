@@ -88,6 +88,7 @@ type PayrollRecord = {
   commission?: number
   unpaid_salary?: number
   reimbursement?: number
+  thirteenth_month_pay?: number
   status: string
   absences?: number
   tardiness?: number
@@ -275,7 +276,7 @@ export default function PayrollPage() {
         .select(`
           id, employee_id, period_start, period_end, payroll_batch_id, basic_salary,
           overtime_pay, holiday_pay, night_diff, allowances, bonuses, commission,
-          unpaid_salary, reimbursement,
+          unpaid_salary, reimbursement, thirteenth_month_pay,
           absences, tardiness,
           cash_advance, sss, philhealth, pagibig, withholding_tax, loans, uniform,
           total_deductions, net_pay, status, created_at, updated_at, creator_id,
@@ -298,7 +299,8 @@ export default function PayrollPage() {
           (rec.bonuses || 0) +
           (rec.commission || 0) +
           (rec.unpaid_salary || 0) +
-          (rec.reimbursement || 0)
+          (rec.reimbursement || 0) +
+          (rec.thirteenth_month_pay || 0)
         const totalDeductions = rec.total_deductions || 0
         const netAfterDeductions = grossPay - totalDeductions
 
@@ -323,6 +325,7 @@ export default function PayrollPage() {
           commission: rec.commission || 0,
           unpaid_salary: rec.unpaid_salary || 0,
           reimbursement: rec.reimbursement || 0,
+          thirteenth_month_pay: rec.thirteenth_month_pay || 0,
           status: rec.status,
           absences: rec.absences || 0,
           tardiness: rec.tardiness || 0,
@@ -407,6 +410,7 @@ export default function PayrollPage() {
         commission,
         unpaid_salary,
         reimbursement,
+        thirteenth_month_pay,
         absences,
         tardiness,
         cash_advance,
@@ -442,7 +446,8 @@ export default function PayrollPage() {
         (rec.bonuses || 0) +
         (rec.commission || 0) +
         (rec.unpaid_salary || 0) +
-        (rec.reimbursement || 0)
+        (rec.reimbursement || 0) +
+        (rec.thirteenth_month_pay || 0)
 
       const totalDeductions = (rec.total_deductions || 0)
       const netAfterDeductions = grossPay - totalDeductions
@@ -468,6 +473,7 @@ export default function PayrollPage() {
         commission: rec.commission || 0,
         unpaid_salary: rec.unpaid_salary || 0,
         reimbursement: rec.reimbursement || 0,
+        thirteenth_month_pay: rec.thirteenth_month_pay || 0,
         status: rec.status,
         absences: rec.absences || 0,
         tardiness: rec.tardiness || 0,
@@ -1294,6 +1300,7 @@ export default function PayrollPage() {
                       <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Allowance</TableHead>
                       <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Unpaid</TableHead>
                       <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Reimb.</TableHead>
+                      <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">13th Month</TableHead>
                       <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">SSS</TableHead>
                       <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">PhilHealth</TableHead>
                       <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Pag-IBIG</TableHead>
@@ -1352,6 +1359,7 @@ export default function PayrollPage() {
                           <TableCell className="text-foreground">₱{rec.allowances?.toLocaleString() || 0}</TableCell>
                           <TableCell className="text-foreground">₱{rec.unpaid_salary?.toLocaleString() || 0}</TableCell>
                           <TableCell className="text-foreground">₱{rec.reimbursement?.toLocaleString() || 0}</TableCell>
+                          <TableCell className="text-foreground">₱{rec.thirteenth_month_pay?.toLocaleString() || 0}</TableCell>
                           <TableCell className="text-red-600/80 font-medium">₱{rec.sss?.toLocaleString() || 0}</TableCell>
                           <TableCell className="text-red-600/80 font-medium">₱{rec.philhealth?.toLocaleString() || 0}</TableCell>
                           <TableCell className="text-red-600/80 font-medium">₱{rec.pagibig?.toLocaleString() || 0}</TableCell>
@@ -1444,7 +1452,8 @@ export default function PayrollPage() {
                   (editRecord.night_diff || 0) +
                   (editRecord.allowances || 0) +
                   (editRecord.unpaid_salary || 0) +
-                  (editRecord.reimbursement || 0)
+                  (editRecord.reimbursement || 0) +
+                  (editRecord.thirteenth_month_pay || 0)
                 const netPay = grossPay - totalDeductions
 
                 const table = activeOrganization === "pdn" ? "pdn_payroll_records" : "payroll_records"
@@ -1458,6 +1467,7 @@ export default function PayrollPage() {
                     night_diff: editRecord.night_diff || 0,
                     unpaid_salary: editRecord.unpaid_salary || 0,
                     reimbursement: editRecord.reimbursement || 0,
+                    thirteenth_month_pay: editRecord.thirteenth_month_pay || 0,
                     absences: absences,
                     tardiness: tardiness,
                     cash_advance: cash_advance,
@@ -1639,6 +1649,21 @@ export default function PayrollPage() {
                     />
                   </div>
                   <div>
+                    <Label className="text-sm font-medium text-muted-foreground">13th Month Pay</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0.00"
+                      value={editRecord.thirteenth_month_pay || ""}
+                      onChange={(e) =>
+                        setEditRecord((prev) =>
+                          prev ? { ...prev, thirteenth_month_pay: parseFloat(e.target.value) || 0 } : prev
+                        )
+                      }
+                    />
+                  </div>
+                  <div>
                     <Label className="text-sm font-medium text-muted-foreground">Absence Deductions</Label>
                     <Input
                       type="number"
@@ -1803,7 +1828,8 @@ export default function PayrollPage() {
                         (editRecord.night_diff || 0) +
                         (editRecord.allowances || 0) +
                         (editRecord.unpaid_salary || 0) +
-                        (editRecord.reimbursement || 0)
+                        (editRecord.reimbursement || 0) +
+                        (editRecord.thirteenth_month_pay || 0)
                       ).toLocaleString()}
                     </div>
                   </div>
@@ -1836,7 +1862,8 @@ export default function PayrollPage() {
                         (editRecord.night_diff || 0) +
                         (editRecord.allowances || 0) +
                         (editRecord.unpaid_salary || 0) +
-                        (editRecord.reimbursement || 0) -
+                        (editRecord.reimbursement || 0) +
+                        (editRecord.thirteenth_month_pay || 0) -
                         ((editRecord.sss || 0) +
                           (editRecord.philhealth || 0) +
                           (editRecord.pagibig || 0) +

@@ -50,6 +50,7 @@ export type PayrollReceiptAmountFields = {
   commission?: number
   unpaid_salary?: number
   reimbursement?: number
+  thirteenth_month_pay?: number
   sss?: number
   philhealth?: number
   pagibig?: number
@@ -132,7 +133,8 @@ export function PayrollEarningsReceipt({ exportRootId, organization, record }: P
     (record.bonuses || 0) +
     (record.commission || 0) +
     (record.unpaid_salary || 0) +
-    (record.reimbursement || 0)
+    (record.reimbursement || 0) +
+    (record.thirteenth_month_pay || 0)
 
   const netPay = grossPay - (record.total_deductions || 0)
 
@@ -144,6 +146,7 @@ export function PayrollEarningsReceipt({ exportRootId, organization, record }: P
     { label: "Commission", amount: record.commission || 0 },
     { label: "Unpaid Salary", amount: record.unpaid_salary || 0 },
     { label: "Reimbursement", amount: record.reimbursement || 0 },
+    { label: "13th Month Pay", amount: record.thirteenth_month_pay || 0 },
   ]
 
   const deductionRows: { label: string; amount: number }[] = [
