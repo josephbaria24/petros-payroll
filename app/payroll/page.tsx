@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label"
 import { toast } from "@/lib/toast"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { CalendarIcon, Trash2, Plus, X, Calculator, Users, PhilippinePeso, TrendingUp, FileText, Check, XCircle, Clock, CheckCircle, ChevronDown, CheckCircle2, AlertCircle, Search, Download, ChevronLeft, ChevronRight } from "lucide-react"
+import { CalendarIcon, Trash2, Plus, X, Calculator, Users, PhilippinePeso, TrendingUp, FileText, Check, XCircle, Clock, CheckCircle, ChevronDown, CheckCircle2, AlertCircle, Search, Download, ChevronLeft, ChevronRight, HandCoins } from "lucide-react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 import {
@@ -103,6 +103,17 @@ type PayrollRecord = {
   net_after_deductions?: number
   total_net?: number
   profile_picture_url?: string
+}
+
+type PartialSalaryPayment = {
+  id: string
+  employee_id: string
+  period_start: string
+  period_end: string
+  amount: number
+  payment_date: string
+  notes: string | null
+  created_at: string
 }
 
 type PayrollPeriod = {
@@ -195,6 +206,17 @@ export default function PayrollPage() {
   const [employees, setEmployees] = useState<{ id: string; full_name: string; pay_type: string }[]>([])
   const [editRecord, setEditRecord] = useState<PayrollRecord | null>(null)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
+
+  const [partialDialogOpen, setPartialDialogOpen] = useState(false)
+  const [partialRecord, setPartialRecord] = useState<PayrollRecord | null>(null)
+  const [partialEntries, setPartialEntries] = useState<PartialSalaryPayment[]>([])
+  const [partialLoading, setPartialLoading] = useState(false)
+  const [partialSaving, setPartialSaving] = useState(false)
+  const [partialForm, setPartialForm] = useState({
+    amount: "",
+    payment_date: format(new Date(), "yyyy-MM-dd"),
+    notes: "",
+  })
 
   const [receiptDialogOpen, setReceiptDialogOpen] = useState(false)
   const [receiptPeriod, setReceiptPeriod] = useState<PayrollPeriod | null>(null)
@@ -707,6 +729,165 @@ export default function PayrollPage() {
       toast.success(`Period status updated to ${newStatus}!`, { id: toastId })
       fetchPayrollPeriods()
     }
+  }
+
+  const partialPaymentsTable =
+    activeOrganization === "pdn" ? "pdn_partial_salary_payments" : "partial_salary_payments"
+
+  function recordGrossPay(rec: PayrollRecord) {
+    return (
+      (rec.basic_salary || 0) +
+      (rec.overtime_pay || 0) +
+      (rec.holiday_pay || 0) +
+      (rec.night_diff || 0) +
+      (rec.allowances || 0) +
+      (rec.bonuses || 0) +
+      (rec.commission || 0) +
+      (rec.unpaid_salary || 0) +
+      (rec.reimbursement || 0) +
+      (rec.thirteenth_month_pay || 0)
+    )
+  }
+
+  /** Deductions excluding the partial-salary (cash_advance) portion. */
+  function recordBaseDeductions(rec: PayrollRecord) {
+    return (
+      (rec.sss || 0) +
+      (rec.philhealth || 0) +
+      (rec.pagibig || 0) +
+      (rec.withholding_tax || 0) +
+      (rec.loans || 0) +
+      (rec.absences || 0) +
+      (rec.tardiness || 0)
+    )
+  }
+
+  async function openPartialPaymentsDialog(rec: PayrollRecord) {
+    setPartialRecord(rec)
+    setPartialEntries([])
+    setPartialForm({ amount: "", payment_date: format(new Date(), "yyyy-MM-dd"), notes: "" })
+    setPartialDialogOpen(true)
+    setPartialLoading(true)
+
+    const { data, error } = await supabase
+      .from(partialPaymentsTable)
+      .select("id, employee_id, period_start, period_end, amount, payment_date, notes, created_at")
+      .eq("employee_id", rec.employee_id)
+      .eq("period_start", rec.period_start)
+      .eq("period_end", rec.period_end)
+      .order("payment_date", { ascending: true })
+
+    setPartialLoading(false)
+    if (error) {
+      console.error("Error fetching partial salary payments:", error)
+      toast.error(
+        error.message.includes("does not exist")
+          ? "Partial payments table missing. Run partial_salary_payments.sql in Supabase."
+          : "Failed to load partial salary payments."
+      )
+      return
+    }
+    setPartialEntries(data || [])
+  }
+
+  /** Sync the sum of partial payments into the payroll record (cash_advance) and recompute totals. */
+  async function syncPartialTotalsToRecord(rec: PayrollRecord, totalPartial: number) {
+    const grossPay = recordGrossPay(rec)
+    const totalDeductions = recordBaseDeductions(rec) + totalPartial
+    const netPay = grossPay - totalDeductions
+
+    const table = activeOrganization === "pdn" ? "pdn_payroll_records" : "payroll_records"
+    const { error } = await supabase
+      .from(table)
+      .update({
+        cash_advance: totalPartial,
+        gross_pay: grossPay,
+        total_deductions: totalDeductions,
+        net_pay: netPay,
+      })
+      .eq("id", rec.id)
+
+    if (error) {
+      console.error("Error syncing partial totals to payroll record:", error)
+      toast.error("Saved the payment, but failed to update the payroll record totals.")
+      return
+    }
+
+    const patch = {
+      cash_advance: totalPartial,
+      total_deductions: totalDeductions,
+      net_after_deductions: netPay,
+      total_net: netPay,
+    }
+    setPartialRecord((prev) => (prev && prev.id === rec.id ? { ...prev, ...patch } : prev))
+    setSelectedPeriodRecords((prev) => prev.map((r) => (r.id === rec.id ? { ...r, ...patch } : r)))
+    fetchPayrollPeriods()
+  }
+
+  async function handleAddPartialPayment() {
+    if (!partialRecord) return
+    const amount = Math.round((parseFloat(partialForm.amount) || 0) * 100) / 100
+    if (amount <= 0) {
+      toast.warning("Enter a partial payment amount greater than zero.")
+      return
+    }
+    if (!partialForm.payment_date) {
+      toast.warning("Select the date the partial payment was given.")
+      return
+    }
+
+    setPartialSaving(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    const { data, error } = await supabase
+      .from(partialPaymentsTable)
+      .insert({
+        employee_id: partialRecord.employee_id,
+        period_start: partialRecord.period_start,
+        period_end: partialRecord.period_end,
+        amount,
+        payment_date: partialForm.payment_date,
+        notes: partialForm.notes.trim() || null,
+        creator_id: user?.id ?? null,
+      })
+      .select("id, employee_id, period_start, period_end, amount, payment_date, notes, created_at")
+      .single()
+    setPartialSaving(false)
+
+    if (error || !data) {
+      console.error("Error adding partial salary payment:", error)
+      toast.error(
+        error?.message.includes("does not exist")
+          ? "Partial payments table missing. Run partial_salary_payments.sql in Supabase."
+          : "Failed to add partial salary payment."
+      )
+      return
+    }
+
+    const updated = [...partialEntries, data].sort((a, b) => a.payment_date.localeCompare(b.payment_date))
+    setPartialEntries(updated)
+    setPartialForm({ amount: "", payment_date: format(new Date(), "yyyy-MM-dd"), notes: "" })
+    toast.success("Partial salary payment recorded.")
+    await syncPartialTotalsToRecord(partialRecord, updated.reduce((s, p) => s + (p.amount || 0), 0))
+  }
+
+  async function handleDeletePartialPayment(entry: PartialSalaryPayment) {
+    if (!partialRecord) return
+    const confirmed = window.confirm(
+      `Delete the ₱${entry.amount.toLocaleString()} partial payment dated ${entry.payment_date}?`
+    )
+    if (!confirmed) return
+
+    const { error } = await supabase.from(partialPaymentsTable).delete().eq("id", entry.id)
+    if (error) {
+      console.error("Error deleting partial salary payment:", error)
+      toast.error("Failed to delete partial salary payment.")
+      return
+    }
+
+    const updated = partialEntries.filter((p) => p.id !== entry.id)
+    setPartialEntries(updated)
+    toast.success("Partial salary payment deleted.")
+    await syncPartialTotalsToRecord(partialRecord, updated.reduce((s, p) => s + (p.amount || 0), 0))
   }
 
 
@@ -1291,7 +1472,9 @@ export default function PayrollPage() {
                           title="Select all"
                         />
                       </TableHead>
-
+                      <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">
+                        Actions
+                      </TableHead>
                       <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Employee</TableHead>
                       <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Pay Type</TableHead>
                       <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Basic Salary</TableHead>
@@ -1313,9 +1496,6 @@ export default function PayrollPage() {
                       <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Net After Deductions</TableHead>
                       <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Total Net</TableHead>
                       <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Status</TableHead>
-                      <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm text-right">
-                        Actions
-                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1339,6 +1519,44 @@ export default function PayrollPage() {
                               onChange={() => handleSelect(rec.id)}
                               className="rounded"
                             />
+                          </TableCell>
+                          <TableCell onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center gap-1 flex-wrap">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 px-2 text-muted-foreground hover:text-foreground"
+                                title="Earnings receipt"
+                                type="button"
+                                onClick={() => {
+                                  if (periodDialogContext) openReceiptDialog(periodDialogContext, rec.id)
+                                }}
+                              >
+                                <ReceiptIcon className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 px-2 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                                title="Partial salary payments"
+                                type="button"
+                                onClick={() => openPartialPaymentsDialog(rec)}
+                              >
+                                <HandCoins className="h-4 w-4" />
+                              </Button>
+                              {rec.status !== "Paid" && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  type="button"
+                                  onClick={() => handleMarkAsPaid(rec.id)}
+                                  className="text-green-600 hover:bg-green-50"
+                                >
+                                  <CheckCircle className="h-4 w-4 mr-1" />
+                                  Mark Paid
+                                </Button>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell className="font-medium text-foreground">
                             <div className="flex items-center gap-2">
@@ -1380,34 +1598,6 @@ export default function PayrollPage() {
                             )}>
                               {rec.status}
                             </span>
-                          </TableCell>
-                          <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                            <div className="flex items-center justify-end gap-1 flex-wrap">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-8 px-2 text-muted-foreground hover:text-foreground"
-                                title="Earnings receipt"
-                                type="button"
-                                onClick={() => {
-                                  if (periodDialogContext) openReceiptDialog(periodDialogContext, rec.id)
-                                }}
-                              >
-                                <ReceiptIcon className="h-4 w-4" />
-                              </Button>
-                              {rec.status !== "Paid" && (
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  type="button"
-                                  onClick={() => handleMarkAsPaid(rec.id)}
-                                  className="text-green-600 hover:bg-green-50"
-                                >
-                                  <CheckCircle className="h-4 w-4 mr-1" />
-                                  Mark Paid
-                                </Button>
-                              )}
-                            </div>
                           </TableCell>
 
                         </TableRow>
@@ -1892,6 +2082,150 @@ export default function PayrollPage() {
                 </Button>
               </div>
             </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={partialDialogOpen} onOpenChange={setPartialDialogOpen}>
+        <DialogContent className="lg:max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold text-foreground flex items-center gap-2">
+              <HandCoins className="h-5 w-5 text-amber-600" />
+              Partial Salary Payments
+            </DialogTitle>
+          </DialogHeader>
+
+          {partialRecord && (
+            <div className="space-y-6">
+              <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-1">
+                <p className="font-semibold text-foreground">{partialRecord.employee_name}</p>
+                <p className="text-sm text-muted-foreground">
+                  Pay period:{" "}
+                  <span className="font-medium text-foreground">
+                    {format(new Date(partialRecord.period_start), "MMM d")} –{" "}
+                    {format(new Date(partialRecord.period_end), "MMM d, yyyy")}
+                  </span>
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <h3 className="text-sm font-semibold text-foreground">Recorded payments for this period</h3>
+                {partialLoading ? (
+                  <p className="text-sm text-muted-foreground py-4 text-center">Loading payments…</p>
+                ) : partialEntries.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-4 text-center border border-dashed border-border rounded-lg">
+                    No partial salary payments recorded for this period yet.
+                  </p>
+                ) : (
+                  <div className="border border-border rounded-lg overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/40">
+                          <TableHead className="text-xs font-bold">Date Given</TableHead>
+                          <TableHead className="text-xs font-bold">Notes</TableHead>
+                          <TableHead className="text-xs font-bold text-right">Amount</TableHead>
+                          <TableHead className="w-10" />
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {partialEntries.map((entry) => (
+                          <TableRow key={entry.id}>
+                            <TableCell className="text-sm">
+                              {format(new Date(entry.payment_date), "MMM d, yyyy")}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {entry.notes || "—"}
+                            </TableCell>
+                            <TableCell className="text-sm font-semibold text-right">
+                              ₱{entry.amount.toLocaleString("en-PH", { minimumFractionDigits: 2 })}
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                type="button"
+                                className="h-7 w-7 p-0 text-muted-foreground hover:text-red-600"
+                                title="Delete payment"
+                                onClick={() => handleDeletePartialPayment(entry)}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-3 rounded-lg border border-border p-4">
+                <h3 className="text-sm font-semibold text-foreground">Add partial salary payment</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs font-medium text-muted-foreground">Amount (₱)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0.00"
+                      value={partialForm.amount}
+                      onChange={(e) => setPartialForm((f) => ({ ...f, amount: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs font-medium text-muted-foreground">Date given</Label>
+                    <Input
+                      type="date"
+                      value={partialForm.payment_date}
+                      onChange={(e) => setPartialForm((f) => ({ ...f, payment_date: e.target.value }))}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-xs font-medium text-muted-foreground">Notes (optional)</Label>
+                  <Input
+                    placeholder="e.g. Requested advance for emergency"
+                    value={partialForm.notes}
+                    onChange={(e) => setPartialForm((f) => ({ ...f, notes: e.target.value }))}
+                  />
+                </div>
+                <Button
+                  type="button"
+                  className="w-full"
+                  disabled={partialSaving}
+                  onClick={handleAddPartialPayment}
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  {partialSaving ? "Saving…" : "Add Payment"}
+                </Button>
+              </div>
+
+              <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-4 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Net pay for period (before partial payments):</span>
+                  <span className="font-semibold text-foreground">
+                    ₱{(recordGrossPay(partialRecord) - recordBaseDeductions(partialRecord)).toLocaleString("en-PH", { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Total partial salary payments:</span>
+                  <span className="font-semibold text-red-600">
+                    − ₱{partialEntries.reduce((s, p) => s + (p.amount || 0), 0).toLocaleString("en-PH", { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <div className="flex justify-between pt-2 border-t border-border">
+                  <span className="font-semibold text-foreground">Total receivable (after partial payments):</span>
+                  <span className="text-lg font-bold text-primary">
+                    ₱{(
+                      recordGrossPay(partialRecord) -
+                      recordBaseDeductions(partialRecord) -
+                      partialEntries.reduce((s, p) => s + (p.amount || 0), 0)
+                    ).toLocaleString("en-PH", { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+              </div>
+            </div>
           )}
         </DialogContent>
       </Dialog>

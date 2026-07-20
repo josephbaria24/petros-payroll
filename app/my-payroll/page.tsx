@@ -40,6 +40,104 @@ function PayslipWatermarkLayer() {
   )
 }
 
+async function fetchPartialPaymentsForEmployee(
+  table: "partial_salary_payments" | "pdn_partial_salary_payments",
+  employeeId: string
+) {
+  const { data, error } = await supabase
+    .from(table)
+    .select("id, period_start, period_end, amount, payment_date, notes")
+    .eq("employee_id", employeeId)
+    .order("payment_date", { ascending: true })
+
+  if (error) {
+    // Table may not exist yet if the migration hasn't been run; payslips still work without itemized rows.
+    console.error("Error fetching partial salary payments:", error)
+    return []
+  }
+  return data || []
+}
+
+function attachPartialPayments(rec: any, partials: any[]) {
+  return {
+    ...rec,
+    partial_payments: partials.filter(
+      (p) => p.period_start === rec.period_start && p.period_end === rec.period_end
+    ),
+  }
+}
+
+function PayslipPartialSalarySection({
+  record,
+  formatCurrency,
+  formatDate,
+}: {
+  record: any
+  formatCurrency: (amount: number | null | undefined) => string
+  formatDate: (dateString: string) => string
+}) {
+  const entries: any[] = record.partial_payments || []
+  const totalPartial =
+    entries.length > 0
+      ? entries.reduce((s, p) => s + (Number(p.amount) || 0), 0)
+      : record.cash_advance || 0
+
+  if (totalPartial <= 0) return null
+
+  const receivableBeforePartial = (record.calculated_net_pay || 0) + totalPartial
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <h3 style={{ fontWeight: '600', color: '#1f2937', borderBottom: '1px solid #d1d5db', paddingBottom: '4px' }}>
+        PARTIAL SALARY PAYMENTS
+      </h3>
+      <p style={{ fontSize: '12px', color: '#6b7280', margin: 0 }}>
+        Salary released in advance within this pay period. These amounts were already received and are deducted from the total receivable below.
+      </p>
+
+      {entries.length > 0 ? (
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+          <thead>
+            <tr>
+              <th style={{ border: '1px solid #d1d5db', padding: '6px 10px', backgroundColor: '#f3f4f6', textAlign: 'left', color: '#111827' }}>Date Given</th>
+              <th style={{ border: '1px solid #d1d5db', padding: '6px 10px', backgroundColor: '#f3f4f6', textAlign: 'left', color: '#111827' }}>Notes</th>
+              <th style={{ border: '1px solid #d1d5db', padding: '6px 10px', backgroundColor: '#f3f4f6', textAlign: 'right', color: '#111827' }}>Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {entries.map((p) => (
+              <tr key={p.id}>
+                <td style={{ border: '1px solid #d1d5db', padding: '6px 10px', color: '#000000' }}>{formatDate(p.payment_date)}</td>
+                <td style={{ border: '1px solid #d1d5db', padding: '6px 10px', color: '#374151' }}>{p.notes || '—'}</td>
+                <td style={{ border: '1px solid #d1d5db', padding: '6px 10px', textAlign: 'right', fontWeight: 500, color: '#000000' }}>{formatCurrency(p.amount)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <p style={{ fontSize: '13px', color: '#374151', margin: 0 }}>
+          A partial salary payment of {formatCurrency(totalPartial)} was released for this period.
+        </p>
+      )}
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '14px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <span style={{ color: '#000000' }}>Net pay for period (before partial payments):</span>
+          <span style={{ fontWeight: '500', color: '#000000' }}>{formatCurrency(receivableBeforePartial)}</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <span style={{ color: '#000000' }}>Total partial salary payments received:</span>
+          <span style={{ fontWeight: '500', color: '#b91c1c' }}>− {formatCurrency(totalPartial)}</span>
+        </div>
+        <div style={{ borderTop: '1px solid #d1d5db', paddingTop: '8px', display: 'flex', justifyContent: 'space-between', fontWeight: '600' }}>
+          <span style={{ color: '#000000' }}>TOTAL RECEIVABLE (after partial payments):</span>
+          <span style={{ color: '#000000' }}>{formatCurrency(record.calculated_net_pay)}</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function buildPayrollViewModel(rec: any, additionalDeductions = 0) {
   const totalEarnings =
     (rec.basic_salary || 0) +
@@ -201,7 +299,10 @@ export default function MyPayrollPage() {
           return
         }
 
-        const merged = (pdnPayroll || []).map((rec: any) => buildPayrollViewModel(rec))
+        const pdnPartials = await fetchPartialPaymentsForEmployee("pdn_partial_salary_payments", pdnEmp.id)
+        const merged = (pdnPayroll || []).map((rec: any) =>
+          attachPartialPayments(buildPayrollViewModel(rec), pdnPartials)
+        )
 
         setRecords(merged || [])
         setLoading(false)
@@ -299,6 +400,8 @@ export default function MyPayrollPage() {
         console.error(dedError)
       }
 
+      const partials = await fetchPartialPaymentsForEmployee("partial_salary_payments", employee.id)
+
       const merged = payroll.map((rec: any) => {
         const additionalDeductions =
           deductions
@@ -309,7 +412,7 @@ export default function MyPayrollPage() {
             )
             .reduce((sum, d) => sum + d.amount, 0) || 0
 
-        return buildPayrollViewModel(rec, additionalDeductions)
+        return attachPartialPayments(buildPayrollViewModel(rec, additionalDeductions), partials)
       })
 
       setRecords(merged || [])
@@ -625,6 +728,9 @@ export default function MyPayrollPage() {
                                 </div>
                               </div>
 
+                              {/* Partial Salary Payments */}
+                              <PayslipPartialSalarySection record={selectedRecord} formatCurrency={formatCurrency} formatDate={formatDate} />
+
                               {/* Net Pay & QR Code Verification */}
                               <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px', alignItems: 'center' }}>
                                 <div style={{ backgroundColor: '#f3f4f6', padding: '16px', borderRadius: '8px', border: '2px solid #1f2937' }}>
@@ -853,6 +959,9 @@ Company: PETROSPHERE INCORPORATED.`}
                                         <PayslipDeductionLines record={selectedRecord} formatCurrency={formatCurrency} />
                                       </div>
                                     </div>
+
+                                    {/* Partial Salary Payments */}
+                                    <PayslipPartialSalarySection record={selectedRecord} formatCurrency={formatCurrency} formatDate={formatDate} />
 
                                     {/* Net Pay & QR Code Verification */}
                                     <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px', alignItems: 'center' }}>
