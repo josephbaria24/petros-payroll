@@ -128,6 +128,8 @@ type PayrollPeriod = {
   total_holiday_pay?: number
   total_deductions: number
   total_net_after_deductions: number
+  /** Sum of gross pay (earnings before any deductions) across records in this period. */
+  total_gross_pay: number
   records: PayrollRecord[]
   status: string
   created_at: string
@@ -393,6 +395,7 @@ export default function PayrollPage() {
             total_overtime: 0,
             total_deductions: 0,
             total_net_after_deductions: 0,
+            total_gross_pay: 0,
             records: [],
             status: record.status || "Pending",
             created_at: record.created_at,
@@ -409,6 +412,8 @@ export default function PayrollPage() {
         period.total_holiday_pay = (period.total_holiday_pay || 0) + (record.holiday_pay || 0)
         period.total_deductions += record.total_deductions || 0
         period.total_net_after_deductions += record.total_net || 0
+        period.total_gross_pay +=
+          (record.net_after_deductions ?? record.total_net ?? 0) + (record.total_deductions || 0)
       })
 
       setPeriods(applyPayrollPeriodVersionLabels(Array.from(periodMap.values())))
@@ -540,6 +545,7 @@ export default function PayrollPage() {
           total_overtime: 0,
           total_deductions: 0,
           total_net_after_deductions: 0,
+          total_gross_pay: 0,
           records: [],
           status: record.status || "Pending",
           created_at: record.created_at,
@@ -559,6 +565,8 @@ export default function PayrollPage() {
       period.total_holiday_pay = (period.total_holiday_pay || 0) + (record.holiday_pay || 0)
       period.total_deductions += record.total_deductions || 0
       period.total_net_after_deductions += record.total_net || 0
+      period.total_gross_pay +=
+        (record.net_after_deductions ?? record.total_net ?? 0) + (record.total_deductions || 0)
 
     })
 
@@ -1024,8 +1032,15 @@ export default function PayrollPage() {
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mt-10 pt-8 border-t border-border/50">
                 <div className="space-y-1">
-                  <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Total Net Pay</p>
-                  <p className="text-lg font-bold text-foreground">₱{periods[0].total_net_after_deductions.toLocaleString()}</p>
+                  <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Total Before Deductions</p>
+                  <p className="text-lg font-bold text-foreground">
+                    ₱{(periods[0].total_gross_pay || periods[0].total_net_after_deductions + periods[0].total_deductions).toLocaleString()}
+                  </p>
+                  {(periods[0].total_deductions || 0) > 0 && (
+                    <p className="text-[10px] text-muted-foreground">
+                      After deductions: ₱{periods[0].total_net_after_deductions.toLocaleString()}
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-1">
                   <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Basic Salary</p>
@@ -1105,7 +1120,16 @@ export default function PayrollPage() {
                           </div>
                           <div className="flex items-center gap-1.5 text-xs">
                             <Calculator className="h-3 w-3 text-muted-foreground" />
-                            <span className="font-medium text-foreground">₱{period.total_net_after_deductions.toLocaleString()}</span>
+                            <div className="flex flex-col">
+                              <span className="font-medium text-foreground">
+                                ₱{(period.total_gross_pay || period.total_net_after_deductions + period.total_deductions).toLocaleString()}
+                              </span>
+                              {(period.total_deductions || 0) > 0 && (
+                                <span className="text-[10px] text-muted-foreground">
+                                  After deductions: ₱{period.total_net_after_deductions.toLocaleString()}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </TableCell>
