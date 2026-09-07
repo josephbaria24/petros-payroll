@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { supabase } from "@/lib/supabaseClient"
 import { useOrganization } from "@/contexts/OrganizationContext"
 import { Button } from "@/components/ui/button"
@@ -183,6 +183,7 @@ const statusVariants: Record<string, string> = {
 
 export default function PayrollPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   useProtectedPage(["admin", "hr"], "payroll")
   const { activeOrganization } = useOrganization()
   const [periods, setPeriods] = useState<PayrollPeriod[]>([])
@@ -227,10 +228,116 @@ export default function PayrollPage() {
 
   const RECEIPT_EXPORT_ID = "payroll-receipt-export"
 
+  type PayrollWorkspace = {
+    id: string
+    name: string
+    organization: string
+    created_at: string
+  }
+
+  /** null = Regular Payroll (default tab) */
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(
+    () => searchParams.get("workspace")
+  )
+  const [workspaces, setWorkspaces] = useState<PayrollWorkspace[]>([])
+  const [createWorkspaceOpen, setCreateWorkspaceOpen] = useState(false)
+  const [newWorkspaceName, setNewWorkspaceName] = useState("")
+  const [creatingWorkspace, setCreatingWorkspace] = useState(false)
+
+  useEffect(() => {
+    const fromUrl = searchParams.get("workspace")
+    if (fromUrl !== activeWorkspaceId) {
+      // Keep URL and tab in sync when navigating back from generate
+      if (fromUrl) setActiveWorkspaceId(fromUrl)
+    }
+  }, [searchParams])
+
+  useEffect(() => {
+    fetchWorkspaces()
+  }, [activeOrganization])
+
   useEffect(() => {
     fetchPayrollPeriods()
     fetchEmployees()
-  }, [activeOrganization])
+    setCurrentPeriodPage(1)
+  }, [activeOrganization, activeWorkspaceId])
+
+  async function fetchWorkspaces() {
+    const org = activeOrganization === "pdn" ? "pdn" : "petrosphere"
+    const { data, error } = await supabase
+      .from("payroll_workspaces")
+      .select("id, name, organization, created_at")
+      .eq("organization", org)
+      .order("created_at", { ascending: true })
+
+    if (error) {
+      console.error("Error fetching payroll workspaces:", error)
+      // Table may not exist yet — keep empty list
+      setWorkspaces([])
+      return
+    }
+    setWorkspaces(data || [])
+    // If current tab was deleted / org switched, fall back to Regular
+    if (activeWorkspaceId && !(data || []).some((w) => w.id === activeWorkspaceId)) {
+      setActiveWorkspaceId(null)
+    }
+  }
+
+  async function handleCreateWorkspace() {
+    const name = newWorkspaceName.trim()
+    if (!name) {
+      toast.warning("Enter a name for this custom payroll.")
+      return
+    }
+
+    setCreatingWorkspace(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    const org = activeOrganization === "pdn" ? "pdn" : "petrosphere"
+    const { data, error } = await supabase
+      .from("payroll_workspaces")
+      .insert({
+        name,
+        organization: org,
+        creator_id: user?.id ?? null,
+      })
+      .select("id, name, organization, created_at")
+      .single()
+    setCreatingWorkspace(false)
+
+    if (error || !data) {
+      console.error("Error creating payroll workspace:", error)
+      toast.error(
+        error?.message?.includes("does not exist")
+          ? "Workspaces table missing. Run payroll_add_workspaces.sql in Supabase."
+          : "Failed to create custom payroll."
+      )
+      return
+    }
+
+    setWorkspaces((prev) => [...prev, data])
+    setActiveWorkspaceId(data.id)
+    setNewWorkspaceName("")
+    setCreateWorkspaceOpen(false)
+    toast.success(`Custom payroll “${name}” created.`)
+  }
+
+  async function handleDeleteWorkspace(workspace: PayrollWorkspace) {
+    const confirmed = window.confirm(
+      `Delete custom payroll “${workspace.name}”? Records in this workspace keep their data but become unassigned (Regular).`
+    )
+    if (!confirmed) return
+
+    const toastId = toast.loading("Deleting custom payroll…")
+    const { error } = await supabase.from("payroll_workspaces").delete().eq("id", workspace.id)
+    if (error) {
+      toast.error("Failed to delete custom payroll.", { id: toastId })
+      return
+    }
+
+    setWorkspaces((prev) => prev.filter((w) => w.id !== workspace.id))
+    if (activeWorkspaceId === workspace.id) setActiveWorkspaceId(null)
+    toast.success("Custom payroll deleted.", { id: toastId })
+  }
 
   async function handleDeleteSelected() {
     if (selectedIds.length === 0) return toast.warning("No records selected.")
@@ -283,6 +390,10 @@ export default function PayrollPage() {
       deleteQuery = deleteQuery.is("run_id", null)
     }
 
+    deleteQuery = activeWorkspaceId
+      ? deleteQuery.eq("workspace_id", activeWorkspaceId)
+      : deleteQuery.is("workspace_id", null)
+
     const { error } = await deleteQuery
 
     if (error) {
@@ -295,7 +406,7 @@ export default function PayrollPage() {
 
   async function fetchPayrollPeriods() {
     if (activeOrganization === "pdn") {
-      const { data: payroll, error } = await supabase
+      let pdnQuery = supabase
         .from("pdn_payroll_records")
         .select(`
           id, employee_id, period_start, period_end, payroll_batch_id, basic_salary,
@@ -307,6 +418,12 @@ export default function PayrollPage() {
           pdn_employees(full_name, pay_type, profile_picture_url, employee_code, department, position)
         `)
         .order("period_end", { ascending: false })
+
+      pdnQuery = activeWorkspaceId
+        ? pdnQuery.eq("workspace_id", activeWorkspaceId)
+        : pdnQuery.is("workspace_id", null)
+
+      const { data: payroll, error } = await pdnQuery
 
       if (error) {
         console.error("Error fetching PDN payroll:", error.message, error.details, error.hint)
@@ -420,7 +537,7 @@ export default function PayrollPage() {
       return
     }
 
-    const { data: payroll, error } = await supabase
+    let payrollQuery = supabase
       .from("payroll_records")
       .select(`
         id,
@@ -457,6 +574,12 @@ export default function PayrollPage() {
         employees(full_name, pay_type, profile_picture_url, employee_code, department, position)
       `)
       .order("period_end", { ascending: false })
+
+    payrollQuery = activeWorkspaceId
+      ? payrollQuery.eq("workspace_id", activeWorkspaceId)
+      : payrollQuery.is("workspace_id", null)
+
+    const { data: payroll, error } = await payrollQuery
 
     if (error) {
       console.error("Error fetching payroll records:", error.message, error.hint, error.details)
@@ -722,7 +845,7 @@ export default function PayrollPage() {
     const toastId = toast.loading(`Updating status to ${newStatus}...`)
 
     const table = activeOrganization === "pdn" ? "pdn_payroll_records" : "payroll_records"
-    const { error } = await supabase
+    let statusQuery = supabase
       .from(table)
       .update({
         status: newStatus,
@@ -730,6 +853,22 @@ export default function PayrollPage() {
       })
       .eq("period_start", period.period_start)
       .eq("period_end", period.period_end)
+
+    if (activeOrganization === "pdn") {
+      statusQuery = period.run_id
+        ? statusQuery.eq("payroll_batch_id", period.run_id)
+        : statusQuery.is("payroll_batch_id", null)
+    } else {
+      statusQuery = period.run_id
+        ? statusQuery.eq("run_id", period.run_id)
+        : statusQuery.is("run_id", null)
+    }
+
+    statusQuery = activeWorkspaceId
+      ? statusQuery.eq("workspace_id", activeWorkspaceId)
+      : statusQuery.is("workspace_id", null)
+
+    const { error } = await statusQuery
 
     if (error) {
       toast.error(`Failed to update period status`, { id: toastId })
@@ -942,10 +1081,75 @@ export default function PayrollPage() {
 
   return (
     <div className="space-y-8 p-6 min-h-screen bg-background">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-semibold text-foreground">Payroll Management</h1>
-        <p className="text-muted-foreground">Manage employee payroll periods and generate bulk payroll records</p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-2">
+          <h1 className="text-3xl font-semibold text-foreground">Payroll Management</h1>
+          <p className="text-muted-foreground">Manage employee payroll periods and generate bulk payroll records</p>
+        </div>
+        <Button
+          variant="outline"
+          onClick={() => {
+            setNewWorkspaceName("")
+            setCreateWorkspaceOpen(true)
+          }}
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Add Custom Payroll
+        </Button>
       </div>
+
+      <div className="flex flex-wrap items-center gap-2 border-b border-border pb-0">
+        <button
+          type="button"
+          onClick={() => setActiveWorkspaceId(null)}
+          className={cn(
+            "px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
+            activeWorkspaceId === null
+              ? "border-primary text-foreground"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          )}
+        >
+          Regular Payroll
+        </button>
+        {workspaces.map((ws) => (
+          <div key={ws.id} className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setActiveWorkspaceId(ws.id)}
+              className={cn(
+                "px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
+                activeWorkspaceId === ws.id
+                  ? "border-primary text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {ws.name}
+            </button>
+            {activeWorkspaceId === ws.id && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                title={`Delete ${ws.name}`}
+                onClick={() => handleDeleteWorkspace(ws)}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {activeWorkspaceId && (
+        <p className="text-sm text-muted-foreground -mt-4">
+          Viewing custom payroll:{" "}
+          <span className="font-medium text-foreground">
+            {workspaces.find((w) => w.id === activeWorkspaceId)?.name || "—"}
+          </span>
+          . Periods and generation here are separate from Regular Payroll.
+        </p>
+      )}
 
       {periods.length > 0 && (
         <>
@@ -1063,11 +1267,21 @@ export default function PayrollPage() {
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-xl font-semibold text-foreground">Payroll Periods</h2>
-          <p className="text-muted-foreground">View and manage payroll periods</p>
+          <p className="text-muted-foreground">
+            {activeWorkspaceId
+              ? `Periods for ${workspaces.find((w) => w.id === activeWorkspaceId)?.name || "this custom payroll"}`
+              : "View and manage payroll periods"}
+          </p>
         </div>
 
         <Button 
-          onClick={() => router.push("/payroll/generate")}
+          onClick={() =>
+            router.push(
+              activeWorkspaceId
+                ? `/payroll/generate?workspace=${activeWorkspaceId}`
+                : "/payroll/generate"
+            )
+          }
           className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg font-bold"
         >
           <Plus className="h-4 w-4 mr-2" />
@@ -1081,7 +1295,11 @@ export default function PayrollPage() {
             <div className="text-center py-12">
               <FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
               <h3 className="text-lg font-medium text-foreground mb-2">No payroll periods found</h3>
-              <p className="text-muted-foreground mb-4">Generate your first payroll to get started</p>
+              <p className="text-muted-foreground mb-4">
+                {activeWorkspaceId
+                  ? "Generate payroll in this custom ledger to get started"
+                  : "Generate your first payroll to get started"}
+              </p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -2251,6 +2469,44 @@ export default function PayrollPage() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={createWorkspaceOpen} onOpenChange={setCreateWorkspaceOpen}>
+        <DialogContent className="w-[50vw] max-w-[50vw] sm:max-w-[50vw]">
+          <DialogHeader>
+            <DialogTitle>Add Custom Payroll</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Create a separate payroll ledger (for example 13th Month Pay or a special bonus run).
+              It will appear as its own tab with the same period management tools.
+            </p>
+            <div className="space-y-2">
+              <Label htmlFor="workspace-name">Payroll name</Label>
+              <Input
+                id="workspace-name"
+                placeholder="e.g. 13th Month Pay 2026"
+                value={newWorkspaceName}
+                onChange={(e) => setNewWorkspaceName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault()
+                    handleCreateWorkspace()
+                  }
+                }}
+                autoFocus
+              />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button type="button" variant="outline" onClick={() => setCreateWorkspaceOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="button" disabled={creatingWorkspace} onClick={handleCreateWorkspace}>
+                {creatingWorkspace ? "Saving…" : "Save"}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

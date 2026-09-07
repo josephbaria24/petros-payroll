@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useMemo } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { supabase } from "@/lib/supabaseClient"
 import { useOrganization } from "@/contexts/OrganizationContext"
 import { Button } from "@/components/ui/button"
@@ -243,6 +243,8 @@ function formatTo12Hour(timeStr: string | null): string {
 export default function GeneratePayrollPage() {
   useProtectedPage(["admin", "hr"], "payroll")
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const workspaceId = searchParams.get("workspace")
   const { activeOrganization } = useOrganization()
 
   // States
@@ -990,18 +992,28 @@ export default function GeneratePayrollPage() {
     const endStr = format(periodEnd, "yyyy-MM-dd")
 
     const batchColumn = activeOrganization === "pdn" ? "payroll_batch_id" : "run_id"
-    const { data, error } = await supabase
+    let existingQuery = supabase
       .from(payrollTable)
       .select(`id, employee_id, ${batchColumn}`)
       .eq("period_start", startStr)
       .eq("period_end", endStr)
 
+    existingQuery = workspaceId
+      ? existingQuery.eq("workspace_id", workspaceId)
+      : existingQuery.is("workspace_id", null)
+
+    const { data, error } = await existingQuery
+
     if (error) {
-      const { data: fallback, error: fallbackErr } = await supabase
+      let fallbackQuery = supabase
         .from(payrollTable)
         .select("id, employee_id")
         .eq("period_start", startStr)
         .eq("period_end", endStr)
+      fallbackQuery = workspaceId
+        ? fallbackQuery.eq("workspace_id", workspaceId)
+        : fallbackQuery.is("workspace_id", null)
+      const { data: fallback, error: fallbackErr } = await fallbackQuery
       if (fallbackErr) {
         console.error(fallbackErr)
         return null
@@ -1072,12 +1084,16 @@ export default function GeneratePayrollPage() {
       const payrollTable = activeOrganization === "pdn" ? "pdn_payroll_records" : "payroll_records"
       
       if (saveMode === "overwrite") {
-        const { error: deleteErr } = await supabase
+        let deleteQuery = supabase
           .from(payrollTable)
           .delete()
           .eq("period_start", format(periodStart, "yyyy-MM-dd"))
           .eq("period_end", format(periodEnd, "yyyy-MM-dd"))
           .in("employee_id", selectedEmployeeIds)
+        deleteQuery = workspaceId
+          ? deleteQuery.eq("workspace_id", workspaceId)
+          : deleteQuery.is("workspace_id", null)
+        const { error: deleteErr } = await deleteQuery
         if (deleteErr) {
           toast.error(deleteErr.message || "Could not clear existing payroll for this period", { id: toastId })
           return
@@ -1200,16 +1216,22 @@ export default function GeneratePayrollPage() {
         return
       }
 
-      const recordsWithBatch = recordsToInsert.map((row) =>
-        activeOrganization === "pdn"
-          ? { ...row, payroll_batch_id: payrollRunId }
-          : { ...row, run_id: payrollRunId }
-      )
+      const recordsWithBatch = recordsToInsert.map((row) => {
+        const withWorkspace = workspaceId ? { ...row, workspace_id: workspaceId } : { ...row, workspace_id: null }
+        return activeOrganization === "pdn"
+          ? { ...withWorkspace, payroll_batch_id: payrollRunId }
+          : { ...withWorkspace, run_id: payrollRunId }
+      })
 
       const { error: insertErr } = await supabase.from(payrollTable).insert(recordsWithBatch)
       if (insertErr) {
         const msg = insertErr.message || "Failed to save payroll records"
-        toast.error(msg, { id: toastId })
+        toast.error(
+          msg.includes("workspace_id")
+            ? `${msg} Run payroll_add_workspaces.sql in Supabase.`
+            : msg,
+          { id: toastId }
+        )
         await supabase.from("payroll_runs").delete().eq("id", payrollRunId)
         return
       }
@@ -1219,7 +1241,7 @@ export default function GeneratePayrollPage() {
           : "Payroll generated successfully",
         { id: toastId }
       )
-      router.push("/payroll")
+      router.push(workspaceId ? `/payroll?workspace=${workspaceId}` : "/payroll")
     } catch (err: any) {
       toast.error(err.message, { id: toastId })
     }
