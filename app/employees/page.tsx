@@ -510,11 +510,11 @@ export default function EmployeesPage() {
   }
 
   return (
-    <div className="space-y-8 p-6 min-h-screen bg-background">
+    <div className="space-y-4 sm:space-y-8 p-3 sm:p-6 min-h-screen bg-background">
       {/* Page Title */}
-      <div className="space-y-2">
-        <h1 className="text-3xl font-semibold text-foreground">Employees</h1>
-        <p className="text-muted-foreground">
+      <div className="space-y-1 sm:space-y-2">
+        <h1 className="text-2xl sm:text-3xl font-semibold text-foreground">Employees</h1>
+        <p className="text-sm sm:text-base text-muted-foreground">
           Manage employee information, roles, and compensation details
         </p>
       </div>
@@ -615,13 +615,13 @@ export default function EmployeesPage() {
               Add Employee
             </Button>
           </DialogTrigger>
-          <DialogContent className="lg:w-[50vw] max-h-[90vh] overflow-hidden flex flex-col p-0 border-none shadow-2xl">
-            <DialogHeader className="p-6 bg-muted/30 border-b border-border space-y-1">
-              <div className="flex items-center justify-between w-full">
-                <div className="flex items-center gap-4">
-                  <div className="relative group">
+          <DialogContent className="w-[calc(100%-1rem)] max-w-[calc(100%-1rem)] sm:max-w-lg lg:max-w-[50vw] h-[92dvh] max-h-[92dvh] sm:h-auto sm:max-h-[90vh] overflow-hidden flex flex-col p-0 border-none shadow-2xl">
+            <DialogHeader className="p-4 sm:p-6 bg-muted/30 border-b border-border space-y-1 text-left">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between w-full gap-3 pr-6">
+                <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                  <div className="relative group shrink-0">
                     <div className={cn(
-                        "h-16 w-16 rounded-full overflow-hidden border-2 border-border/50 flex items-center justify-center bg-muted shrink-0 text-xl font-bold text-muted-foreground",
+                        "h-12 w-12 sm:h-16 sm:w-16 rounded-full overflow-hidden border-2 border-border/50 flex items-center justify-center bg-muted text-lg sm:text-xl font-bold text-muted-foreground",
                         isUploadingAvatar && "opacity-50"
                       )}>
                       {form.profile_picture_url ? (
@@ -637,17 +637,17 @@ export default function EmployeesPage() {
                       </label>
                     )}
                   </div>
-                  <div>
-                    <DialogTitle className="text-2xl font-bold text-foreground">
+                  <div className="min-w-0">
+                    <DialogTitle className="text-lg sm:text-2xl font-bold text-foreground">
                       {!isEditing ? "New Employee" : (viewMode ? (
-                        <div className="flex items-center gap-2 text-foreground">
-                          <span className="text-muted-foreground/50 text-sm font-normal">#{form.employee_code}</span>
-                          <span>{form.full_name}</span>
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-2 text-foreground min-w-0">
+                          <span className="text-muted-foreground/50 text-xs sm:text-sm font-normal">#{form.employee_code}</span>
+                          <span className="truncate">{form.full_name}</span>
                         </div>
                       ) : "Edit Employee")}
                     </DialogTitle>
                     {viewMode && isEditing && (
-                      <p className="text-muted-foreground text-sm font-medium">{form.position} • {form.department}</p>
+                      <p className="text-muted-foreground text-xs sm:text-sm font-medium truncate">{form.position} • {form.department}</p>
                     )}
                   </div>
                 </div>
@@ -656,7 +656,7 @@ export default function EmployeesPage() {
                     variant="secondary"
                     size="sm"
                     onClick={() => setViewMode(false)}
-                    className="gap-2 rounded-full px-4 h-9 shadow-sm hover:translate-y-[-1px] transition-all"
+                    className="gap-2 rounded-full px-4 h-9 shadow-sm hover:translate-y-[-1px] transition-all w-full sm:w-auto shrink-0"
                   >
                     <Edit className="h-3.5 w-3.5" />
                     Edit Details
@@ -665,15 +665,15 @@ export default function EmployeesPage() {
               </div>
             </DialogHeader>
 
-            <div className="flex-1 overflow-y-auto p-6 space-y-8">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 sm:space-y-8">
               {viewMode && isEditing ? (
-                <div className="grid gap-8 pb-4">
+                <div className="grid gap-6 sm:gap-8 pb-4">
                   {/* View Sections */}
                   <div>
-                    <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                    <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-3 sm:mb-4 flex items-center gap-2">
                       <Briefcase className="h-3 w-3" /> Professional
                     </h4>
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                       <div className="space-y-1">
                         <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">Status</p>
                         <div className="flex">
@@ -690,10 +690,10 @@ export default function EmployeesPage() {
                   <Separator className="bg-border/50" />
 
                   <div>
-                    <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                    <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-3 sm:mb-4 flex items-center gap-2">
                       <Calculator className="h-3 w-3" /> Compensation
                     </h4>
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                       <div className="space-y-1">
                         <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">Pay type</p>
                         <p className="text-sm font-bold capitalize">{form.pay_type?.replace(/-/g, " ") || "—"}</p>
@@ -734,10 +734,10 @@ export default function EmployeesPage() {
                   <Separator className="bg-border/50" />
 
                   <div>
-                    <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                    <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-3 sm:mb-4 flex items-center gap-2">
                       <Users className="h-3 w-3" /> Identification
                     </h4>
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                       <div className="space-y-1">
                         <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">SSS</p>
                         <p className="text-sm font-medium">{form.sss || "—"}</p>
@@ -750,12 +750,12 @@ export default function EmployeesPage() {
                   </div>
                 </div>
               ) : (
-                <form onSubmit={handleSave} className="space-y-6">
+                <form onSubmit={handleSave} className="space-y-5 sm:space-y-6">
                   {/* Basic Information */}
                   <div className="space-y-4">
-                    <h3 className="text-lg font-medium text-foreground">Basic Information</h3>
+                    <h3 className="text-base sm:text-lg font-medium text-foreground">Basic Information</h3>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="employee_code">Employee Code</Label>
                         <Input
@@ -809,7 +809,7 @@ export default function EmployeesPage() {
                         <p className="text-[10px] text-muted-foreground">Selecting an identity will pre-fill the name and email fields below.</p>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                         <div className="space-y-2">
                           <Label htmlFor="full_name">Full Name</Label>
                           <Input
@@ -835,7 +835,7 @@ export default function EmployeesPage() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="position">Position</Label>
                         <Input
@@ -862,9 +862,9 @@ export default function EmployeesPage() {
 
                   {/* Government IDs */}
                   <div className="space-y-4">
-                    <h3 className="text-lg font-medium text-foreground">Government IDs</h3>
+                    <h3 className="text-base sm:text-lg font-medium text-foreground">Government IDs</h3>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="tin">TIN</Label>
                         <Input
@@ -911,9 +911,9 @@ export default function EmployeesPage() {
 
                   {/* Compensation */}
                   <div className="space-y-4">
-                    <h3 className="text-lg font-medium text-foreground">Compensation & Schedule</h3>
+                    <h3 className="text-base sm:text-lg font-medium text-foreground">Compensation & Schedule</h3>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="base_salary">{baseSalaryFieldLabel(form.pay_type)}</Label>
                         <Input
@@ -990,7 +990,7 @@ export default function EmployeesPage() {
                       </div>
 
                       {form.pay_type === "monthly" && (
-                        <p className="text-[11px] text-muted-foreground col-span-2 leading-snug border border-border/60 rounded-md px-3 py-2 bg-muted/20">
+                        <p className="text-[11px] text-muted-foreground sm:col-span-2 leading-snug border border-border/60 rounded-md px-3 py-2 bg-muted/20">
                           <span className="font-semibold text-foreground">Generate Payroll:</span> choose{" "}
                           <strong>Date range</strong> to prorate this salary by scheduled working days in that window, or{" "}
                           <strong>Fixed monthly</strong> or a matching date range to pay ×1, ×½, or ×¼ of monthly pay

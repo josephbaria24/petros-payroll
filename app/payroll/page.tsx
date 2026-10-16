@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label"
 import { toast } from "@/lib/toast"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { CalendarIcon, Trash2, Plus, X, Calculator, Users, PhilippinePeso, TrendingUp, FileText, Check, XCircle, Clock, CheckCircle, ChevronDown, CheckCircle2, AlertCircle, Search, Download, ChevronLeft, ChevronRight, HandCoins } from "lucide-react"
+import { CalendarIcon, Trash2, Plus, X, Calculator, Users, PhilippinePeso, TrendingUp, FileText, Check, XCircle, Clock, CheckCircle, ChevronDown, CheckCircle2, AlertCircle, Search, Download, ChevronLeft, ChevronRight, HandCoins, Paperclip, ExternalLink } from "lucide-react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 import {
@@ -105,6 +105,12 @@ type PayrollRecord = {
   profile_picture_url?: string
 }
 
+type PartialPaymentAttachment = {
+  name: string
+  url: string
+  uploaded_at?: string
+}
+
 type PartialSalaryPayment = {
   id: string
   employee_id: string
@@ -113,7 +119,9 @@ type PartialSalaryPayment = {
   amount: number
   payment_date: string
   notes: string | null
+  attachments?: PartialPaymentAttachment[] | null
   created_at: string
+  updated_at?: string | null
 }
 
 type PayrollPeriod = {
@@ -219,7 +227,9 @@ export default function PayrollPage() {
     amount: "",
     payment_date: format(new Date(), "yyyy-MM-dd"),
     notes: "",
+    files: [] as File[],
   })
+  const [uploadingAttachmentFor, setUploadingAttachmentFor] = useState<string | null>(null)
 
   const [receiptDialogOpen, setReceiptDialogOpen] = useState(false)
   const [receiptPeriod, setReceiptPeriod] = useState<PayrollPeriod | null>(null)
@@ -909,16 +919,26 @@ export default function PayrollPage() {
     )
   }
 
+  async function uploadPartialAttachments(files: File[]): Promise<PartialPaymentAttachment[]> {
+    if (files.length === 0) return []
+    const body = new FormData()
+    for (const file of files) body.append("files", file)
+    const res = await fetch("/api/upload-partial-attachment", { method: "POST", body })
+    const json = await res.json()
+    if (!res.ok) throw new Error(json.error || "Upload failed")
+    return (json.files || []) as PartialPaymentAttachment[]
+  }
+
   async function openPartialPaymentsDialog(rec: PayrollRecord) {
     setPartialRecord(rec)
     setPartialEntries([])
-    setPartialForm({ amount: "", payment_date: format(new Date(), "yyyy-MM-dd"), notes: "" })
+    setPartialForm({ amount: "", payment_date: format(new Date(), "yyyy-MM-dd"), notes: "", files: [] })
     setPartialDialogOpen(true)
     setPartialLoading(true)
 
     const { data, error } = await supabase
       .from(partialPaymentsTable)
-      .select("id, employee_id, period_start, period_end, amount, payment_date, notes, created_at")
+      .select("id, employee_id, period_start, period_end, amount, payment_date, notes, attachments, created_at, updated_at")
       .eq("employee_id", rec.employee_id)
       .eq("period_start", rec.period_start)
       .eq("period_end", rec.period_end)
@@ -930,7 +950,9 @@ export default function PayrollPage() {
       toast.error(
         error.message.includes("does not exist")
           ? "Partial payments table missing. Run partial_salary_payments.sql in Supabase."
-          : "Failed to load partial salary payments."
+          : error.message.includes("attachments") || error.message.includes("updated_at")
+            ? "Run partial_salary_payments_attachments.sql in Supabase to enable attachments."
+            : "Failed to load partial salary payments."
       )
       return
     }
@@ -984,37 +1006,105 @@ export default function PayrollPage() {
     }
 
     setPartialSaving(true)
-    const { data: { user } } = await supabase.auth.getUser()
+    try {
+      let attachments: PartialPaymentAttachment[] = []
+      if (partialForm.files.length > 0) {
+        attachments = await uploadPartialAttachments(partialForm.files)
+      }
+
+      const nowIso = new Date().toISOString()
+      const { data: { user } } = await supabase.auth.getUser()
+      const { data, error } = await supabase
+        .from(partialPaymentsTable)
+        .insert({
+          employee_id: partialRecord.employee_id,
+          period_start: partialRecord.period_start,
+          period_end: partialRecord.period_end,
+          amount,
+          payment_date: partialForm.payment_date,
+          notes: partialForm.notes.trim() || null,
+          attachments,
+          creator_id: user?.id ?? null,
+          updated_at: nowIso,
+        })
+        .select("id, employee_id, period_start, period_end, amount, payment_date, notes, attachments, created_at, updated_at")
+        .single()
+
+      if (error || !data) {
+        console.error("Error adding partial salary payment:", error)
+        toast.error(
+          error?.message.includes("does not exist")
+            ? "Partial payments table missing. Run partial_salary_payments.sql in Supabase."
+            : error?.message.includes("attachments") || error?.message.includes("updated_at")
+              ? "Run partial_salary_payments_attachments.sql in Supabase."
+              : "Failed to add partial salary payment."
+        )
+        return
+      }
+
+      const updated = [...partialEntries, data].sort((a, b) => a.payment_date.localeCompare(b.payment_date))
+      setPartialEntries(updated)
+      setPartialForm({ amount: "", payment_date: format(new Date(), "yyyy-MM-dd"), notes: "", files: [] })
+      toast.success("Partial salary payment recorded.")
+      await syncPartialTotalsToRecord(partialRecord, updated.reduce((s, p) => s + (p.amount || 0), 0))
+    } catch (e: any) {
+      console.error(e)
+      toast.error(e.message || "Failed to add partial salary payment.")
+    } finally {
+      setPartialSaving(false)
+    }
+  }
+
+  async function handleAddAttachmentsToPayment(entry: PartialSalaryPayment, fileList: FileList | null) {
+    if (!fileList || fileList.length === 0) return
+    const files = Array.from(fileList)
+    setUploadingAttachmentFor(entry.id)
+    try {
+      const uploaded = await uploadPartialAttachments(files)
+      const nextAttachments = [...(entry.attachments || []), ...uploaded]
+      const nowIso = new Date().toISOString()
+      const { data, error } = await supabase
+        .from(partialPaymentsTable)
+        .update({ attachments: nextAttachments, updated_at: nowIso })
+        .eq("id", entry.id)
+        .select("id, employee_id, period_start, period_end, amount, payment_date, notes, attachments, created_at, updated_at")
+        .single()
+
+      if (error || !data) {
+        console.error("Error updating attachments:", error)
+        toast.error(
+          error?.message.includes("attachments")
+            ? "Run partial_salary_payments_attachments.sql in Supabase."
+            : "Failed to save attachments."
+        )
+        return
+      }
+
+      setPartialEntries((prev) => prev.map((p) => (p.id === entry.id ? data : p)))
+      toast.success(`${uploaded.length} attachment(s) added.`)
+    } catch (e: any) {
+      console.error(e)
+      toast.error(e.message || "Failed to upload attachments.")
+    } finally {
+      setUploadingAttachmentFor(null)
+    }
+  }
+
+  async function handleRemoveAttachment(entry: PartialSalaryPayment, url: string) {
+    const nextAttachments = (entry.attachments || []).filter((a) => a.url !== url)
+    const nowIso = new Date().toISOString()
     const { data, error } = await supabase
       .from(partialPaymentsTable)
-      .insert({
-        employee_id: partialRecord.employee_id,
-        period_start: partialRecord.period_start,
-        period_end: partialRecord.period_end,
-        amount,
-        payment_date: partialForm.payment_date,
-        notes: partialForm.notes.trim() || null,
-        creator_id: user?.id ?? null,
-      })
-      .select("id, employee_id, period_start, period_end, amount, payment_date, notes, created_at")
+      .update({ attachments: nextAttachments, updated_at: nowIso })
+      .eq("id", entry.id)
+      .select("id, employee_id, period_start, period_end, amount, payment_date, notes, attachments, created_at, updated_at")
       .single()
-    setPartialSaving(false)
 
     if (error || !data) {
-      console.error("Error adding partial salary payment:", error)
-      toast.error(
-        error?.message.includes("does not exist")
-          ? "Partial payments table missing. Run partial_salary_payments.sql in Supabase."
-          : "Failed to add partial salary payment."
-      )
+      toast.error("Failed to remove attachment.")
       return
     }
-
-    const updated = [...partialEntries, data].sort((a, b) => a.payment_date.localeCompare(b.payment_date))
-    setPartialEntries(updated)
-    setPartialForm({ amount: "", payment_date: format(new Date(), "yyyy-MM-dd"), notes: "" })
-    toast.success("Partial salary payment recorded.")
-    await syncPartialTotalsToRecord(partialRecord, updated.reduce((s, p) => s + (p.amount || 0), 0))
+    setPartialEntries((prev) => prev.map((p) => (p.id === entry.id ? data : p)))
   }
 
   async function handleDeletePartialPayment(entry: PartialSalaryPayment) {
@@ -1634,22 +1724,24 @@ export default function PayrollPage() {
       >
         <DialogContent
           className="
-    max-w-[95vw]
-    w-full
-    h-[90vh]
-    overflow-hidden
-    flex
-    flex-col
-  "
+            w-[calc(100%-1rem)] max-w-[calc(100%-1rem)]
+            sm:max-w-[95vw] lg:max-w-[90vw]
+            h-[92dvh] max-h-[92dvh]
+            p-3 sm:p-6
+            overflow-hidden flex flex-col gap-3 sm:gap-4
+          "
         >
-
-          <DialogHeader className="pb-4 border-b border-border flex flex-row items-center justify-between gap-4">
-            <DialogTitle className="text-xl font-semibold text-foreground">
-              Payroll Details - {selectedPeriodName}
+          <DialogHeader className="pb-3 border-b border-border space-y-3 sm:space-y-0 sm:flex sm:flex-row sm:items-center sm:justify-between sm:gap-4 text-left">
+            <DialogTitle className="text-base sm:text-xl font-semibold text-foreground pr-8 leading-snug">
+              <span className="sm:hidden">Payroll Details</span>
+              <span className="hidden sm:inline">Payroll Details - {selectedPeriodName}</span>
+              <span className="block sm:hidden text-xs font-normal text-muted-foreground mt-1">
+                {selectedPeriodName}
+              </span>
             </DialogTitle>
-            <div className="relative w-70 pr-5">
+            <div className="relative w-full sm:w-64 sm:pr-5 shrink-0">
               <Input
-                placeholder="Search employee by name..."
+                placeholder="Search employee…"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9 h-9 border-primary/20 focus-visible:ring-primary/30"
@@ -1666,38 +1758,177 @@ export default function PayrollPage() {
             </div>
           </DialogHeader>
 
-          <div className="flex-1 flex flex-col min-h-0 space-y-4 pt-4">
-
-
+          <div className="flex-1 flex flex-col min-h-0 space-y-3 sm:space-y-4">
             {selectedIds.length > 0 && (
-              <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg border border-border">
-                <span className="text-sm text-muted-foreground">
-                  {selectedIds.length} records selected
+              <div className="flex flex-wrap items-center gap-2 p-2.5 sm:p-3 bg-muted/50 rounded-lg border border-border">
+                <span className="text-xs sm:text-sm text-muted-foreground w-full sm:w-auto">
+                  {selectedIds.length} selected
                 </span>
-
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={handleMarkSelectedAsPaid}
-                  className="text-green-700 border-green-300 hover:bg-green-50"
+                  className="text-green-700 border-green-300 hover:bg-green-50 h-8 text-xs"
                 >
-                  <CheckCircle className="h-4 w-4 mr-1" />
-                  Mark as Paid
+                  <CheckCircle className="h-3.5 w-3.5 mr-1" />
+                  Mark Paid
                 </Button>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleDeleteSelected}
-                >
-                  <Trash2 className="h-4 w-4 mr-1" />
+                <Button variant="outline" size="sm" onClick={handleDeleteSelected} className="h-8 text-xs">
+                  <Trash2 className="h-3.5 w-3.5 mr-1" />
                   Delete
                 </Button>
               </div>
             )}
 
+            {/* Mobile: compact cards */}
+            <div className="md:hidden flex-1 min-h-0 overflow-y-auto space-y-2 -mx-0.5 px-0.5">
+              <div className="flex items-center justify-between px-1 pb-1">
+                <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={
+                      selectedIds.length === selectedPeriodRecords.length &&
+                      selectedPeriodRecords.length > 0
+                    }
+                    onChange={handleSelectAll}
+                    className="rounded"
+                  />
+                  Select all
+                </label>
+                <span className="text-[10px] text-muted-foreground">
+                  {selectedPeriodRecords.filter((rec) =>
+                    rec.employee_name?.toLowerCase().includes(searchQuery.toLowerCase())
+                  ).length}{" "}
+                  employees
+                </span>
+              </div>
+              {selectedPeriodRecords
+                .filter((rec) =>
+                  rec.employee_name?.toLowerCase().includes(searchQuery.toLowerCase())
+                )
+                .map((rec) => (
+                  <div
+                    key={rec.id}
+                    className="rounded-lg border border-border bg-card p-3 shadow-sm space-y-2.5"
+                  >
+                    <div className="flex items-start gap-2">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(rec.id)}
+                        onChange={() => handleSelect(rec.id)}
+                        className="mt-1.5 rounded shrink-0"
+                      />
+                      <button
+                        type="button"
+                        className="flex-1 min-w-0 text-left"
+                        onClick={() => {
+                          setEditRecord(rec)
+                          setEditDialogOpen(true)
+                        }}
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="h-8 w-8 rounded-full overflow-hidden border border-border bg-muted flex items-center justify-center shrink-0">
+                            {rec.profile_picture_url ? (
+                              <img src={rec.profile_picture_url} className="h-full w-full object-cover" alt="" />
+                            ) : (
+                              <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold text-foreground truncate">{rec.employee_name}</p>
+                            <p className="text-[10px] text-muted-foreground capitalize">{rec.pay_type || "—"}</p>
+                          </div>
+                          <span
+                            className={cn(
+                              "px-1.5 py-0.5 rounded-full text-[10px] font-medium border shrink-0",
+                              statusVariants[rec.status] || "bg-muted text-muted-foreground border-border"
+                            )}
+                          >
+                            {rec.status}
+                          </span>
+                        </div>
+                      </button>
+                    </div>
 
-            <div className="flex-1 min-h-0 relative">
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px] pl-6">
+                      <div className="flex justify-between gap-1">
+                        <span className="text-muted-foreground">Basic</span>
+                        <span className="font-medium tabular-nums">₱{(rec.basic_salary || 0).toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between gap-1">
+                        <span className="text-muted-foreground">OT</span>
+                        <span className="font-medium tabular-nums">₱{(rec.overtime_pay || 0).toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between gap-1">
+                        <span className="text-muted-foreground">Deductions</span>
+                        <span className="font-medium text-red-600/80 tabular-nums">₱{(rec.total_deductions || 0).toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between gap-1">
+                        <span className="text-muted-foreground">Net</span>
+                        <span className="font-bold tabular-nums">₱{(rec.total_net || 0).toLocaleString()}</span>
+                      </div>
+                      {(rec.cash_advance || 0) > 0 && (
+                        <div className="col-span-2 flex justify-between gap-1 border-t border-border/60 pt-1.5">
+                          <span className="text-muted-foreground">Partial salary</span>
+                          <span className="font-medium tabular-nums">₱{(rec.cash_advance || 0).toLocaleString()}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1 pl-6 pt-0.5 border-t border-border/50">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 px-2 text-muted-foreground"
+                        title="Earnings receipt"
+                        type="button"
+                        onClick={() => {
+                          if (periodDialogContext) openReceiptDialog(periodDialogContext, rec.id)
+                        }}
+                      >
+                        <ReceiptIcon className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 px-2 text-amber-600"
+                        title="Partial salary payments"
+                        type="button"
+                        onClick={() => openPartialPaymentsDialog(rec)}
+                      >
+                        <HandCoins className="h-4 w-4" />
+                      </Button>
+                      {rec.status !== "Paid" && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          type="button"
+                          onClick={() => handleMarkAsPaid(rec.id)}
+                          className="h-8 px-2 text-green-600 text-xs"
+                        >
+                          <CheckCircle className="h-3.5 w-3.5 mr-1" />
+                          Paid
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        type="button"
+                        className="h-8 ml-auto text-xs px-2"
+                        onClick={() => {
+                          setEditRecord(rec)
+                          setEditDialogOpen(true)
+                        }}
+                      >
+                        Edit
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+            </div>
+
+            {/* Desktop: full table */}
+            <div className="hidden md:block flex-1 min-h-0 relative">
               <div className="absolute inset-0 border border-border rounded-lg overflow-auto shadow-inner [&_[data-slot=table-container]]:overflow-visible">
                 <Table>
                   <TableHeader>
@@ -1742,7 +1973,7 @@ export default function PayrollPage() {
                   </TableHeader>
                   <TableBody>
                     {selectedPeriodRecords
-                      .filter(rec =>
+                      .filter((rec) =>
                         rec.employee_name?.toLowerCase().includes(searchQuery.toLowerCase())
                       )
                       .map((rec) => (
@@ -1841,7 +2072,6 @@ export default function PayrollPage() {
                               {rec.status}
                             </span>
                           </TableCell>
-
                         </TableRow>
                       ))}
                   </TableBody>
@@ -2329,7 +2559,7 @@ export default function PayrollPage() {
       </Dialog>
 
       <Dialog open={partialDialogOpen} onOpenChange={setPartialDialogOpen}>
-        <DialogContent className="lg:max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="lg:max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-xl font-semibold text-foreground flex items-center gap-2">
               <HandCoins className="h-5 w-5 text-amber-600" />
@@ -2359,27 +2589,80 @@ export default function PayrollPage() {
                     No partial salary payments recorded for this period yet.
                   </p>
                 ) : (
-                  <div className="border border-border rounded-lg overflow-hidden">
+                  <div className="border border-border rounded-lg overflow-x-auto">
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-muted/40">
                           <TableHead className="text-xs font-bold">Date Given</TableHead>
                           <TableHead className="text-xs font-bold">Notes</TableHead>
                           <TableHead className="text-xs font-bold text-right">Amount</TableHead>
+                          <TableHead className="text-xs font-bold min-w-[160px]">Attachments</TableHead>
+                          <TableHead className="text-xs font-bold">Created</TableHead>
+                          <TableHead className="text-xs font-bold">Updated</TableHead>
                           <TableHead className="w-10" />
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {partialEntries.map((entry) => (
                           <TableRow key={entry.id}>
-                            <TableCell className="text-sm">
+                            <TableCell className="text-sm whitespace-nowrap">
                               {format(new Date(entry.payment_date), "MMM d, yyyy")}
                             </TableCell>
-                            <TableCell className="text-sm text-muted-foreground">
+                            <TableCell className="text-sm text-muted-foreground max-w-[140px] truncate">
                               {entry.notes || "—"}
                             </TableCell>
-                            <TableCell className="text-sm font-semibold text-right">
+                            <TableCell className="text-sm font-semibold text-right whitespace-nowrap">
                               ₱{entry.amount.toLocaleString("en-PH", { minimumFractionDigits: 2 })}
+                            </TableCell>
+                            <TableCell className="text-sm">
+                              <div className="flex flex-col gap-1.5 min-w-[140px]">
+                                {(entry.attachments || []).length === 0 ? (
+                                  <span className="text-muted-foreground text-xs">No files</span>
+                                ) : (
+                                  (entry.attachments || []).map((att) => (
+                                    <div key={att.url} className="flex items-center gap-1 group">
+                                      <a
+                                        href={att.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1 text-xs text-primary hover:underline truncate max-w-[120px]"
+                                        title={att.name}
+                                      >
+                                        <ExternalLink className="h-3 w-3 shrink-0" />
+                                        <span className="truncate">{att.name}</span>
+                                      </a>
+                                      <button
+                                        type="button"
+                                        className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-red-600"
+                                        title="Remove attachment"
+                                        onClick={() => handleRemoveAttachment(entry, att.url)}
+                                      >
+                                        <X className="h-3 w-3" />
+                                      </button>
+                                    </div>
+                                  ))
+                                )}
+                                <label className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground hover:text-foreground cursor-pointer w-fit">
+                                  <Paperclip className="h-3 w-3" />
+                                  {uploadingAttachmentFor === entry.id ? "Uploading…" : "Add files"}
+                                  <input
+                                    type="file"
+                                    multiple
+                                    className="hidden"
+                                    disabled={uploadingAttachmentFor === entry.id}
+                                    onChange={(e) => {
+                                      handleAddAttachmentsToPayment(entry, e.target.files)
+                                      e.target.value = ""
+                                    }}
+                                  />
+                                </label>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                              {formatPH(entry.created_at)}
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                              {formatPH(entry.updated_at || entry.created_at)}
                             </TableCell>
                             <TableCell>
                               <Button
@@ -2431,6 +2714,26 @@ export default function PayrollPage() {
                     value={partialForm.notes}
                     onChange={(e) => setPartialForm((f) => ({ ...f, notes: e.target.value }))}
                   />
+                </div>
+                <div>
+                  <Label className="text-xs font-medium text-muted-foreground">Attachments (optional, multiple)</Label>
+                  <Input
+                    type="file"
+                    multiple
+                    className="cursor-pointer"
+                    onChange={(e) =>
+                      setPartialForm((f) => ({
+                        ...f,
+                        files: e.target.files ? Array.from(e.target.files) : [],
+                      }))
+                    }
+                  />
+                  {partialForm.files.length > 0 && (
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      {partialForm.files.length} file(s) selected:{" "}
+                      {partialForm.files.map((f) => f.name).join(", ")}
+                    </p>
+                  )}
                 </div>
                 <Button
                   type="button"

@@ -16,7 +16,7 @@ import {
 import { toast } from "@/lib/toast"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { FileText, Download, Eye, PhilippinePeso, Trash2, Search, Info, TrendingUp, Calendar, ChevronRight, ChevronLeft } from "lucide-react"
+import { FileText, Download, Eye, PhilippinePeso, Trash2, Search, Info, TrendingUp, Calendar, ChevronRight, ChevronLeft, Paperclip } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { QRCodeSVG } from "qrcode.react"
 import { PetrospherePayslipHeader } from "@/components/petrosphere-payslip-header"
@@ -46,7 +46,7 @@ async function fetchPartialPaymentsForEmployee(
 ) {
   const { data, error } = await supabase
     .from(table)
-    .select("id, period_start, period_end, amount, payment_date, notes")
+    .select("id, period_start, period_end, amount, payment_date, notes, attachments, created_at, updated_at")
     .eq("employee_id", employeeId)
     .order("payment_date", { ascending: true })
 
@@ -67,6 +67,25 @@ function attachPartialPayments(rec: any, partials: any[]) {
   }
 }
 
+type PartialAttachment = { name: string; url: string; payment_date?: string }
+
+function collectPartialAttachments(record: any): PartialAttachment[] {
+  const entries: any[] = record?.partial_payments || []
+  const out: PartialAttachment[] = []
+  for (const p of entries) {
+    for (const att of p.attachments || []) {
+      if (att?.url) {
+        out.push({
+          name: att.name || "Attachment",
+          url: att.url,
+          payment_date: p.payment_date,
+        })
+      }
+    }
+  }
+  return out
+}
+
 function PayslipPartialSalarySection({
   record,
   formatCurrency,
@@ -77,6 +96,7 @@ function PayslipPartialSalarySection({
   formatDate: (dateString: string) => string
 }) {
   const entries: any[] = record.partial_payments || []
+  const attachments = collectPartialAttachments(record)
   const totalPartial =
     entries.length > 0
       ? entries.reduce((s, p) => s + (Number(p.amount) || 0), 0)
@@ -96,20 +116,30 @@ function PayslipPartialSalarySection({
       </p>
 
       {entries.length > 0 ? (
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
           <thead>
             <tr>
-              <th style={{ border: '1px solid #d1d5db', padding: '6px 10px', backgroundColor: '#f3f4f6', textAlign: 'left', color: '#111827' }}>Date Given</th>
-              <th style={{ border: '1px solid #d1d5db', padding: '6px 10px', backgroundColor: '#f3f4f6', textAlign: 'left', color: '#111827' }}>Notes</th>
-              <th style={{ border: '1px solid #d1d5db', padding: '6px 10px', backgroundColor: '#f3f4f6', textAlign: 'right', color: '#111827' }}>Amount</th>
+              <th style={{ border: '1px solid #d1d5db', padding: '6px 8px', backgroundColor: '#f3f4f6', textAlign: 'left', color: '#111827' }}>Date Given</th>
+              <th style={{ border: '1px solid #d1d5db', padding: '6px 8px', backgroundColor: '#f3f4f6', textAlign: 'left', color: '#111827' }}>Notes</th>
+              <th style={{ border: '1px solid #d1d5db', padding: '6px 8px', backgroundColor: '#f3f4f6', textAlign: 'right', color: '#111827' }}>Amount</th>
+              <th style={{ border: '1px solid #d1d5db', padding: '6px 8px', backgroundColor: '#f3f4f6', textAlign: 'left', color: '#111827' }}>Created</th>
+              <th style={{ border: '1px solid #d1d5db', padding: '6px 8px', backgroundColor: '#f3f4f6', textAlign: 'left', color: '#111827' }}>Updated</th>
             </tr>
           </thead>
           <tbody>
             {entries.map((p) => (
               <tr key={p.id}>
-                <td style={{ border: '1px solid #d1d5db', padding: '6px 10px', color: '#000000' }}>{formatDate(p.payment_date)}</td>
-                <td style={{ border: '1px solid #d1d5db', padding: '6px 10px', color: '#374151' }}>{p.notes || '—'}</td>
-                <td style={{ border: '1px solid #d1d5db', padding: '6px 10px', textAlign: 'right', fontWeight: 500, color: '#000000' }}>{formatCurrency(p.amount)}</td>
+                <td style={{ border: '1px solid #d1d5db', padding: '6px 8px', color: '#000000' }}>{formatDate(p.payment_date)}</td>
+                <td style={{ border: '1px solid #d1d5db', padding: '6px 8px', color: '#374151' }}>{p.notes || '—'}</td>
+                <td style={{ border: '1px solid #d1d5db', padding: '6px 8px', textAlign: 'right', fontWeight: 500, color: '#000000' }}>{formatCurrency(p.amount)}</td>
+                <td style={{ border: '1px solid #d1d5db', padding: '6px 8px', color: '#6b7280', whiteSpace: 'nowrap' }}>
+                  {p.created_at ? new Date(p.created_at).toLocaleString('en-PH') : '—'}
+                </td>
+                <td style={{ border: '1px solid #d1d5db', padding: '6px 8px', color: '#6b7280', whiteSpace: 'nowrap' }}>
+                  {p.updated_at || p.created_at
+                    ? new Date(p.updated_at || p.created_at).toLocaleString('en-PH')
+                    : '—'}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -133,6 +163,65 @@ function PayslipPartialSalarySection({
           <span style={{ color: '#000000' }}>TOTAL RECEIVABLE (after partial payments):</span>
           <span style={{ color: '#000000' }}>{formatCurrency(record.calculated_net_pay)}</span>
         </div>
+      </div>
+
+      {attachments.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px', paddingTop: '12px', borderTop: '1px solid #e5e7eb' }}>
+          <h4 style={{ fontWeight: '600', color: '#1f2937', fontSize: '13px', margin: 0 }}>ATTACHMENTS</h4>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            {attachments.map((att) => (
+              <a
+                key={att.url}
+                href={att.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: '#1d4ed8', textDecoration: 'underline', fontSize: '13px' }}
+              >
+                {att.name}
+                {att.payment_date ? ` (${formatDate(att.payment_date)})` : ""}
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function PartialAttachmentsPanel({
+  record,
+  formatDate,
+}: {
+  record: any
+  formatDate: (dateString: string) => string
+}) {
+  const attachments = collectPartialAttachments(record)
+  if (attachments.length === 0) return null
+
+  return (
+    <div className="w-full md:w-48 rounded-lg border border-border bg-muted/40 p-3 space-y-2">
+      <div className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+        <Paperclip className="h-3 w-3" />
+        Attachments
+      </div>
+      <div className="flex flex-col gap-1.5">
+        {attachments.map((att) => (
+          <a
+            key={att.url}
+            href={att.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs font-medium text-primary hover:underline truncate"
+            title={att.name}
+          >
+            {att.name}
+            {att.payment_date ? (
+              <span className="block text-[10px] text-muted-foreground font-normal">
+                {formatDate(att.payment_date)}
+              </span>
+            ) : null}
+          </a>
+        ))}
       </div>
     </div>
   )
@@ -768,6 +857,7 @@ Company: PETROSPHERE INCORPORATED.`}
                           )}
                         </DialogContent>
                       </Dialog>
+                      <PartialAttachmentsPanel record={records[0]} formatDate={formatDate} />
                     </div>
                   </div>
 
