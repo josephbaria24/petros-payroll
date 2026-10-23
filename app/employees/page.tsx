@@ -463,7 +463,8 @@ export default function EmployeesPage() {
       }
 
       if (res.ok && data.url) {
-        setForm(prev => ({ ...prev, profile_picture_url: data.url }))
+        const uploadedUrl = data.url
+        setForm((prev) => ({ ...prev, profile_picture_url: uploadedUrl }))
         toast.success("Avatar uploaded!")
       } else {
         throw new Error(data.error || "Upload failed")
