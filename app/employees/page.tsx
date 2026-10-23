@@ -432,11 +432,36 @@ export default function EmployeesPage() {
     }
 
     try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const headers: HeadersInit = {}
+      if (session?.access_token) {
+        headers.Authorization = `Bearer ${session.access_token}`
+      }
+
       const res = await fetch("/api/upload-avatar", {
         method: "POST",
-        body: formData
+        body: formData,
+        headers,
+        credentials: "same-origin",
+        redirect: "manual",
       })
-      const data = await res.json()
+
+      if (res.type === "opaqueredirect" || res.status === 0 || (res.status >= 300 && res.status < 400)) {
+        throw new Error("Upload blocked by auth redirect. Please refresh and sign in again.")
+      }
+
+      const text = await res.text()
+      let data: { error?: string; url?: string } = {}
+      try {
+        data = text ? JSON.parse(text) : {}
+      } catch {
+        throw new Error(
+          res.status === 404
+            ? "Upload API not found on server. Redeploy the latest build."
+            : `Upload failed (${res.status}). Server returned a non-JSON response.`
+        )
+      }
+
       if (res.ok && data.url) {
         setForm(prev => ({ ...prev, profile_picture_url: data.url }))
         toast.success("Avatar uploaded!")

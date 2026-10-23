@@ -923,8 +923,37 @@ export default function PayrollPage() {
     if (files.length === 0) return []
     const body = new FormData()
     for (const file of files) body.append("files", file)
-    const res = await fetch("/api/upload-partial-attachment", { method: "POST", body })
-    const json = await res.json()
+
+    const { data: { session } } = await supabase.auth.getSession()
+    const headers: HeadersInit = {}
+    if (session?.access_token) {
+      headers.Authorization = `Bearer ${session.access_token}`
+    }
+
+    const res = await fetch("/api/upload-partial-attachment", {
+      method: "POST",
+      body,
+      headers,
+      credentials: "same-origin",
+      redirect: "manual",
+    })
+
+    if (res.type === "opaqueredirect" || res.status === 0 || (res.status >= 300 && res.status < 400)) {
+      throw new Error("Upload blocked by auth redirect. Please refresh and sign in again.")
+    }
+
+    const text = await res.text()
+    let json: { error?: string; files?: PartialPaymentAttachment[] } = {}
+    try {
+      json = text ? JSON.parse(text) : {}
+    } catch {
+      throw new Error(
+        res.status === 404
+          ? "Upload API not found on server. Redeploy the latest build."
+          : `Upload failed (${res.status}). Server returned a non-JSON response.`
+      )
+    }
+
     if (!res.ok) throw new Error(json.error || "Upload failed")
     return (json.files || []) as PartialPaymentAttachment[]
   }

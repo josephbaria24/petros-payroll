@@ -49,15 +49,32 @@ export async function middleware(req: NextRequest) {
         }
     )
 
-    // Refresh session if expired - required for Server Components
-    const { data: { session } } = await supabase.auth.getSession()
+    // Prefer getUser() so the JWT is validated (getSession() alone can be stale/empty).
+    const { data: { user } } = await supabase.auth.getUser()
+
+    // Bearer token fallback for API uploads when cookies are missing on multipart POSTs
+    let apiUser = user
+    if (!apiUser && req.nextUrl.pathname.startsWith('/api/')) {
+        const authHeader = req.headers.get('authorization')
+        if (authHeader?.startsWith('Bearer ')) {
+            const token = authHeader.slice(7)
+            const { data } = await supabase.auth.getUser(token)
+            apiUser = data.user
+        }
+    }
+
+    const isAuthenticated = Boolean(apiUser)
 
     // Define public routes
     const publicRoutes = ['/login', '/auth/callback']
     const isPublicRoute = publicRoutes.some(route => req.nextUrl.pathname.startsWith(route)) || req.nextUrl.pathname === '/'
+    const isApiRoute = req.nextUrl.pathname.startsWith('/api/')
 
-    // Auth redirection logic
-    if (!session && !isPublicRoute) {
+    // Auth: API routes must get JSON 401 (never HTML login redirect — breaks FormData fetch().json())
+    if (!isAuthenticated && !isPublicRoute) {
+        if (isApiRoute) {
+            return NextResponse.json({ error: 'Unauthorized. Please sign in again.' }, { status: 401 })
+        }
         const redirectUrl = req.nextUrl.clone()
         redirectUrl.pathname = '/login'
         if (req.nextUrl.pathname !== '/') {
@@ -66,7 +83,7 @@ export async function middleware(req: NextRequest) {
         return NextResponse.redirect(redirectUrl)
     }
 
-    if (session && req.nextUrl.pathname === '/login') {
+    if (isAuthenticated && req.nextUrl.pathname === '/login') {
         const redirectUrl = req.nextUrl.clone()
         redirectUrl.pathname = '/dashboard'
         return NextResponse.redirect(redirectUrl)
