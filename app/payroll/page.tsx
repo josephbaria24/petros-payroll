@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label"
 import { toast } from "@/lib/toast"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { AbsenceDatesPicker } from "@/components/absence-dates-picker"
 import { CalendarIcon, Trash2, Plus, X, Calculator, Users, PhilippinePeso, TrendingUp, FileText, Check, XCircle, Clock, CheckCircle, ChevronDown, CheckCircle2, AlertCircle, Search, Download, ChevronLeft, ChevronRight, HandCoins, Paperclip, ExternalLink } from "lucide-react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
@@ -91,6 +92,8 @@ type PayrollRecord = {
   thirteenth_month_pay?: number
   status: string
   absences?: number
+  /** ISO dates (yyyy-MM-dd) for absence deduction */
+  absence_dates?: string[] | null
   tardiness?: number
   cash_advance?: number
   sss?: number
@@ -422,7 +425,7 @@ export default function PayrollPage() {
           id, employee_id, period_start, period_end, payroll_batch_id, basic_salary,
           overtime_pay, holiday_pay, night_diff, allowances, bonuses, commission,
           unpaid_salary, reimbursement, thirteenth_month_pay,
-          absences, tardiness,
+          absences, absence_dates, tardiness,
           cash_advance, sss, philhealth, pagibig, withholding_tax, loans, uniform,
           total_deductions, net_pay, status, created_at, updated_at, creator_id,
           pdn_employees(full_name, pay_type, profile_picture_url, employee_code, department, position)
@@ -479,6 +482,7 @@ export default function PayrollPage() {
           thirteenth_month_pay: rec.thirteenth_month_pay || 0,
           status: rec.status,
           absences: rec.absences || 0,
+          absence_dates: Array.isArray(rec.absence_dates) ? rec.absence_dates : [],
           tardiness: rec.tardiness || 0,
           cash_advance: rec.cash_advance || 0,
           sss: rec.sss || 0,
@@ -566,6 +570,7 @@ export default function PayrollPage() {
         reimbursement,
         thirteenth_month_pay,
         absences,
+        absence_dates,
         tardiness,
         cash_advance,
         sss,
@@ -636,6 +641,7 @@ export default function PayrollPage() {
         thirteenth_month_pay: rec.thirteenth_month_pay || 0,
         status: rec.status,
         absences: rec.absences || 0,
+        absence_dates: Array.isArray(rec.absence_dates) ? rec.absence_dates : [],
         tardiness: rec.tardiness || 0,
         cash_advance: rec.cash_advance || 0,
         sss: rec.sss || 0,
@@ -1217,58 +1223,67 @@ export default function PayrollPage() {
         </Button>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 border-b border-border pb-0">
-        <button
-          type="button"
-          onClick={() => setActiveWorkspaceId(null)}
-          className={cn(
-            "px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
-            activeWorkspaceId === null
-              ? "border-primary text-foreground"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          )}
-        >
-          Regular Payroll
-        </button>
-        {workspaces.map((ws) => (
-          <div key={ws.id} className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => setActiveWorkspaceId(ws.id)}
-              className={cn(
-                "px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
-                activeWorkspaceId === ws.id
-                  ? "border-primary text-foreground"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              )}
-            >
-              {ws.name}
-            </button>
-            {activeWorkspaceId === ws.id && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                title={`Delete ${ws.name}`}
-                onClick={() => handleDeleteWorkspace(ws)}
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
-            )}
-          </div>
-        ))}
-      </div>
-
-      {activeWorkspaceId && (
-        <p className="text-sm text-muted-foreground -mt-4">
-          Viewing custom payroll:{" "}
-          <span className="font-medium text-foreground">
-            {workspaces.find((w) => w.id === activeWorkspaceId)?.name || "—"}
+      <div className="rounded-xl border-2 border-primary/20 bg-muted/40 p-2 sm:p-2.5 shadow-sm">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="hidden sm:inline text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground px-1.5 mr-1">
+            Payroll view
           </span>
-          . Periods and generation here are separate from Regular Payroll.
-        </p>
-      )}
+          <button
+            type="button"
+            onClick={() => setActiveWorkspaceId(null)}
+            className={cn(
+              "inline-flex items-center gap-2 rounded-lg px-3.5 py-2.5 text-sm font-semibold border-2 transition-all",
+              activeWorkspaceId === null
+                ? "border-primary bg-primary text-primary-foreground shadow-md shadow-primary/25"
+                : "border-border bg-card text-foreground hover:border-primary/40 hover:bg-primary/5"
+            )}
+          >
+            <FileText className="h-4 w-4 shrink-0 opacity-90" />
+            Regular Payroll
+          </button>
+          {workspaces.map((ws) => {
+            const isActive = activeWorkspaceId === ws.id
+            return (
+              <div key={ws.id} className="inline-flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setActiveWorkspaceId(ws.id)}
+                  className={cn(
+                    "inline-flex items-center gap-2 rounded-lg px-3.5 py-2.5 text-sm font-semibold border-2 transition-all",
+                    isActive
+                      ? "border-primary bg-primary text-primary-foreground shadow-md shadow-primary/25"
+                      : "border-border bg-card text-foreground hover:border-primary/40 hover:bg-primary/5"
+                  )}
+                >
+                  <Calculator className="h-4 w-4 shrink-0 opacity-90" />
+                  {ws.name}
+                </button>
+                {isActive && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9 text-muted-foreground hover:text-destructive"
+                    title={`Delete ${ws.name}`}
+                    onClick={() => handleDeleteWorkspace(ws)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </div>
+            )
+          })}
+        </div>
+        {activeWorkspaceId && (
+          <p className="text-xs sm:text-sm text-muted-foreground mt-2 px-1">
+            Viewing custom payroll:{" "}
+            <span className="font-semibold text-foreground">
+              {workspaces.find((w) => w.id === activeWorkspaceId)?.name || "—"}
+            </span>
+            . Periods and generation here are separate from Regular Payroll.
+          </p>
+        )}
+      </div>
 
       {periods.length > 0 && (
         <>
@@ -2160,6 +2175,7 @@ export default function PayrollPage() {
                     reimbursement: editRecord.reimbursement || 0,
                     thirteenth_month_pay: editRecord.thirteenth_month_pay || 0,
                     absences: absences,
+                    absence_dates: editRecord.absence_dates?.length ? editRecord.absence_dates : [],
                     tardiness: tardiness,
                     cash_advance: cash_advance,
                     sss: sss,
@@ -2354,7 +2370,7 @@ export default function PayrollPage() {
                       }
                     />
                   </div>
-                  <div>
+                  <div className="space-y-2">
                     <Label className="text-sm font-medium text-muted-foreground">Absence Deductions</Label>
                     <Input
                       type="number"
@@ -2366,6 +2382,13 @@ export default function PayrollPage() {
                         setEditRecord((prev) =>
                           prev ? { ...prev, absences: parseFloat(e.target.value) || 0 } : prev
                         )
+                      }
+                    />
+                    <Label className="text-xs font-medium text-muted-foreground">Absence Date(s)</Label>
+                    <AbsenceDatesPicker
+                      dates={editRecord.absence_dates || []}
+                      onChange={(dates) =>
+                        setEditRecord((prev) => (prev ? { ...prev, absence_dates: dates } : prev))
                       }
                     />
                   </div>

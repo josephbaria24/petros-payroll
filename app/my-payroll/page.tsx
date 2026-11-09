@@ -290,9 +290,28 @@ function PayslipDeductionLines({
       <span style={{ color: '#000000' }}>Withholding Tax:</span>
       <span style={{ fontWeight: '500', color: '#000000' }}>{formatCurrency(record.withholding_tax)}</span>
     </div>
-    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-      <span style={{ color: '#000000' }}>Absences:</span>
-      <span style={{ fontWeight: '500', color: '#000000' }}>{formatCurrency(record.absences)}</span>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+        <span style={{ color: '#000000' }}>Absences:</span>
+        <span style={{ fontWeight: '500', color: '#000000' }}>{formatCurrency(record.absences)}</span>
+      </div>
+      {Array.isArray(record.absence_dates) && record.absence_dates.length > 0 && (
+        <p style={{ fontSize: '11px', color: '#6b7280', margin: 0, textAlign: 'right' }}>
+          {record.absence_dates
+            .map((d: string) => {
+              try {
+                return new Date(d + (d.includes("T") ? "" : "T00:00:00")).toLocaleDateString("en-PH", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })
+              } catch {
+                return d
+              }
+            })
+            .join(", ")}
+        </p>
+      )}
     </div>
     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
       <span style={{ color: '#000000' }}>Tardiness:</span>
@@ -377,7 +396,7 @@ export default function MyPayrollPage() {
             basic_salary, overtime_pay, holiday_pay, night_diff, allowances,
             unpaid_salary, reimbursement, thirteenth_month_pay,
             bonuses, commission, sss, philhealth, pagibig, withholding_tax,
-            absences, tardiness, loans, uniform, cash_advance, total_deductions
+            absences, absence_dates, tardiness, loans, uniform, cash_advance, total_deductions
           `)
           .eq("employee_id", pdnEmp.id)
           .order("period_end", { ascending: false })
@@ -461,6 +480,7 @@ export default function MyPayrollPage() {
           pagibig,
           withholding_tax,
           absences,
+          absence_dates,
           tardiness,
           loans,
           uniform,

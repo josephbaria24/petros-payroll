@@ -66,6 +66,7 @@ import {
 } from "@/components/ui/tabs"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { AbsenceDatesPicker } from "@/components/absence-dates-picker"
 import { cn } from "@/lib/utils"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -113,6 +114,8 @@ type OvertimeEntry = {
 type EmployeeAdjustment = {
   employee_id: string
   absenceDays: number
+  /** ISO dates (yyyy-MM-dd) for each absent day */
+  absenceDates: string[]
   absenceAmountPerDay: number
   holidayDate?: Date
   holidayPay?: number
@@ -143,6 +146,8 @@ type AttendanceDetail = {
   absenceDeduction: number
   daysLate: number
   daysAbsent: number
+  /** ISO dates marked Absent in the period */
+  absentDates: string[]
   dailyRate: number
   profile_picture_url?: string | null
   logs: any[]
@@ -658,6 +663,7 @@ export default function GeneratePayrollPage() {
         let totalLateMinutes = 0
         let daysLate = 0
         let daysAbsent = 0
+        const absentDates: string[] = []
         const fullPeriodLogs: any[] = []
         let current = new Date(periodStart);
         
@@ -694,6 +700,7 @@ export default function GeneratePayrollPage() {
           if (finalStatus === "Absent") {
             dayDeduction = dailyRate;
             daysAbsent++;
+            absentDates.push(dateStr);
           } else if (dayLateMins > 0) {
             dayDeduction = (dayLateMins / 60) * (dailyRate / 8);
             totalLateMinutes += dayLateMins;
@@ -727,6 +734,7 @@ export default function GeneratePayrollPage() {
           absenceDeduction: Math.round(absenceDeduction * 100) / 100,
           daysLate,
           daysAbsent,
+          absentDates,
           dailyRate: Math.round(dailyRate * 100) / 100,
           profile_picture_url: emp.profile_picture_url,
           logs: fullPeriodLogs
@@ -841,12 +849,14 @@ export default function GeneratePayrollPage() {
         const updated = [...employeeAdjustments]
         updated[idx].lateDeduction = detail.lateDeduction
         updated[idx].absenceDays = detail.daysAbsent
+        updated[idx].absenceDates = detail.absentDates || []
         updated[idx].absenceAmountPerDay = detail.dailyRate
         setEmployeeAdjustments(updated)
       } else {
         setEmployeeAdjustments(prev => [...prev, {
           employee_id: detail.employee_id,
           absenceDays: detail.daysAbsent,
+          absenceDates: detail.absentDates || [],
           absenceAmountPerDay: detail.dailyRate,
           overtimeEntries: [],
           lateDeduction: detail.lateDeduction,
@@ -918,6 +928,7 @@ export default function GeneratePayrollPage() {
         newAdjustments.push({
           employee_id: req.employee_id,
           absenceDays: 0,
+          absenceDates: [],
           absenceAmountPerDay: 0,
           overtimeEntries: [],
           unpaidSalary: 0,
@@ -959,6 +970,7 @@ export default function GeneratePayrollPage() {
       {
         employee_id: newAdjustmentEmployeeId,
         absenceDays: 0,
+        absenceDates: [],
         absenceAmountPerDay: 0,
         overtimeEntries: [],
         unpaidSalary: 0,
@@ -1185,6 +1197,7 @@ export default function GeneratePayrollPage() {
           holiday_pay: holiday,
           allowances: allowance,
           absences: absence,
+          absence_dates: adj?.absenceDates?.length ? adj.absenceDates : null,
           tardiness: late,
           sss, philhealth, pagibig,
           loans: loans + other,
@@ -2089,7 +2102,20 @@ export default function GeneratePayrollPage() {
                                     <p className="text-xs font-black text-red-600">- ₱{(adj.absenceDays * adj.absenceAmountPerDay).toLocaleString()}</p>
                                     <p className="text-[7px] text-red-400 font-bold uppercase">{adj.absenceDays} Days x ₱{adj.absenceAmountPerDay.toLocaleString()}</p>
                                   </div>
-                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-red-300 hover:text-red-500" onClick={() => updateEmployeeAdjustment(index, "absenceDays", 0)}>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-red-300 hover:text-red-500"
+                                    onClick={() => {
+                                      const updated = [...employeeAdjustments]
+                                      updated[index] = {
+                                        ...updated[index],
+                                        absenceDays: 0,
+                                        absenceDates: [],
+                                      }
+                                      setEmployeeAdjustments(updated)
+                                    }}
+                                  >
                                     <X className="h-3 w-3" />
                                   </Button>
                                 </div>
@@ -2097,9 +2123,36 @@ export default function GeneratePayrollPage() {
                             </div>
                           </div>
                           <div className="p-4 lg:p-6 flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 lg:gap-6">
-                            <div className="space-y-1.5">
-                              <Label className="text-[9px] lg:text-[10px] font-black text-muted-foreground uppercase">Absence Days</Label>
-                              <Input type="number" className="font-bold h-8 lg:h-9 text-xs" value={adj.absenceDays} onChange={(e) => updateEmployeeAdjustment(index, "absenceDays", parseFloat(e.target.value))} />
+                            <div className="space-y-1.5 sm:col-span-2 lg:col-span-2 xl:col-span-2">
+                              <Label className="text-[9px] lg:text-[10px] font-black text-muted-foreground uppercase">
+                                Absence Dates {adj.absenceDays > 0 ? `(${adj.absenceDays} day${adj.absenceDays === 1 ? "" : "s"})` : ""}
+                              </Label>
+                              <AbsenceDatesPicker
+                                compact
+                                dates={adj.absenceDates || []}
+                                onChange={(dates) => {
+                                  const updated = [...employeeAdjustments]
+                                  updated[index] = {
+                                    ...updated[index],
+                                    absenceDates: dates,
+                                    absenceDays: dates.length,
+                                  }
+                                  setEmployeeAdjustments(updated)
+                                }}
+                              />
+                              <div className="flex items-center gap-2">
+                                <Label className="text-[9px] text-muted-foreground shrink-0">Days override</Label>
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  step={1}
+                                  className="font-bold h-7 text-xs max-w-[5rem]"
+                                  value={adj.absenceDays || ""}
+                                  onChange={(e) =>
+                                    updateEmployeeAdjustment(index, "absenceDays", parseFloat(e.target.value) || 0)
+                                  }
+                                />
+                              </div>
                             </div>
                             <div className="space-y-1.5">
                               <Label className="text-[9px] lg:text-[10px] font-black text-muted-foreground uppercase">Partial Salary Payment</Label>
