@@ -45,6 +45,7 @@ export type PayrollReceiptAmountFields = {
   overtime_pay: number
   holiday_pay?: number
   night_diff?: number
+  rest_day_pay?: number
   allowances?: number
   bonuses?: number
   commission?: number
@@ -129,6 +130,7 @@ export function PayrollEarningsReceipt({ exportRootId, organization, record }: P
     (record.overtime_pay || 0) +
     (record.holiday_pay || 0) +
     (record.night_diff || 0) +
+    (record.rest_day_pay || 0) +
     (record.allowances || 0) +
     (record.bonuses || 0) +
     (record.commission || 0) +
@@ -142,6 +144,8 @@ export function PayrollEarningsReceipt({ exportRootId, organization, record }: P
     { label: "Basic Salary", amount: record.basic_salary },
     { label: "Overtime Pay", amount: record.overtime_pay },
     { label: "Holiday Pay", amount: record.holiday_pay || 0 },
+    { label: "Night Differential", amount: record.night_diff || 0 },
+    { label: "Rest Day Pay", amount: record.rest_day_pay || 0 },
     { label: "Allowances", amount: record.allowances || 0 },
     { label: "Commission", amount: record.commission || 0 },
     { label: "Unpaid Salary", amount: record.unpaid_salary || 0 },
@@ -302,9 +306,23 @@ export function PayrollEarningsReceipt({ exportRootId, organization, record }: P
             </tbody>
           </table>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "20px", alignItems: "center", marginBottom: "20px" }}>
-            <div style={{ fontSize: "12px", color: "#4b5563" }}>
-              <span style={{ fontWeight: 600 }}>Payroll status:</span> {record.status}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "20px", alignItems: "end", marginBottom: "20px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+              <div style={{ fontSize: "12px", color: "#4b5563" }}>
+                <span style={{ fontWeight: 600 }}>Payroll status:</span> {record.status}
+              </div>
+              <div style={{ maxWidth: "260px", width: "100%", paddingTop: "8px", textAlign: "center" }}>
+                <div
+                  style={{
+                    height: "48px",
+                    borderBottom: "1px solid #111827",
+                    marginBottom: "8px",
+                  }}
+                  aria-hidden
+                />
+                <div style={{ fontSize: "13px", fontWeight: 600, color: "#111827" }}>{empName}</div>
+                <div style={{ fontSize: "10px", color: "#6b7280", marginTop: "2px" }}>Employee Signature</div>
+              </div>
             </div>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "6px" }}>
               <div style={{ padding: "8px", border: "1px solid #d1d5db", borderRadius: "6px", backgroundColor: "#ffffff" }}>
@@ -320,7 +338,7 @@ export function PayrollEarningsReceipt({ exportRootId, organization, record }: P
           </div>
 
           <div style={{ textAlign: "center", fontSize: "11px", color: "#6b7280", paddingTop: "16px", borderTop: "1px solid #e5e7eb" }}>
-            <p style={{ margin: "0 0 4px" }}>This is a computer-generated earnings statement and does not require a signature.</p>
+            <p style={{ margin: "0 0 4px" }}>This is a computer-generated earnings statement. Please sign above to acknowledge receipt.</p>
             <p style={{ margin: 0 }}>Generated on {new Date().toLocaleDateString("en-PH")}</p>
           </div>
         </div>

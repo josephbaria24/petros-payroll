@@ -14,7 +14,7 @@ import { toast } from "@/lib/toast"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { AbsenceDatesPicker } from "@/components/absence-dates-picker"
-import { CalendarIcon, Trash2, Plus, X, Calculator, Users, PhilippinePeso, TrendingUp, FileText, Check, XCircle, Clock, CheckCircle, ChevronDown, CheckCircle2, AlertCircle, Search, Download, ChevronLeft, ChevronRight, HandCoins, Paperclip, ExternalLink } from "lucide-react"
+import { CalendarIcon, Trash2, Plus, X, Calculator, Users, PhilippinePeso, TrendingUp, FileText, Check, XCircle, Clock, CheckCircle, ChevronDown, CheckCircle2, AlertCircle, Search, Download, ChevronLeft, ChevronRight, HandCoins, Paperclip, ExternalLink, User, Wallet, Moon, Sun, Umbrella, BadgePercent, Building2, Banknote, Receipt, Shield } from "lucide-react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 import {
@@ -84,6 +84,7 @@ type PayrollRecord = {
   overtime_pay: number
   holiday_pay?: number
   night_diff?: number
+  rest_day_pay?: number
   allowances?: number
   bonuses?: number
   commission?: number
@@ -423,7 +424,7 @@ export default function PayrollPage() {
         .from("pdn_payroll_records")
         .select(`
           id, employee_id, period_start, period_end, payroll_batch_id, basic_salary,
-          overtime_pay, holiday_pay, night_diff, allowances, bonuses, commission,
+          overtime_pay, holiday_pay, night_diff, rest_day_pay, allowances, bonuses, commission,
           unpaid_salary, reimbursement, thirteenth_month_pay,
           absences, absence_dates, tardiness,
           cash_advance, sss, philhealth, pagibig, withholding_tax, loans, uniform,
@@ -449,6 +450,7 @@ export default function PayrollPage() {
           (rec.overtime_pay || 0) +
           (rec.holiday_pay || 0) +
           (rec.night_diff || 0) +
+          (rec.rest_day_pay || 0) +
           (rec.allowances || 0) +
           (rec.bonuses || 0) +
           (rec.commission || 0) +
@@ -474,6 +476,7 @@ export default function PayrollPage() {
           overtime_pay: rec.overtime_pay || 0,
           holiday_pay: rec.holiday_pay || 0,
           night_diff: rec.night_diff || 0,
+          rest_day_pay: rec.rest_day_pay || 0,
           allowances: rec.allowances || 0,
           bonuses: rec.bonuses || 0,
           commission: rec.commission || 0,
@@ -563,6 +566,7 @@ export default function PayrollPage() {
         overtime_pay,
         holiday_pay,
         night_diff,
+        rest_day_pay,
         allowances,
         bonuses,
         commission,
@@ -607,6 +611,7 @@ export default function PayrollPage() {
         (rec.overtime_pay || 0) +
         (rec.holiday_pay || 0) +
         (rec.night_diff || 0) +
+        (rec.rest_day_pay || 0) +
         (rec.allowances || 0) +
         (rec.bonuses || 0) +
         (rec.commission || 0) +
@@ -633,6 +638,7 @@ export default function PayrollPage() {
         overtime_pay: rec.overtime_pay || 0,
         holiday_pay: rec.holiday_pay || 0,
         night_diff: rec.night_diff || 0,
+        rest_day_pay: rec.rest_day_pay || 0,
         allowances: rec.allowances || 0,
         bonuses: rec.bonuses || 0,
         commission: rec.commission || 0,
@@ -903,6 +909,7 @@ export default function PayrollPage() {
       (rec.overtime_pay || 0) +
       (rec.holiday_pay || 0) +
       (rec.night_diff || 0) +
+      (rec.rest_day_pay || 0) +
       (rec.allowances || 0) +
       (rec.bonuses || 0) +
       (rec.commission || 0) +
@@ -1769,55 +1776,102 @@ export default function PayrollPage() {
         <DialogContent
           className="
             w-[calc(100%-1rem)] max-w-[calc(100%-1rem)]
-            sm:max-w-[95vw] lg:max-w-[90vw]
-            h-[92dvh] max-h-[92dvh]
-            p-3 sm:p-6
-            overflow-hidden flex flex-col gap-3 sm:gap-4
+            sm:max-w-[95vw] lg:max-w-[92vw]
+            max-h-[92dvh] h-[92dvh]
+            overflow-hidden !flex !flex-col p-0 gap-0
           "
         >
-          <DialogHeader className="pb-3 border-b border-border space-y-3 sm:space-y-0 sm:flex sm:flex-row sm:items-center sm:justify-between sm:gap-4 text-left">
-            <DialogTitle className="text-base sm:text-xl font-semibold text-foreground pr-8 leading-snug">
-              <span className="sm:hidden">Payroll Details</span>
-              <span className="hidden sm:inline">Payroll Details - {selectedPeriodName}</span>
-              <span className="block sm:hidden text-xs font-normal text-muted-foreground mt-1">
-                {selectedPeriodName}
-              </span>
-            </DialogTitle>
-            <div className="relative w-full sm:w-64 sm:pr-5 shrink-0">
-              <Input
-                placeholder="Search employee…"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 h-9 border-primary/20 focus-visible:ring-primary/30"
-              />
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery("")}
-                  className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
+          {(() => {
+            const filteredPeriodRecords = selectedPeriodRecords.filter((rec) =>
+              rec.employee_name?.toLowerCase().includes(searchQuery.toLowerCase())
+            )
+            const periodGross = filteredPeriodRecords.reduce((s, r) => s + recordGrossPay(r), 0)
+            const periodNet = filteredPeriodRecords.reduce((s, r) => s + (r.total_net || 0), 0)
+            const periodDed = filteredPeriodRecords.reduce((s, r) => s + (r.total_deductions || 0), 0)
+            const money = (n?: number | null) =>
+              `₱${(Number(n) || 0).toLocaleString("en-PH", { maximumFractionDigits: 2 })}`
+            const thBase =
+              "sticky top-0 z-20 whitespace-nowrap px-2.5 py-2.5 text-[10px] font-black uppercase tracking-wider border-b border-border/40"
+            const earnTh = cn(thBase, "bg-emerald-700 text-emerald-50")
+            const dedTh = cn(thBase, "bg-rose-700 text-rose-50")
+            const metaTh = cn(thBase, "bg-slate-800 text-slate-50")
+            const netTh = cn(thBase, "bg-primary text-primary-foreground")
+            const earnTd = "bg-emerald-500/[0.03] text-foreground tabular-nums text-xs px-2.5 py-2.5 whitespace-nowrap"
+            const dedTd = "bg-rose-500/[0.04] text-rose-700/90 dark:text-rose-300 tabular-nums text-xs px-2.5 py-2.5 whitespace-nowrap font-medium"
+            const netTd = "bg-primary/5 text-foreground tabular-nums text-xs px-2.5 py-2.5 whitespace-nowrap font-bold"
+
+            return (
+              <>
+          <DialogHeader className="px-4 sm:px-5 py-4 border-b border-border bg-muted/30 text-left shrink-0 space-y-3">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between pr-8">
+              <div className="space-y-1 min-w-0">
+                <DialogTitle className="text-base sm:text-xl font-semibold text-foreground flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-primary shrink-0" />
+                  Payroll Details
+                </DialogTitle>
+                <p className="text-xs sm:text-sm text-muted-foreground font-medium truncate">
+                  {selectedPeriodName}
+                </p>
+              </div>
+              <div className="relative w-full lg:w-72 shrink-0">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search employee…"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 h-9 bg-background border-border"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <div className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 text-[11px]">
+                <Users className="h-3 w-3 text-muted-foreground" />
+                <span className="text-muted-foreground">Employees</span>
+                <span className="font-bold text-foreground">{filteredPeriodRecords.length}</span>
+              </div>
+              <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/5 px-2.5 py-1 text-[11px]">
+                <Wallet className="h-3 w-3 text-emerald-600" />
+                <span className="text-emerald-700/80 dark:text-emerald-400">Gross</span>
+                <span className="font-bold text-emerald-700 dark:text-emerald-300 tabular-nums">{money(periodGross)}</span>
+              </div>
+              <div className="inline-flex items-center gap-1.5 rounded-full border border-rose-500/20 bg-rose-500/5 px-2.5 py-1 text-[11px]">
+                <AlertCircle className="h-3 w-3 text-rose-600" />
+                <span className="text-rose-700/80 dark:text-rose-400">Deductions</span>
+                <span className="font-bold text-rose-700 dark:text-rose-300 tabular-nums">{money(periodDed)}</span>
+              </div>
+              <div className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/5 px-2.5 py-1 text-[11px]">
+                <PhilippinePeso className="h-3 w-3 text-primary" />
+                <span className="text-primary/80">Net</span>
+                <span className="font-bold text-primary tabular-nums">{money(periodNet)}</span>
+              </div>
             </div>
           </DialogHeader>
 
-          <div className="flex-1 flex flex-col min-h-0 space-y-3 sm:space-y-4">
+          <div className="flex-1 flex flex-col min-h-0 px-3 sm:px-4 py-3 gap-3">
             {selectedIds.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2 p-2.5 sm:p-3 bg-muted/50 rounded-lg border border-border">
-                <span className="text-xs sm:text-sm text-muted-foreground w-full sm:w-auto">
+              <div className="flex flex-wrap items-center gap-2 p-2.5 sm:p-3 bg-amber-500/5 rounded-xl border border-amber-500/25 shrink-0">
+                <Badge variant="secondary" className="font-semibold">
                   {selectedIds.length} selected
-                </span>
+                </Badge>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={handleMarkSelectedAsPaid}
-                  className="text-green-700 border-green-300 hover:bg-green-50 h-8 text-xs"
+                  className="text-emerald-700 border-emerald-300 hover:bg-emerald-50 h-8 text-xs"
                 >
                   <CheckCircle className="h-3.5 w-3.5 mr-1" />
                   Mark Paid
                 </Button>
-                <Button variant="outline" size="sm" onClick={handleDeleteSelected} className="h-8 text-xs">
+                <Button variant="outline" size="sm" onClick={handleDeleteSelected} className="h-8 text-xs text-rose-700 border-rose-200 hover:bg-rose-50">
                   <Trash2 className="h-3.5 w-3.5 mr-1" />
                   Delete
                 </Button>
@@ -1825,7 +1879,7 @@ export default function PayrollPage() {
             )}
 
             {/* Mobile: compact cards */}
-            <div className="md:hidden flex-1 min-h-0 overflow-y-auto space-y-2 -mx-0.5 px-0.5">
+            <div className="md:hidden flex-1 min-h-0 overflow-y-auto space-y-2">
               <div className="flex items-center justify-between px-1 pb-1">
                 <label className="flex items-center gap-2 text-xs text-muted-foreground">
                   <input
@@ -1840,20 +1894,13 @@ export default function PayrollPage() {
                   Select all
                 </label>
                 <span className="text-[10px] text-muted-foreground">
-                  {selectedPeriodRecords.filter((rec) =>
-                    rec.employee_name?.toLowerCase().includes(searchQuery.toLowerCase())
-                  ).length}{" "}
-                  employees
+                  {filteredPeriodRecords.length} employees
                 </span>
               </div>
-              {selectedPeriodRecords
-                .filter((rec) =>
-                  rec.employee_name?.toLowerCase().includes(searchQuery.toLowerCase())
-                )
-                .map((rec) => (
+              {filteredPeriodRecords.map((rec) => (
                   <div
                     key={rec.id}
-                    className="rounded-lg border border-border bg-card p-3 shadow-sm space-y-2.5"
+                    className="rounded-xl border border-border bg-card p-3 shadow-sm space-y-2.5"
                   >
                     <div className="flex items-start gap-2">
                       <input
@@ -1871,7 +1918,7 @@ export default function PayrollPage() {
                         }}
                       >
                         <div className="flex items-center gap-2">
-                          <div className="h-8 w-8 rounded-full overflow-hidden border border-border bg-muted flex items-center justify-center shrink-0">
+                          <div className="h-9 w-9 rounded-full overflow-hidden border border-border bg-muted flex items-center justify-center shrink-0">
                             {rec.profile_picture_url ? (
                               <img src={rec.profile_picture_url} className="h-full w-full object-cover" alt="" />
                             ) : (
@@ -1880,7 +1927,7 @@ export default function PayrollPage() {
                           </div>
                           <div className="min-w-0 flex-1">
                             <p className="text-sm font-semibold text-foreground truncate">{rec.employee_name}</p>
-                            <p className="text-[10px] text-muted-foreground capitalize">{rec.pay_type || "—"}</p>
+                            <p className="text-[10px] text-muted-foreground capitalize">{rec.pay_type?.replace(/-/g, " ") || "—"}</p>
                           </div>
                           <span
                             className={cn(
@@ -1894,27 +1941,29 @@ export default function PayrollPage() {
                       </button>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px] pl-6">
-                      <div className="flex justify-between gap-1">
-                        <span className="text-muted-foreground">Basic</span>
-                        <span className="font-medium tabular-nums">₱{(rec.basic_salary || 0).toLocaleString()}</span>
+                    <div className="grid grid-cols-2 gap-2 text-[11px] pl-6">
+                      <div className="rounded-lg border border-emerald-500/15 bg-emerald-500/5 px-2 py-1.5 flex justify-between gap-1">
+                        <span className="text-emerald-700/70 dark:text-emerald-400">Gross</span>
+                        <span className="font-semibold tabular-nums text-emerald-800 dark:text-emerald-300">{money(recordGrossPay(rec))}</span>
                       </div>
-                      <div className="flex justify-between gap-1">
-                        <span className="text-muted-foreground">OT</span>
-                        <span className="font-medium tabular-nums">₱{(rec.overtime_pay || 0).toLocaleString()}</span>
+                      <div className="rounded-lg border border-rose-500/15 bg-rose-500/5 px-2 py-1.5 flex justify-between gap-1">
+                        <span className="text-rose-700/70 dark:text-rose-400">Deductions</span>
+                        <span className="font-semibold tabular-nums text-rose-700">{money(rec.total_deductions)}</span>
                       </div>
-                      <div className="flex justify-between gap-1">
-                        <span className="text-muted-foreground">Deductions</span>
-                        <span className="font-medium text-red-600/80 tabular-nums">₱{(rec.total_deductions || 0).toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between gap-1">
-                        <span className="text-muted-foreground">Net</span>
-                        <span className="font-bold tabular-nums">₱{(rec.total_net || 0).toLocaleString()}</span>
+                      <div className="col-span-2 rounded-lg border border-primary/15 bg-primary/5 px-2 py-1.5 flex justify-between gap-1">
+                        <span className="text-primary/70">Net pay</span>
+                        <span className="font-bold tabular-nums text-primary">{money(rec.total_net)}</span>
                       </div>
                       {(rec.cash_advance || 0) > 0 && (
                         <div className="col-span-2 flex justify-between gap-1 border-t border-border/60 pt-1.5">
                           <span className="text-muted-foreground">Partial salary</span>
-                          <span className="font-medium tabular-nums">₱{(rec.cash_advance || 0).toLocaleString()}</span>
+                          <span className="font-medium tabular-nums">{money(rec.cash_advance)}</span>
+                        </div>
+                      )}
+                      {(rec.rest_day_pay || 0) > 0 && (
+                        <div className="col-span-2 flex justify-between gap-1">
+                          <span className="text-muted-foreground">Rest day</span>
+                          <span className="font-medium tabular-nums">{money(rec.rest_day_pay)}</span>
                         </div>
                       )}
                     </div>
@@ -1972,12 +2021,12 @@ export default function PayrollPage() {
             </div>
 
             {/* Desktop: full table */}
-            <div className="hidden md:block flex-1 min-h-0 relative">
-              <div className="absolute inset-0 border border-border rounded-lg overflow-auto shadow-inner [&_[data-slot=table-container]]:overflow-visible">
+            <div className="hidden md:flex flex-1 min-h-0 flex-col rounded-xl border border-border overflow-hidden bg-card shadow-sm">
+              <div className="flex-1 min-h-0 overflow-auto [&_[data-slot=table-container]]:overflow-visible">
                 <Table>
                   <TableHeader>
-                    <TableRow className="border-b border-border bg-primary hover:bg-primary">
-                      <TableHead className="w-12 sticky top-0 bg-primary text-primary-foreground z-10 backdrop-blur-sm">
+                    <TableRow className="hover:bg-transparent border-0">
+                      <TableHead className={cn(metaTh, "w-10")}>
                         <input
                           type="checkbox"
                           checked={
@@ -1985,51 +2034,46 @@ export default function PayrollPage() {
                             selectedPeriodRecords.length > 0
                           }
                           onChange={handleSelectAll}
-                          className="rounded"
+                          className="rounded border-white/40"
                           title="Select all"
                         />
                       </TableHead>
-                      <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">
-                        Actions
-                      </TableHead>
-                      <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Employee</TableHead>
-                      <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Pay Type</TableHead>
-                      <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Basic Salary</TableHead>
-                      <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Overtime Pay</TableHead>
-                      <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Holiday Pay</TableHead>
-                      <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Allowance</TableHead>
-                      <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Unpaid</TableHead>
-                      <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Reimb.</TableHead>
-                      <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">13th Month</TableHead>
-                      <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">SSS</TableHead>
-                      <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">PhilHealth</TableHead>
-                      <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Pag-IBIG</TableHead>
-                      <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">W/Tax</TableHead>
-                      <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Loans</TableHead>
-                      <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Absences</TableHead>
-                      <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Tardiness</TableHead>
-                      <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Partial Salary Payment</TableHead>
-                      <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Total Deductions</TableHead>
-                      <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Net After Deductions</TableHead>
-                      <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Total Net</TableHead>
-                      <TableHead className="font-bold text-primary-foreground sticky top-0 bg-primary z-10 backdrop-blur-sm">Status</TableHead>
+                      <TableHead className={metaTh}>Actions</TableHead>
+                      <TableHead className={metaTh}>Employee</TableHead>
+                      <TableHead className={metaTh}>Type</TableHead>
+                      <TableHead className={earnTh} title="Basic Salary">Basic</TableHead>
+                      <TableHead className={earnTh} title="Overtime Pay">OT</TableHead>
+                      <TableHead className={earnTh} title="Holiday Pay">Holiday</TableHead>
+                      <TableHead className={earnTh} title="Night Differential">ND</TableHead>
+                      <TableHead className={earnTh} title="Rest Day Pay">Rest</TableHead>
+                      <TableHead className={earnTh} title="Allowances">Allow.</TableHead>
+                      <TableHead className={earnTh} title="Unpaid Salary">Unpaid</TableHead>
+                      <TableHead className={earnTh} title="Reimbursement">Reimb.</TableHead>
+                      <TableHead className={earnTh} title="13th Month Pay">13th</TableHead>
+                      <TableHead className={dedTh}>SSS</TableHead>
+                      <TableHead className={dedTh} title="PhilHealth">PhilH</TableHead>
+                      <TableHead className={dedTh} title="Pag-IBIG">HDMF</TableHead>
+                      <TableHead className={dedTh} title="Withholding Tax">W/Tax</TableHead>
+                      <TableHead className={dedTh}>Loans</TableHead>
+                      <TableHead className={dedTh} title="Absences">Absent</TableHead>
+                      <TableHead className={dedTh} title="Tardiness">Late</TableHead>
+                      <TableHead className={dedTh} title="Partial Salary Payment">Partial</TableHead>
+                      <TableHead className={dedTh} title="Total Deductions">Total Ded.</TableHead>
+                      <TableHead className={netTh} title="Net After Deductions">Net</TableHead>
+                      <TableHead className={netTh}>Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {selectedPeriodRecords
-                      .filter((rec) =>
-                        rec.employee_name?.toLowerCase().includes(searchQuery.toLowerCase())
-                      )
-                      .map((rec) => (
+                    {filteredPeriodRecords.map((rec) => (
                         <TableRow
                           key={rec.id}
                           onClick={() => {
                             setEditRecord(rec)
                             setEditDialogOpen(true)
                           }}
-                          className="cursor-pointer hover:bg-muted/30 transition border-b border-border"
+                          className="cursor-pointer hover:bg-muted/40 transition-colors border-b border-border/70"
                         >
-                          <TableCell onClick={(e) => e.stopPropagation()}>
+                          <TableCell onClick={(e) => e.stopPropagation()} className="px-2.5 py-2.5 align-middle">
                             <input
                               type="checkbox"
                               checked={selectedIds.includes(rec.id)}
@@ -2037,29 +2081,29 @@ export default function PayrollPage() {
                               className="rounded"
                             />
                           </TableCell>
-                          <TableCell onClick={(e) => e.stopPropagation()}>
-                            <div className="flex items-center gap-1 flex-wrap">
+                          <TableCell onClick={(e) => e.stopPropagation()} className="px-2 py-2 align-middle">
+                            <div className="flex items-center gap-0.5">
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                className="h-8 px-2 text-muted-foreground hover:text-foreground"
+                                className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
                                 title="Earnings receipt"
                                 type="button"
                                 onClick={() => {
                                   if (periodDialogContext) openReceiptDialog(periodDialogContext, rec.id)
                                 }}
                               >
-                                <ReceiptIcon className="h-4 w-4" />
+                                <ReceiptIcon className="h-3.5 w-3.5" />
                               </Button>
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                className="h-8 px-2 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                                className="h-7 w-7 p-0 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
                                 title="Partial salary payments"
                                 type="button"
                                 onClick={() => openPartialPaymentsDialog(rec)}
                               >
-                                <HandCoins className="h-4 w-4" />
+                                <HandCoins className="h-3.5 w-3.5" />
                               </Button>
                               {rec.status !== "Paid" && (
                                 <Button
@@ -2067,50 +2111,51 @@ export default function PayrollPage() {
                                   variant="ghost"
                                   type="button"
                                   onClick={() => handleMarkAsPaid(rec.id)}
-                                  className="text-green-600 hover:bg-green-50"
+                                  className="h-7 px-1.5 text-emerald-600 hover:bg-emerald-50 text-[10px] font-semibold"
+                                  title="Mark as paid"
                                 >
-                                  <CheckCircle className="h-4 w-4 mr-1" />
-                                  Mark Paid
+                                  <CheckCircle className="h-3.5 w-3.5" />
                                 </Button>
                               )}
                             </div>
                           </TableCell>
-                          <TableCell className="font-medium text-foreground">
-                            <div className="flex items-center gap-2">
-                              <div className="h-8 w-8 rounded-full overflow-hidden border border-border bg-muted flex items-center justify-center shrink-0 shadow-sm">
+                          <TableCell className="px-2.5 py-2 align-middle">
+                            <div className="flex items-center gap-2 min-w-[10rem]">
+                              <div className="h-8 w-8 rounded-full overflow-hidden border border-border bg-muted flex items-center justify-center shrink-0">
                                 {rec.profile_picture_url ? (
                                   <img src={rec.profile_picture_url} className="h-full w-full object-cover" alt="" />
                                 ) : (
-                                  <Users className="h-4 w-4 text-muted-foreground" />
+                                  <Users className="h-3.5 w-3.5 text-muted-foreground" />
                                 )}
                               </div>
-                              {rec.employee_name}
+                              <span className="font-semibold text-sm text-foreground truncate">{rec.employee_name}</span>
                             </div>
                           </TableCell>
-                          <TableCell className="text-muted-foreground">{rec.pay_type}</TableCell>
-                          <TableCell className="text-foreground">₱{rec.basic_salary.toLocaleString()}</TableCell>
-                          <TableCell className="text-foreground font-medium">₱{rec.overtime_pay.toLocaleString()}</TableCell>
-                          <TableCell className="text-foreground">₱{rec.holiday_pay?.toLocaleString() || 0}</TableCell>
-                          <TableCell className="text-foreground">₱{rec.allowances?.toLocaleString() || 0}</TableCell>
-                          <TableCell className="text-foreground">₱{rec.unpaid_salary?.toLocaleString() || 0}</TableCell>
-                          <TableCell className="text-foreground">₱{rec.reimbursement?.toLocaleString() || 0}</TableCell>
-                          <TableCell className="text-foreground">₱{rec.thirteenth_month_pay?.toLocaleString() || 0}</TableCell>
-                          <TableCell className="text-red-600/80 font-medium">₱{rec.sss?.toLocaleString() || 0}</TableCell>
-                          <TableCell className="text-red-600/80 font-medium">₱{rec.philhealth?.toLocaleString() || 0}</TableCell>
-                          <TableCell className="text-red-600/80 font-medium">₱{rec.pagibig?.toLocaleString() || 0}</TableCell>
-                          <TableCell className="text-red-600/80 font-medium">₱{rec.withholding_tax?.toLocaleString() || 0}</TableCell>
-                          <TableCell className="text-red-600/80 font-medium">₱{rec.loans?.toLocaleString() || 0}</TableCell>
-                          <TableCell className="text-foreground">₱{rec.absences?.toLocaleString() || 0}</TableCell>
-                          <TableCell className="text-foreground">₱{rec.tardiness?.toLocaleString() || 0}</TableCell>
-                          <TableCell className="text-foreground">₱{rec.cash_advance?.toLocaleString() || 0}</TableCell>
-                          <TableCell className="text-foreground font-semibold">₱{rec.total_deductions?.toLocaleString()}</TableCell>
-                          <TableCell className="text-foreground font-bold">₱{rec.net_after_deductions?.toLocaleString()}</TableCell>
-                          <TableCell className="text-foreground font-bold">
-                            ₱{rec.total_net?.toLocaleString() || 0}
+                          <TableCell className="px-2.5 py-2 text-[11px] text-muted-foreground capitalize whitespace-nowrap">
+                            {rec.pay_type?.replace(/-/g, " ") || "—"}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className={earnTd}>{money(rec.basic_salary)}</TableCell>
+                          <TableCell className={earnTd}>{money(rec.overtime_pay)}</TableCell>
+                          <TableCell className={earnTd}>{money(rec.holiday_pay)}</TableCell>
+                          <TableCell className={earnTd}>{money(rec.night_diff)}</TableCell>
+                          <TableCell className={earnTd}>{money(rec.rest_day_pay)}</TableCell>
+                          <TableCell className={earnTd}>{money(rec.allowances)}</TableCell>
+                          <TableCell className={earnTd}>{money(rec.unpaid_salary)}</TableCell>
+                          <TableCell className={earnTd}>{money(rec.reimbursement)}</TableCell>
+                          <TableCell className={earnTd}>{money(rec.thirteenth_month_pay)}</TableCell>
+                          <TableCell className={dedTd}>{money(rec.sss)}</TableCell>
+                          <TableCell className={dedTd}>{money(rec.philhealth)}</TableCell>
+                          <TableCell className={dedTd}>{money(rec.pagibig)}</TableCell>
+                          <TableCell className={dedTd}>{money(rec.withholding_tax)}</TableCell>
+                          <TableCell className={dedTd}>{money(rec.loans)}</TableCell>
+                          <TableCell className={dedTd}>{money(rec.absences)}</TableCell>
+                          <TableCell className={dedTd}>{money(rec.tardiness)}</TableCell>
+                          <TableCell className={dedTd}>{money(rec.cash_advance)}</TableCell>
+                          <TableCell className={cn(dedTd, "font-bold")}>{money(rec.total_deductions)}</TableCell>
+                          <TableCell className={netTd}>{money(rec.total_net ?? rec.net_after_deductions)}</TableCell>
+                          <TableCell className="px-2.5 py-2 align-middle">
                             <span className={cn(
-                              "px-2 py-1 rounded-full text-xs font-medium border",
+                              "px-2 py-0.5 rounded-full text-[10px] font-semibold border whitespace-nowrap",
                               statusVariants[rec.status] || "bg-muted text-muted-foreground border-border"
                             )}>
                               {rec.status}
@@ -2121,20 +2166,42 @@ export default function PayrollPage() {
                   </TableBody>
                 </Table>
               </div>
+              <div className="shrink-0 border-t border-border bg-muted/40 px-3 py-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
+                <span>
+                  Showing <span className="font-semibold text-foreground">{filteredPeriodRecords.length}</span> of{" "}
+                  <span className="font-semibold text-foreground">{selectedPeriodRecords.length}</span> employees
+                </span>
+                <span className="inline-flex items-center gap-3">
+                  <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-emerald-600" /> Earnings</span>
+                  <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-rose-600" /> Deductions</span>
+                  <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-primary" /> Net</span>
+                </span>
+              </div>
             </div>
           </div>
+              </>
+            )
+          })()}
         </DialogContent>
       </Dialog>
 
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="lg:w-[50vw] max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-semibold text-foreground">Edit Payroll Record</DialogTitle>
+        <DialogContent className="w-[calc(100%-1rem)] max-w-[calc(100%-1rem)] sm:max-w-2xl lg:max-w-3xl max-h-[90vh] overflow-hidden !flex !flex-col p-0 gap-0">
+          <DialogHeader className="px-4 sm:px-6 py-4 border-b border-border bg-muted/30 text-left shrink-0">
+            <DialogTitle className="text-lg sm:text-xl font-semibold text-foreground flex items-center gap-2">
+              <Receipt className="h-5 w-5 text-primary" />
+              Edit Payroll Record
+            </DialogTitle>
+            {editRecord && (
+              <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                Adjust earnings, deductions, and status for this pay period
+              </p>
+            )}
           </DialogHeader>
 
           {editRecord && (
             <form
-              className="space-y-6"
+              className="flex flex-col flex-1 min-h-0"
               onSubmit={async (e) => {
                 e.preventDefault()
                 const toastId = toast.loading("Updating payroll...")
@@ -2151,15 +2218,7 @@ export default function PayrollPage() {
                 const totalDeductions =
                   sss + philhealth + pagibig + withholding_tax + loans + absences + tardiness + cash_advance
 
-                const grossPay =
-                  (editRecord.basic_salary || 0) +
-                  (editRecord.overtime_pay || 0) +
-                  (editRecord.holiday_pay || 0) +
-                  (editRecord.night_diff || 0) +
-                  (editRecord.allowances || 0) +
-                  (editRecord.unpaid_salary || 0) +
-                  (editRecord.reimbursement || 0) +
-                  (editRecord.thirteenth_month_pay || 0)
+                const grossPay = recordGrossPay(editRecord)
                 const netPay = grossPay - totalDeductions
 
                 const table = activeOrganization === "pdn" ? "pdn_payroll_records" : "payroll_records"
@@ -2171,6 +2230,7 @@ export default function PayrollPage() {
                     allowances: editRecord.allowances || 0,
                     holiday_pay: editRecord.holiday_pay || 0,
                     night_diff: editRecord.night_diff || 0,
+                    rest_day_pay: editRecord.rest_day_pay || 0,
                     unpaid_salary: editRecord.unpaid_salary || 0,
                     reimbursement: editRecord.reimbursement || 0,
                     thirteenth_month_pay: editRecord.thirteenth_month_pay || 0,
@@ -2192,7 +2252,12 @@ export default function PayrollPage() {
                   .eq("id", editRecord.id)
 
                 if (error) {
-                  toast.error("Failed to update record", { id: toastId })
+                  toast.error(
+                    error.message?.includes("rest_day_pay")
+                      ? "Run payroll_add_rest_day_pay.sql in Supabase, then try again."
+                      : "Failed to update record",
+                    { id: toastId }
+                  )
                 } else {
                   toast.success("Payroll updated successfully", { id: toastId })
                   setEditDialogOpen(false)
@@ -2212,179 +2277,117 @@ export default function PayrollPage() {
                 }
               }}
             >
-              <div className="space-y-4">
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Employee</Label>
-                  <Input
-                    value={editRecord.employee_name || ""}
-                    disabled
-                    className="bg-muted/50 border-border"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-sm font-medium text-muted-foreground">Pay Type</Label>
-                    <Input
-                      value={editRecord.pay_type || ""}
-                      disabled
-                      className="bg-muted/50 border-border"
-                    />
+              <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-4 space-y-5">
+              {/* Employee meta */}
+              <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <User className="h-4 w-4 text-primary" />
                   </div>
-
                   <div>
-                    <Label className="text-sm font-medium text-muted-foreground">Period</Label>
-                    <Input
-                      value={editRecord.period_start && editRecord.period_end ?
-                        `${format(new Date(editRecord.period_start), "MMM d")} - ${format(new Date(editRecord.period_end), "MMM d, yyyy")}` : ""}
-                      disabled
-                      className="bg-muted/50 border-border"
-                    />
+                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">Employee</p>
+                    <p className="text-sm font-semibold text-foreground leading-tight">{editRecord.employee_name || "—"}</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="rounded-lg bg-muted/40 border border-border/60 px-3 py-2">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Pay type</p>
+                    <p className="text-sm font-medium capitalize text-foreground">{editRecord.pay_type?.replace(/-/g, " ") || "—"}</p>
+                  </div>
+                  <div className="rounded-lg bg-muted/40 border border-border/60 px-3 py-2">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Period</p>
+                    <p className="text-sm font-medium text-foreground">
+                      {editRecord.period_start && editRecord.period_end
+                        ? `${format(new Date(editRecord.period_start), "MMM d")} – ${format(new Date(editRecord.period_end), "MMM d, yyyy")}`
+                        : "—"}
+                    </p>
                   </div>
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-sm font-medium text-muted-foreground">Basic Salary</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="0.00"
-                      value={editRecord.basic_salary || ""}
-                      onChange={(e) =>
-                        setEditRecord((prev) =>
-                          prev ? { ...prev, basic_salary: parseFloat(e.target.value) || 0 } : prev
-                        )
-                      }
-                    />
+              {/* Earnings */}
+              <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/[0.04] p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-lg bg-emerald-500/15 flex items-center justify-center">
+                    <Wallet className="h-4 w-4 text-emerald-600" />
                   </div>
-
                   <div>
-                    <Label className="text-sm font-medium text-foreground">Overtime Pay</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="0.00"
-                      value={editRecord.overtime_pay || ""}
-                      onChange={(e) =>
-                        setEditRecord((prev) =>
-                          prev ? { ...prev, overtime_pay: parseFloat(e.target.value) || 0 } : prev
-                        )
-                      }
-                    />
+                    <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">Earnings</p>
+                    <p className="text-[11px] text-muted-foreground">Amounts that add to gross pay</p>
                   </div>
                 </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {([
+                    { key: "basic_salary", label: "Basic Salary", icon: Banknote },
+                    { key: "overtime_pay", label: "Overtime Pay", icon: Clock },
+                    { key: "allowances", label: "Allowances", icon: Wallet },
+                    { key: "holiday_pay", label: "Holiday Pay", icon: Sun },
+                    { key: "night_diff", label: "Night Differential", icon: Moon },
+                    { key: "rest_day_pay", label: "Rest Day Pay", icon: Umbrella },
+                    { key: "unpaid_salary", label: "Unpaid Salary", icon: FileText },
+                    { key: "reimbursement", label: "Reimbursement", icon: Receipt },
+                    { key: "thirteenth_month_pay", label: "13th Month Pay", icon: BadgePercent },
+                  ] as const).map(({ key, label, icon: Icon }) => (
+                    <div key={key} className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                        <Icon className="h-3.5 w-3.5 text-emerald-600/80" />
+                        {label}
+                      </Label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">₱</span>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          placeholder="0.00"
+                          className="pl-7 bg-background/80 border-emerald-500/20 focus-visible:ring-emerald-500/30"
+                          value={(editRecord as any)[key] || ""}
+                          onChange={(e) =>
+                            setEditRecord((prev) =>
+                              prev ? { ...prev, [key]: parseFloat(e.target.value) || 0 } : prev
+                            )
+                          }
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-sm font-medium text-muted-foreground">Allowances</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="0.00"
-                      value={editRecord.allowances || ""}
-                      onChange={(e) =>
-                        setEditRecord((prev) =>
-                          prev ? { ...prev, allowances: parseFloat(e.target.value) || 0 } : prev
-                        )
-                      }
-                    />
+              {/* Attendance & other deductions */}
+              <div className="rounded-xl border border-rose-500/25 bg-rose-500/[0.04] p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-lg bg-rose-500/15 flex items-center justify-center">
+                    <AlertCircle className="h-4 w-4 text-rose-600" />
                   </div>
                   <div>
-                    <Label className="text-sm font-medium text-muted-foreground">Holiday Pay</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="0.00"
-                      value={editRecord.holiday_pay || ""}
-                      onChange={(e) =>
-                        setEditRecord((prev) =>
-                          prev ? { ...prev, holiday_pay: parseFloat(e.target.value) || 0 } : prev
-                        )
-                      }
-                    />
+                    <p className="text-sm font-semibold text-rose-800 dark:text-rose-300">Attendance & Other Deductions</p>
+                    <p className="text-[11px] text-muted-foreground">Amounts subtracted from take-home pay</p>
                   </div>
-                  <div>
-                    <Label className="text-sm font-medium text-muted-foreground">Night differential</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="0.00"
-                      value={editRecord.night_diff || ""}
-                      onChange={(e) =>
-                        setEditRecord((prev) =>
-                          prev ? { ...prev, night_diff: parseFloat(e.target.value) || 0 } : prev
-                        )
-                      }
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium text-muted-foreground">Unpaid salary</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="0.00"
-                      value={editRecord.unpaid_salary || ""}
-                      onChange={(e) =>
-                        setEditRecord((prev) =>
-                          prev ? { ...prev, unpaid_salary: parseFloat(e.target.value) || 0 } : prev
-                        )
-                      }
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium text-muted-foreground">Reimbursement</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="0.00"
-                      value={editRecord.reimbursement || ""}
-                      onChange={(e) =>
-                        setEditRecord((prev) =>
-                          prev ? { ...prev, reimbursement: parseFloat(e.target.value) || 0 } : prev
-                        )
-                      }
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium text-muted-foreground">13th Month Pay</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="0.00"
-                      value={editRecord.thirteenth_month_pay || ""}
-                      onChange={(e) =>
-                        setEditRecord((prev) =>
-                          prev ? { ...prev, thirteenth_month_pay: parseFloat(e.target.value) || 0 } : prev
-                        )
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-muted-foreground">Absence Deductions</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="0.00"
-                      value={editRecord.absences || ""}
-                      onChange={(e) =>
-                        setEditRecord((prev) =>
-                          prev ? { ...prev, absences: parseFloat(e.target.value) || 0 } : prev
-                        )
-                      }
-                    />
-                    <Label className="text-xs font-medium text-muted-foreground">Absence Date(s)</Label>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                      <CalendarIcon className="h-3.5 w-3.5 text-rose-600/80" />
+                      Absence Deductions
+                    </Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">₱</span>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="0.00"
+                        className="pl-7 bg-background/80 border-rose-500/20 focus-visible:ring-rose-500/30"
+                        value={editRecord.absences || ""}
+                        onChange={(e) =>
+                          setEditRecord((prev) =>
+                            prev ? { ...prev, absences: parseFloat(e.target.value) || 0 } : prev
+                          )
+                        }
+                      />
+                    </div>
+                    <Label className="text-[11px] font-medium text-muted-foreground">Absence date(s)</Label>
                     <AbsenceDatesPicker
                       dates={editRecord.absence_dates || []}
                       onChange={(dates) =>
@@ -2392,165 +2395,155 @@ export default function PayrollPage() {
                       }
                     />
                   </div>
-                  <div>
-                    <Label className="text-sm font-medium text-muted-foreground">Tardiness (Late)</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="0.00"
-                      value={editRecord.tardiness || ""}
-                      onChange={(e) =>
-                        setEditRecord((prev) =>
-                          prev ? { ...prev, tardiness: parseFloat(e.target.value) || 0 } : prev
-                        )
-                      }
-                    />
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                      <Clock className="h-3.5 w-3.5 text-rose-600/80" />
+                      Tardiness (Late)
+                    </Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">₱</span>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="0.00"
+                        className="pl-7 bg-background/80 border-rose-500/20 focus-visible:ring-rose-500/30"
+                        value={editRecord.tardiness || ""}
+                        onChange={(e) =>
+                          setEditRecord((prev) =>
+                            prev ? { ...prev, tardiness: parseFloat(e.target.value) || 0 } : prev
+                          )
+                        }
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <Label className="text-sm font-medium text-muted-foreground">Partial Salary Payment</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="0.00"
-                      value={editRecord.cash_advance || ""}
-                      onChange={(e) =>
-                        setEditRecord((prev) =>
-                          prev ? { ...prev, cash_advance: parseFloat(e.target.value) || 0 } : prev
-                        )
-                      }
-                    />
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                      <HandCoins className="h-3.5 w-3.5 text-amber-600/90" />
+                      Partial Salary Payment
+                    </Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">₱</span>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="0.00"
+                        className="pl-7 bg-background/80 border-rose-500/20 focus-visible:ring-rose-500/30"
+                        value={editRecord.cash_advance || ""}
+                        onChange={(e) =>
+                          setEditRecord((prev) =>
+                            prev ? { ...prev, cash_advance: parseFloat(e.target.value) || 0 } : prev
+                          )
+                        }
+                      />
+                    </div>
                   </div>
-
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-sm font-medium text-muted-foreground">SSS Deduction</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="0.00"
-                      value={editRecord.sss || ""}
-                      onChange={(e) =>
-                        setEditRecord((prev) =>
-                          prev ? { ...prev, sss: parseFloat(e.target.value) || 0 } : prev
-                        )
-                      }
-                    />
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                      <Building2 className="h-3.5 w-3.5 text-rose-600/80" />
+                      Loans & Other
+                    </Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">₱</span>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="0.00"
+                        className="pl-7 bg-background/80 border-rose-500/20 focus-visible:ring-rose-500/30"
+                        value={editRecord.loans || ""}
+                        onChange={(e) =>
+                          setEditRecord((prev) =>
+                            prev ? { ...prev, loans: parseFloat(e.target.value) || 0 } : prev
+                          )
+                        }
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <Label className="text-sm font-medium text-muted-foreground">PhilHealth Deduction</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="0.00"
-                      value={editRecord.philhealth || ""}
-                      onChange={(e) =>
-                        setEditRecord((prev) =>
-                          prev ? { ...prev, philhealth: parseFloat(e.target.value) || 0 } : prev
-                        )
-                      }
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-sm font-medium text-muted-foreground">Pag-IBIG Deduction</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="0.00"
-                      value={editRecord.pagibig || ""}
-                      onChange={(e) =>
-                        setEditRecord((prev) =>
-                          prev ? { ...prev, pagibig: parseFloat(e.target.value) || 0 } : prev
-                        )
-                      }
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium text-muted-foreground">Withholding Tax</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="0.00"
-                      value={editRecord.withholding_tax || ""}
-                      onChange={(e) =>
-                        setEditRecord((prev) =>
-                          prev ? { ...prev, withholding_tax: parseFloat(e.target.value) || 0 } : prev
-                        )
-                      }
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Loans</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="0.00"
-                    value={editRecord.loans || ""}
-                    onChange={(e) => {
-                      const val = parseFloat(e.target.value) || 0
-                      setEditRecord((prev) =>
-                        prev ? { ...prev, loans: val } : prev
-                      )
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <Label className="text-sm font-medium text-foreground">Payment Status</Label>
-                  <Select
-                    value={editRecord.status}
-                    onValueChange={(val) =>
-                      setEditRecord((prev) => prev && { ...prev, status: val })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Pending Payment">Pending Payment</SelectItem>
-                      <SelectItem value="Paid">Paid</SelectItem>
-                      <SelectItem value="Cancelled">Cancelled</SelectItem>
-                    </SelectContent>
-                  </Select>
                 </div>
               </div>
 
-              <div className="space-y-3 p-4 bg-muted/50 rounded-lg border border-border">
-                <h3 className="text-sm font-medium text-foreground">Calculated Values</h3>
-
-                <div className="grid grid-cols-2 gap-4 text-sm">
+              {/* Statutory */}
+              <div className="rounded-xl border border-sky-500/25 bg-sky-500/[0.04] p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-lg bg-sky-500/15 flex items-center justify-center">
+                    <Shield className="h-4 w-4 text-sky-600" />
+                  </div>
                   <div>
-                    <span className="text-muted-foreground">Gross Pay (incl. unpaid & reimbursement):</span>
-                    <div className="font-medium text-foreground">
-                      ₱{(
-                        (editRecord.basic_salary || 0) +
-                        (editRecord.overtime_pay || 0) +
-                        (editRecord.holiday_pay || 0) +
-                        (editRecord.night_diff || 0) +
-                        (editRecord.allowances || 0) +
-                        (editRecord.unpaid_salary || 0) +
-                        (editRecord.reimbursement || 0) +
-                        (editRecord.thirteenth_month_pay || 0)
-                      ).toLocaleString()}
+                    <p className="text-sm font-semibold text-sky-800 dark:text-sky-300">Statutory Contributions</p>
+                    <p className="text-[11px] text-muted-foreground">Government-mandated deductions</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {([
+                    { key: "sss", label: "SSS" },
+                    { key: "philhealth", label: "PhilHealth" },
+                    { key: "pagibig", label: "Pag-IBIG" },
+                    { key: "withholding_tax", label: "Withholding Tax" },
+                  ] as const).map(({ key, label }) => (
+                    <div key={key} className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-foreground">{label}</Label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">₱</span>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          placeholder="0.00"
+                          className="pl-7 bg-background/80 border-sky-500/20 focus-visible:ring-sky-500/30"
+                          value={(editRecord as any)[key] || ""}
+                          onChange={(e) =>
+                            setEditRecord((prev) =>
+                              prev ? { ...prev, [key]: parseFloat(e.target.value) || 0 } : prev
+                            )
+                          }
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Status */}
+              <div className="rounded-xl border border-border bg-card p-4 space-y-2">
+                <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
+                  Payment Status
+                </Label>
+                <Select
+                  value={editRecord.status}
+                  onValueChange={(val) =>
+                    setEditRecord((prev) => prev && { ...prev, status: val })
+                  }
+                >
+                  <SelectTrigger className="bg-background">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Pending Payment">Pending Payment</SelectItem>
+                    <SelectItem value="Paid">Paid</SelectItem>
+                    <SelectItem value="Cancelled">Cancelled</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Totals */}
+              <div className="rounded-xl border-2 border-primary/20 bg-primary/5 p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Calculator className="h-4 w-4 text-primary" />
+                  <h3 className="text-sm font-semibold text-foreground">Live Totals</h3>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                  <div className="rounded-lg bg-background/70 border border-border px-3 py-2.5">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Gross Pay</span>
+                    <div className="font-semibold text-emerald-700 dark:text-emerald-400 tabular-nums">
+                      ₱{recordGrossPay(editRecord).toLocaleString()}
                     </div>
                   </div>
-
-                  <div>
-                    <span className="text-muted-foreground">Total Deductions:</span>
-                    <div className="font-medium text-foreground text-red-600">
+                  <div className="rounded-lg bg-background/70 border border-border px-3 py-2.5">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Total Deductions</span>
+                    <div className="font-semibold text-rose-600 tabular-nums">
                       ₱{(
                         (editRecord.sss || 0) +
                         (editRecord.philhealth || 0) +
@@ -2564,38 +2557,26 @@ export default function PayrollPage() {
                     </div>
                   </div>
                 </div>
-
-                <div className="pt-2 border-t border-border">
-                  <div className="flex justify-between items-center">
-                    <span className="text-base font-semibold text-foreground">Final Net Pay:</span>
-                    <div className="text-xl font-bold text-primary">
-                      ₱{(
-                        (editRecord.basic_salary || 0) +
-                        (editRecord.overtime_pay || 0) +
-                        (editRecord.holiday_pay || 0) +
-                        (editRecord.night_diff || 0) +
-                        (editRecord.allowances || 0) +
-                        (editRecord.unpaid_salary || 0) +
-                        (editRecord.reimbursement || 0) +
-                        (editRecord.thirteenth_month_pay || 0) -
-                        ((editRecord.sss || 0) +
-                          (editRecord.philhealth || 0) +
-                          (editRecord.pagibig || 0) +
-                          (editRecord.withholding_tax || 0) +
-                          (editRecord.loans || 0) +
-                          (editRecord.absences || 0) +
-                          (editRecord.tardiness || 0) +
-                          (editRecord.cash_advance || 0))
-                      ).toLocaleString()}
-                    </div>
+                <div className="pt-2 border-t border-primary/15 flex justify-between items-center gap-3">
+                  <span className="text-sm font-semibold text-foreground">Final Net Pay</span>
+                  <div className="text-xl font-bold text-primary tabular-nums">
+                    ₱{(
+                      recordGrossPay(editRecord) -
+                      ((editRecord.sss || 0) +
+                        (editRecord.philhealth || 0) +
+                        (editRecord.pagibig || 0) +
+                        (editRecord.withholding_tax || 0) +
+                        (editRecord.loans || 0) +
+                        (editRecord.absences || 0) +
+                        (editRecord.tardiness || 0) +
+                        (editRecord.cash_advance || 0))
+                    ).toLocaleString()}
                   </div>
                 </div>
               </div>
+              </div>
 
-              <div className="flex gap-3">
-                <Button type="submit" className="flex-1">
-                  Save Changes
-                </Button>
+              <div className="shrink-0 border-t border-border bg-background px-4 sm:px-6 py-3 flex flex-col-reverse sm:flex-row gap-2 sm:gap-3">
                 <Button
                   type="button"
                   variant="outline"
@@ -2603,6 +2584,9 @@ export default function PayrollPage() {
                   onClick={() => setEditDialogOpen(false)}
                 >
                   Cancel
+                </Button>
+                <Button type="submit" className="flex-1 font-semibold shadow-sm">
+                  Save Changes
                 </Button>
               </div>
             </form>

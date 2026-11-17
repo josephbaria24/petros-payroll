@@ -233,6 +233,7 @@ function buildPayrollViewModel(rec: any, additionalDeductions = 0) {
     (rec.overtime_pay || 0) +
     (rec.holiday_pay || 0) +
     (rec.night_diff || 0) +
+    (rec.rest_day_pay || 0) +
     (rec.allowances || 0) +
     (rec.bonuses || 0) +
     (rec.commission || 0) +
@@ -393,7 +394,7 @@ export default function MyPayrollPage() {
           .from("pdn_payroll_records")
           .select(`
             id, period_start, period_end, status, updated_at, created_at, net_pay, gross_pay,
-            basic_salary, overtime_pay, holiday_pay, night_diff, allowances,
+            basic_salary, overtime_pay, holiday_pay, night_diff, rest_day_pay, allowances,
             unpaid_salary, reimbursement, thirteenth_month_pay,
             bonuses, commission, sss, philhealth, pagibig, withholding_tax,
             absences, absence_dates, tardiness, loans, uniform, cash_advance, total_deductions
@@ -470,6 +471,7 @@ export default function MyPayrollPage() {
           overtime_pay,
           holiday_pay,
           night_diff,
+          rest_day_pay,
           unpaid_salary,
           reimbursement,
           thirteenth_month_pay,
@@ -808,6 +810,14 @@ export default function MyPayrollPage() {
                                       <span style={{ fontWeight: '500', color: '#000000' }}>{formatCurrency(selectedRecord.holiday_pay)}</span>
                                     </div>
                                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                      <span style={{ color: '#000000' }}>Night Differential:</span>
+                                      <span style={{ fontWeight: '500', color: '#000000' }}>{formatCurrency(selectedRecord.night_diff)}</span>
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                      <span style={{ color: '#000000' }}>Rest Day Pay:</span>
+                                      <span style={{ fontWeight: '500', color: '#000000' }}>{formatCurrency(selectedRecord.rest_day_pay)}</span>
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                       <span style={{ color: '#000000' }}>Allowances:</span>
                                       <span style={{ fontWeight: '500', color: '#000000' }}>{formatCurrency(selectedRecord.allowances)}</span>
                                     </div>
@@ -1039,6 +1049,14 @@ Company: PETROSPHERE INCORPORATED.`}
                                           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                             <span style={{ color: '#000000' }}>Holiday Pay:</span>
                                             <span style={{ fontWeight: '500', color: '#000000' }}>{formatCurrency(selectedRecord.holiday_pay)}</span>
+                                          </div>
+                                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                            <span style={{ color: '#000000' }}>Night Differential:</span>
+                                            <span style={{ fontWeight: '500', color: '#000000' }}>{formatCurrency(selectedRecord.night_diff)}</span>
+                                          </div>
+                                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                            <span style={{ color: '#000000' }}>Rest Day Pay:</span>
+                                            <span style={{ fontWeight: '500', color: '#000000' }}>{formatCurrency(selectedRecord.rest_day_pay)}</span>
                                           </div>
                                           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                             <span style={{ color: '#000000' }}>Allowances:</span>
